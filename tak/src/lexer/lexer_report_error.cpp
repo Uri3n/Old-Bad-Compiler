@@ -45,10 +45,10 @@ lexer::_raise_error_impl(const std::string& message, const size_t file_position,
     whitespace.resize(offset);
     std::fill(whitespace.begin(), whitespace.end(), ' ');
 
-    std::cout << "FATAL, error on line " << line << ":\n";
-    std::cout << full_line << '\n';
-    std::cout << whitespace + '^' << '\n';
-    std::cout << whitespace + message << '\n';
+    print("ERROR compiling source file \"{}\" on line {}:", source_file_name, line);
+    print("{}", full_line);
+    print("{}^", whitespace);
+    print("{}{}", whitespace, message);
 }
 
 

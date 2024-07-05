@@ -52,7 +52,7 @@ parser::create_symbol(
         const size_t       src_index,
         const uint32_t     line_number,
         const sym_t        sym_type,
-        const uint16_t     sym_flags
+        const uint16_t     sym_flags,
     ) {
 
 
@@ -77,13 +77,14 @@ parser::create_symbol(
     }
 
 
-    auto& sym         = sym_table[curr_sym_index];
-    sym->flags        = sym_flags;
-    sym->sym_type     = sym_type;
-    sym->line_number  = line_number;
-    sym->src_pos      = src_index;
-    sym->symbol_index = curr_sym_index; // kind of redundant, no?
-    sym->name         = name;
+    auto& sym          = sym_table[curr_sym_index];
+    sym->flags         = sym_flags;
+    sym->sym_type      = sym_type;
+    sym->line_number   = line_number;
+    sym->src_pos       = src_index;
+    sym->symbol_index  = curr_sym_index; // kind of redundant, no?
+    sym->name          = name;
+
 
     return std::make_pair(curr_sym_index, sym.get());
 }

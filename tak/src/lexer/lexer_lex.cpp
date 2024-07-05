@@ -40,7 +40,7 @@ lexer::advance(const uint32_t amnt) {
         {'!', lexer_token_exclamation},
         {'~', lexer_token_tilde},
         {'^', lexer_token_uparrow},
-        {'\'', lexer_token_quote},
+        {'\'', lexer_token_singlequote},
         {'"', lexer_token_quote},
         {'[', lexer_token_lsquarebracket},
         {']', lexer_token_rsquarebracket},

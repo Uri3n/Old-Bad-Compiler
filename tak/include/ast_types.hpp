@@ -29,8 +29,8 @@ enum var_t : uint16_t {
     I32,
     U64,
     I64,
-    STRING,
-    FLOAT,
+    F32,
+    F64,
     BOOLEAN,
 };
 
@@ -46,12 +46,15 @@ enum ast_node_t : uint8_t {
     NODE_FOR,
     NODE_WHILE,
     NODE_CALL,
+    NODE_BREAK,
+    NODE_CONTINUE,
     NODE_STRING_LITERAL,
+    NODE_CHARACTER_LITERAL,
     NODE_INTEGER_LITERAL,
     NODE_FLOAT_LITERAL,
     NODE_BOOLEAN_LITERAL,
     NODE_ARRAY_LITERAL,
-    BREAK
+    NODE_STRUCT_DEFINITION,
 };
 
 enum sym_flags : uint16_t {
@@ -59,17 +62,18 @@ enum sym_flags : uint16_t {
     SYM_VAR_IS_CONSTANT = 0b0000000000000001,
     SYM_PROC_IS_FOREIGN = 0b0000000000000010,
     SYM_IS_POINTER      = 0b0000000000000100,
-    SYM_IS_GLOBAL       = 0b0000000000001000
+    SYM_IS_GLOBAL       = 0b0000000000001000,
+    SYM_VAR_IS_ARRAY    = 0b0000000000010000
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct symbol {
-    sym_t    sym_type     = SYM_NONE;
-    uint32_t symbol_index = INVALID_SYMBOL_INDEX;
-    uint16_t flags        = SYM_FLAGS_NONE;
-    size_t   line_number  = 0;
-    size_t   src_pos      = 0;
+    sym_t    sym_type      = SYM_NONE;
+    uint32_t symbol_index  = INVALID_SYMBOL_INDEX;
+    uint16_t flags         = SYM_FLAGS_NONE;
+    size_t   line_number   = 0;
+    size_t   src_pos       = 0;
 
     std::string name;
 
@@ -78,7 +82,9 @@ struct symbol {
 };
 
 struct variable final : symbol {
-    var_t variable_type = VAR_NONE;
+    var_t    variable_type = VAR_NONE;
+    uint16_t pointer_depth = 0;
+    uint32_t array_length  = 0;
 
     ~variable() override = default;
     variable()           = default;
@@ -134,8 +140,15 @@ struct ast_assign final : ast_node {
 };
 
 struct ast_decl final : ast_node {
-    ast_identifier*              identifier = nullptr;
+
+    /* Some context:
+      The children member here has a different meaning depending on the declaration.
+      If the declaration is a variable, it's every value being assigned to the variable,
+      which can be multiple or only one depending on whether it's an array type or not.
+      If the declaration is a procedure (non-foreign), children represents the procedure body.
+    */
     std::vector<ast_identifier*> children;
+    ast_identifier*              identifier = nullptr;
 
     ~ast_decl() override;
     ast_decl() = default;

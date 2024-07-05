@@ -35,12 +35,14 @@ parse_decl(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
 
-    auto     name     = std::string(lxr.current().value.begin(), lxr.current().value.end());
-    size_t   src_pos  = lxr.current().src_pos;
-    uint32_t line     = lxr.current().line;
-    uint16_t flags    = SYM_FLAGS_NONE;
-    sym_t    type     = SYM_VARIABLE;
-    var_t    var_type = VAR_NONE;
+    auto     name         = std::string(lxr.current().value.begin(), lxr.current().value.end());
+    size_t   src_pos      = lxr.current().src_pos;
+    uint32_t line         = lxr.current().line;
+    uint16_t flags        = SYM_FLAGS_NONE;
+    uint16_t ptr_depth    = 0;
+    uint32_t array_length = 0;
+    sym_t    type         = SYM_VARIABLE;
+    var_t    var_type     = VAR_NONE;
 
 
     lxr.advance(1);
@@ -54,42 +56,90 @@ parse_decl(parser& parser, lexer& lxr) {
     }
 
 
-    switch(lxr.current().type) {
-        case TOKEN_KW_PROC:
-            type = SYM_PROCEDURE;
-            break;
-
-        case TOKEN_KW_I8:
-            var_type = I8;
-            break;
-
-        case TOKEN_KW_U8:
-            var_type = U8;
-            break;
-
-        case TOKEN_KW_I16:
-            var_type = I16;
-            break;
-
-        case TOKEN_KW_U16:
-            var_type = U16;
-            break;
-
-        case TOKEN_KW_I32:
-            var_type = I16;
-            break;
-
-        case TOKEN_KW_U32:
-            var_type = U32;
-            break;
-
-        case TOKEN_KW_I64:
-
-        case TOKEN_KW_U64:
+    lxr.advance(1);
+    switch(lxr.current().type) { // TODO: add a check for a struct / user defined type.
+        case TOKEN_KW_PROC: type = SYM_PROCEDURE; break;
+        case TOKEN_KW_I8:   var_type = I8;        break;
+        case TOKEN_KW_U8:   var_type = U8;        break;
+        case TOKEN_KW_I16:  var_type = I16;       break;
+        case TOKEN_KW_U16:  var_type = U16;       break;
+        case TOKEN_KW_I32:  var_type = I32;       break;
+        case TOKEN_KW_U32:  var_type = U32;       break;
+        case TOKEN_KW_I64:  var_type = I64;       break;
+        case TOKEN_KW_U64:  var_type = U64;       break;
+        case TOKEN_KW_F32:  var_type = F32;       break;
+        case TOKEN_KW_F64:  var_type = F64;       break;
+        case TOKEN_KW_BOOL: var_type = BOOLEAN;   break;
 
         default:
-            lxr.raise_error("Expected a type identifier.");
+            lxr.raise_error("Illegal token: expected a type identifier.");
+            return nullptr;
     }
+
+
+    //
+    // Check for pointer type.
+    //
+
+    lxr.advance(1);
+    if(lxr.current() == BITWISE_XOR_OR_PTR) {
+        if(type == SYM_PROCEDURE) {
+            lxr.raise_error("Illegal token: procedure cannot be a pointer type.");
+            return nullptr;
+        }
+
+        flags |= SYM_IS_POINTER;
+        while(lxr.current() == BITWISE_XOR_OR_PTR) {
+            ++ptr_depth;
+            lxr.advance(1);
+        }
+    }
+
+
+    //
+    // Check for array type.
+    //
+
+    if(lxr.current() == LSQUARE_BRACKET) {
+        if(type == SYM_PROCEDURE) {
+            lxr.raise_error("Illegal token: procedure cannot be an array type.");
+            return nullptr;
+        }
+
+        flags |= SYM_VAR_IS_ARRAY;
+        lxr.advance(1);
+
+        if(lxr.current() == INTEGER_LITERAL) {
+
+            auto istr = std::string(lxr.current().value.begin(), lxr.current().value.end());
+
+            try {
+                array_length = std::stoul(istr);
+            } catch(const std::out_of_range& e) {
+                lxr.raise_error("Array size is too large.");
+            } catch(...) {
+                lxr.raise_error("Array size must be a valid integer literal.");
+                return nullptr;
+            }
+
+            lxr.advance(1);
+        }
+
+        if(lxr.current() != RSQUARE_BRACKET) {
+            lxr.raise_error("Expected closing bracket here.");
+            return nullptr;
+        }
+
+        lxr.advance(1);
+    }
+
+
+    //
+    // Check if the symbol already exists in the current scope.
+    //
+
+
+
 
     return nullptr;
 }
@@ -122,7 +172,7 @@ parse_identifier(parser& parser, lexer& lxr) {
         case LPAREN:                return parse_call(parser, lxr);
 
         default:
-            lxr.raise_error("Unexpected token following identifier.");
+            lxr.raise_error("Illegal token following identifier.");
             return nullptr;
     }
 }

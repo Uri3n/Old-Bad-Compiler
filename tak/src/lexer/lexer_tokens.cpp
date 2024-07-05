@@ -8,7 +8,7 @@
 void
 lexer_token_skip(lexer& lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -22,7 +22,7 @@ lexer_token_skip(lexer& lxr) {
 void
 lexer_token_newline(lexer& lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -37,7 +37,7 @@ lexer_token_newline(lexer& lxr) {
 void
 lexer_token_semicolon(lexer& lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -51,7 +51,7 @@ lexer_token_semicolon(lexer& lxr) {
 void
 lexer_token_lparen(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -65,7 +65,7 @@ lexer_token_lparen(lexer &lxr) {
 void
 lexer_token_rparen(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -79,7 +79,7 @@ lexer_token_rparen(lexer &lxr) {
 void
 lexer_token_lbrace(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -93,7 +93,7 @@ lexer_token_lbrace(lexer &lxr) {
 void
 lexer_token_rbrace(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -107,7 +107,7 @@ lexer_token_rbrace(lexer &lxr) {
 void
 lexer_token_comma(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -121,7 +121,7 @@ lexer_token_comma(lexer &lxr) {
 void
 lexer_token_hyphen(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -151,7 +151,7 @@ lexer_token_hyphen(lexer &lxr) {
 void
 lexer_token_plus(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -172,7 +172,7 @@ lexer_token_plus(lexer &lxr) {
 void
 lexer_token_asterisk(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -193,7 +193,7 @@ lexer_token_asterisk(lexer &lxr) {
 void
 lexer_token_fwdslash(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -253,7 +253,7 @@ lexer_token_fwdslash(lexer &lxr) {
 void
 lexer_token_percent(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -274,7 +274,7 @@ lexer_token_percent(lexer &lxr) {
 void
 lexer_token_equals(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -295,7 +295,7 @@ lexer_token_equals(lexer &lxr) {
 void
 lexer_token_lessthan(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -325,7 +325,7 @@ lexer_token_lessthan(lexer &lxr) {
 void
 lexer_token_greaterthan(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -355,7 +355,7 @@ lexer_token_greaterthan(lexer &lxr) {
 void
 lexer_token_ampersand(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -385,7 +385,7 @@ lexer_token_ampersand(lexer &lxr) {
 void
 lexer_token_verticalline(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -415,7 +415,7 @@ lexer_token_verticalline(lexer &lxr) {
 void
 lexer_token_exclamation(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -435,7 +435,7 @@ lexer_token_exclamation(lexer &lxr) {
 void
 lexer_token_tilde(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -449,7 +449,7 @@ lexer_token_tilde(lexer &lxr) {
 void
 lexer_token_uparrow(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -470,7 +470,7 @@ lexer_token_uparrow(lexer &lxr) {
 void
 lexer_token_quote(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -508,9 +508,41 @@ lexer_token_quote(lexer &lxr) {
 
 
 void
+lexer_token_singlequote(lexer &lxr) {
+
+    auto &[src, index, curr_line, _current, _] = lxr;
+    const size_t start = index;
+
+    lxr.advance_char(1);
+
+    if(lxr.current_char() == '\\') { // check for escaped single-quote
+        lxr.advance_char(2);
+    } else {
+        lxr.advance_char(1);
+    }
+
+
+    switch(lxr.current_char()) {
+        case '\0':
+            _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+            break;
+
+        case '\'':
+            lxr.advance_char(1);
+            _current = token{CHARACTER_LITERAL, LITERAL, start, {&src[start], index - start}};
+            break;
+
+        default:
+            _current = token{ILLEGAL, UNSPECIFIC, start, {&src[start], index - start}};
+            break;
+    }
+}
+
+
+void
 lexer_token_lsquarebracket(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -524,7 +556,7 @@ lexer_token_lsquarebracket(lexer &lxr) {
 void
 lexer_token_rsquarebracket(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -538,7 +570,7 @@ lexer_token_rsquarebracket(lexer &lxr) {
 void
 lexer_token_questionmark(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -552,7 +584,7 @@ lexer_token_questionmark(lexer &lxr) {
 void
 lexer_token_colon(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -573,7 +605,7 @@ lexer_token_colon(lexer &lxr) {
 void
 lexer_token_dot(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -587,7 +619,7 @@ lexer_token_dot(lexer &lxr) {
 void
 lexer_token_pound(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
@@ -600,7 +632,7 @@ lexer_token_pound(lexer &lxr) {
 
 void lexer_token_at(lexer &lxr) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};

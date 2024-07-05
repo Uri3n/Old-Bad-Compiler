@@ -1,6 +1,3 @@
 
-main :: proc() -> i32 {
-  myvar: bool = true;
-  second: bool = false;
-  return 0;
-}
+myvar: u32 = 300;
+secondvar: u32^[];

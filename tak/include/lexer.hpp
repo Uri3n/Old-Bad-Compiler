@@ -20,9 +20,11 @@ std::optional<std::vector<char>> read_file(const std::string& file_name);
 struct lexer {
 
     std::vector<char>   src;
+
     size_t              src_index   = 0;
     uint32_t            curr_line   = 1;
     token               _current;
+    std::string         source_file_name;
 
     void   advance(uint32_t amnt);
     token& current();
@@ -69,6 +71,7 @@ void lexer_token_exclamation(lexer& lxr);
 void lexer_token_tilde(lexer& lxr);
 void lexer_token_uparrow(lexer& lxr);
 void lexer_token_quote(lexer& lxr);
+void lexer_token_singlequote(lexer& lxr);
 void lexer_token_lsquarebracket(lexer& lxr);
 void lexer_token_rsquarebracket(lexer& lxr);
 void lexer_token_questionmark(lexer& lxr);

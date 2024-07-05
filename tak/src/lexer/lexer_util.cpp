@@ -69,9 +69,12 @@ lexer_token_type_to_string(token_t type) {
         case KW_ELSE:                return R"(Keyword "else")";
         case KW_ELIF:                return R"(Keyword "elif")";
         case TOKEN_KW_PROC:          return R"(Keyword "proc")";
+        case KW_STRUCT:              return R"(Keyword "struct")";
+        case KW_SWITCH:              return R"(Keyword "switch")";
+        case KW_CASE:                return R"(Keyword "case")";
         case ARROW:                  return "Arrow";
-        case TOKEN_KW_STR:           return "String Type-Identifier";
-        case TOKEN_KW_FLT:           return "Float Type-Identifier";
+        case TOKEN_KW_F64:           return "64-bit Float Type-Identifier";
+        case TOKEN_KW_F32:           return "32-bit Float Type-Identifier";
         case TOKEN_KW_U8:            return "Unsigned 8-Bit Integer Type-Identifier";
         case TOKEN_KW_I8:            return "Signed 8-Bit Integer Type-Identifier";
         case TOKEN_KW_U16:           return "Unsigned 16-Bit Integer Type-Identifier";
@@ -81,6 +84,7 @@ lexer_token_type_to_string(token_t type) {
         case TOKEN_KW_U64:           return "Unsigned 64-Bit Integer Type-Identifier";
         case TOKEN_KW_I64:           return "Signed 64-Bit Integer Type-Identifier";
         case BOOLEAN_LITERAL:        return "Boolean Literal";
+        case CHARACTER_LITERAL:      return "Character Literal";
         case TOKEN_KW_BOOL:          return "Boolean Type Identifier";
         default:                     return "Unknown";
     }
@@ -197,6 +201,7 @@ bool
 lexer::init(const std::string& file_name) {
 
     std::ifstream input(file_name, std::ios::binary);
+    source_file_name = file_name;
 
     auto _ = defer([&] {
        if(input.is_open()) {

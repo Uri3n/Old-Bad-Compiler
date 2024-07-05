@@ -34,11 +34,13 @@ struct parser {
     std::unordered_map<uint32_t, std::unique_ptr<symbol>>  sym_table;
     std::vector<std::unordered_map<std::string, uint32_t>> scope_stack;
 
+
     void     push_scope();
     void     pop_scope();
     bool     scoped_symbol_exists(const std::string& name);
     bool     scoped_symbol_exists_at_current_scope(const std::string& name);
     symbol*  lookup_unique_symbol(uint32_t symbol_index);
+
 
     std::optional<std::pair<uint32_t, symbol*>> create_symbol(
         const std::string&  name,

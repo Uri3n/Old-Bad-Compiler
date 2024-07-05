@@ -37,7 +37,7 @@ is_token_valid_numeric_literal(const std::string_view& token_value) {
 token
 token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = lxr.src_index;
 
 
@@ -82,34 +82,37 @@ token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals
 void
 lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& illegals) {
 
-    auto &[src, index, curr_line, _current] = lxr;
+    auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = index;
 
 
     static std::unordered_map<std::string, token_t> keywords =
     {
-        {"ret", KW_RET},
-        {"brk", KW_BRK},
-        {"for", KW_FOR},
-        {"while", KW_WHILE},
-        {"do", KW_DO},
-        {"if", KW_IF},
-        {"elif", KW_ELIF},
-        {"cont", KW_CONT},
+        {"ret",     KW_RET},
+        {"brk",     KW_BRK},
+        {"for",     KW_FOR},
+        {"while",   KW_WHILE},
+        {"do",      KW_DO},
+        {"if",      KW_IF},
+        {"elif",    KW_ELIF},
+        {"cont",    KW_CONT},
+        {"struct",  KW_STRUCT},
+        {"switch",  KW_SWITCH},
+        {"case",    KW_CASE},
     };
 
     static std::unordered_map<std::string, token_t> type_identifiers =
     {
-        {"u8", TOKEN_KW_U8},
-        {"i8", TOKEN_KW_I8},
-        {"u16", TOKEN_KW_U16},
-        {"i16", TOKEN_KW_I16},
-        {"u32", TOKEN_KW_U32},
-        {"i32", TOKEN_KW_I32},
-        {"u64", TOKEN_KW_U64},
-        {"i64", TOKEN_KW_I64},
-        {"str", TOKEN_KW_STR},
-        {"flt", TOKEN_KW_FLT},
+        {"u8",   TOKEN_KW_U8},
+        {"i8",   TOKEN_KW_I8},
+        {"u16",  TOKEN_KW_U16},
+        {"i16",  TOKEN_KW_I16},
+        {"u32",  TOKEN_KW_U32},
+        {"i32",  TOKEN_KW_I32},
+        {"u64",  TOKEN_KW_U64},
+        {"i64",  TOKEN_KW_I64},
+        {"f32",  TOKEN_KW_F32},
+        {"f64",  TOKEN_KW_F64},
         {"proc", TOKEN_KW_PROC},
         {"bool", TOKEN_KW_BOOL},
     };
