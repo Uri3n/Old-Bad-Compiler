@@ -1,0 +1,6 @@
+
+main :: proc() -> i32 {
+  myvar: bool = true;
+  second: bool = false;
+  return 0;
+}
