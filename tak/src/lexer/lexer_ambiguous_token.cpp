@@ -99,6 +99,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         {"struct",  KW_STRUCT},
         {"switch",  KW_SWITCH},
         {"case",    KW_CASE},
+        {"enum",    KW_ENUM},
     };
 
     static std::unordered_map<std::string, token_t> type_identifiers =
@@ -115,6 +116,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         {"f64",  TOKEN_KW_F64},
         {"proc", TOKEN_KW_PROC},
         {"bool", TOKEN_KW_BOOL},
+        {"void", TOKEN_KW_VOID}
     };
 
 

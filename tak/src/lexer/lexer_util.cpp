@@ -72,6 +72,8 @@ lexer_token_type_to_string(token_t type) {
         case KW_STRUCT:              return R"(Keyword "struct")";
         case KW_SWITCH:              return R"(Keyword "switch")";
         case KW_CASE:                return R"(Keyword "case")";
+        case KW_ENUM:                return R"(Keyword "enum")";
+        case TOKEN_KW_VOID:          return R"(Keyword "void")";
         case ARROW:                  return "Arrow";
         case TOKEN_KW_F64:           return "64-bit Float Type-Identifier";
         case TOKEN_KW_F32:           return "32-bit Float Type-Identifier";

@@ -641,5 +641,3 @@ void lexer_token_at(lexer &lxr) {
         lxr.advance_char(1);
     }
 }
-
-

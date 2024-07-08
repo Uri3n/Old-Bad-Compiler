@@ -28,7 +28,9 @@
 
 struct parser {
 
-    uint32_t curr_sym_index = INVALID_SYMBOL_INDEX;
+    uint32_t curr_sym_index                  = INVALID_SYMBOL_INDEX;
+    uint16_t inside_parenthesized_expression = 0;
+
 
     std::vector<ast_node*>                                 toplevel_decls;
     std::unordered_map<uint32_t, std::unique_ptr<symbol>>  sym_table;
@@ -39,16 +41,9 @@ struct parser {
     void     pop_scope();
     bool     scoped_symbol_exists(const std::string& name);
     bool     scoped_symbol_exists_at_current_scope(const std::string& name);
+    uint32_t lookup_scoped_symbol(const std::string& name);
     symbol*  lookup_unique_symbol(uint32_t symbol_index);
-
-
-    std::optional<std::pair<uint32_t, symbol*>> create_symbol(
-        const std::string&  name,
-        size_t              src_index,
-        uint32_t            line_number,
-        sym_t               sym_type,
-        uint16_t            sym_flags
-    );
+    symbol*  create_symbol(const std::string& name, size_t src_index, uint32_t line_number, sym_t sym_type, uint16_t sym_flags);
 
 
     parser() = default;
@@ -60,9 +55,19 @@ bool generate_ast_from_source(parser& parser, const std::string& source_file_nam
 
 ast_node* parse_expression(parser& parser, lexer& lxr);
 ast_node* parse_identifier(parser& parser, lexer& lxr);
-ast_node* parse_binary_expression(parser& parser, lexer& lxr);
+ast_node* parse_unary_expression(parser& parser, lexer& lxr);
 ast_node* parse_decl(parser& parser, lexer& lxr);
+ast_node* parse_vardecl(variable* var, parser& parser, lexer& lxr);
+ast_node* parse_procdecl(procedure* proc, parser& parser, lexer& lxr);
 ast_node* parse_assign(parser& parser, lexer& lxr);
 ast_node* parse_call(parser& parser, lexer& lxr);
+ast_node* parse_keyword(parser& parser, lexer& lxr);
+ast_node* parse_singleton_literal(parser& parser, lexer& lxr);
+ast_node* parse_braced_expression(parser& parser, lexer& lxr);
+ast_node* parse_parenthesized_expression(parser& parser, lexer& lxr);
+ast_vardecl* parse_parameterized_vardecl(parser& parser, lexer& lxr);
+ast_node* parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr);
+
+var_t token_to_var_t(token_t tok_t);
 
 #endif //PARSER_HPP

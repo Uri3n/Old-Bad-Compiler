@@ -13,9 +13,9 @@ enum token_t : uint32_t {
     END_OF_FILE,
     ILLEGAL,
     IDENTIFIER,
-    VALUE_ASSIGNMENT,      // =
-    TYPE_ASSIGNMENT,       // :
-    CONST_TYPE_ASSIGNMENT, // ::
+    VALUE_ASSIGNMENT,
+    TYPE_ASSIGNMENT,
+    CONST_TYPE_ASSIGNMENT,
     SEMICOLON,
     LPAREN,
     RPAREN,
@@ -70,6 +70,7 @@ enum token_t : uint32_t {
     KW_IF,
     KW_ELSE,
     KW_STRUCT,
+    KW_ENUM,
     KW_SWITCH,
     KW_CASE,
     KW_ELIF,
@@ -85,6 +86,7 @@ enum token_t : uint32_t {
     TOKEN_KW_I32,
     TOKEN_KW_U64,
     TOKEN_KW_I64,
+    TOKEN_KW_VOID,
     ARROW
 };
 

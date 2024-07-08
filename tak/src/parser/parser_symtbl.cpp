@@ -46,24 +46,24 @@ parser::push_scope() {
 }
 
 
-std::optional<std::pair<uint32_t, symbol*>>
+symbol*
 parser::create_symbol(
         const std::string& name,
         const size_t       src_index,
         const uint32_t     line_number,
         const sym_t        sym_type,
-        const uint16_t     sym_flags,
+        const uint16_t     sym_flags
     ) {
 
 
     if(scope_stack.empty()) {
         print("parse-error: call to create_symbol with no symbol stack.");
-        return std::nullopt;
+        return nullptr;
     }
 
     if(scope_stack.back().contains(name)) {
         print("parse-error: could not create symbol {} because it already exists in this scope.", name);
-        return std::nullopt;
+        return nullptr;
     }
 
 
@@ -82,11 +82,27 @@ parser::create_symbol(
     sym->sym_type      = sym_type;
     sym->line_number   = line_number;
     sym->src_pos       = src_index;
-    sym->symbol_index  = curr_sym_index; // kind of redundant, no?
+    sym->symbol_index  = curr_sym_index;
     sym->name          = name;
 
+    return sym.get();
+}
 
-    return std::make_pair(curr_sym_index, sym.get());
+
+uint32_t
+parser::lookup_scoped_symbol(const std::string& name) {
+
+    if(scope_stack.empty()) {
+        return INVALID_SYMBOL_INDEX;
+    }
+
+    for(int32_t i = static_cast<int32_t>(scope_stack.size()) - 1; i >= 0; i--) {
+        if(scope_stack[i].contains(name)) {
+            return scope_stack[i][name];
+        }
+    }
+
+    return INVALID_SYMBOL_INDEX;
 }
 
 
