@@ -55,7 +55,6 @@ parser::create_symbol(
         const uint16_t     sym_flags
     ) {
 
-
     if(scope_stack.empty()) {
         print("parse-error: call to create_symbol with no symbol stack.");
         return nullptr;
@@ -88,10 +87,8 @@ parser::create_symbol(
     return sym.get();
 }
 
-
 uint32_t
 parser::lookup_scoped_symbol(const std::string& name) {
-
     if(scope_stack.empty()) {
         return INVALID_SYMBOL_INDEX;
     }
@@ -105,10 +102,8 @@ parser::lookup_scoped_symbol(const std::string& name) {
     return INVALID_SYMBOL_INDEX;
 }
 
-
 symbol*
 parser::lookup_unique_symbol(const uint32_t symbol_index) {
-
     if(sym_table.contains(symbol_index)) {
         auto& ref = sym_table[symbol_index];
         return ref.get();
@@ -116,3 +111,89 @@ parser::lookup_unique_symbol(const uint32_t symbol_index) {
 
     return nullptr;
 }
+
+void
+parser::dump_symbols() {
+
+    static const std::string fmt_sym =
+        "~ {} ~"
+        "\n - Symbol Index:  {}"
+        "\n - Line Number:   {}"
+        "\n - File Position: {}"
+        "\n - Symbol Type:   {}"
+        "\n - Flags:         {}";
+
+    static const std::string fmt_proc =
+        " - Parameter List: {}"
+        "\n - Return Type:    {}";
+
+    static const std::string fmt_var =
+        " - Variable Type: {}"
+        "\n - Pointer Depth: {}"
+        "\n - Array Length:  {}";
+
+
+    for(const auto &[index, sym] : sym_table) {
+
+        std::string flags;
+        if(sym->flags & SYM_VAR_IS_CONSTANT) {
+            flags += "CONSTANT | ";
+        } if(sym->flags & SYM_PROC_IS_FOREIGN) {
+            flags += "FOREIGN_PROCEDURE | ";
+        } if(sym->flags & SYM_IS_POINTER) {
+            flags += "POINTER | ";
+        }  if(sym->flags & SYM_IS_GLOBAL) {
+            flags += "GLOBAL | ";
+        } if(sym->flags & SYM_VAR_IS_ARRAY) {
+            flags += "ARRAY | ";
+        } if(sym->flags & SYM_VAR_IS_PROCARG) {
+            flags += "PROCEDURE_ARGUMENT | ";
+        } if(sym->flags & SYM_VAR_DEFAULT_INITIALIZED) {
+            flags += "DEFAULT INITIALIZED";
+        }
+
+        if(flags.size() >= 2 && flags[flags.size()-2] == '|') {
+            flags.erase(flags.size()-2);
+        }
+
+
+        print(fmt_sym,
+            sym->name,
+            sym->symbol_index,
+            sym->line_number,
+            sym->src_pos,
+            sym->sym_type == SYM_PROCEDURE ? "Procedure" : "Variable",
+            flags
+        );
+
+
+        if(const auto* var_ptr = dynamic_cast<variable*>(sym.get())) {
+            print(fmt_var,
+                var_t_to_string(var_ptr->variable_type),
+                var_ptr->pointer_depth,
+                var_ptr->array_length
+            );
+        }
+
+        else if(const auto* proc_ptr = dynamic_cast<procedure*>(sym.get())) {
+            std::string s_paramlist;
+            for(const auto& param_t : proc_ptr->parameter_list) {
+                s_paramlist += var_t_to_string(param_t) + ',';
+            }
+
+            if(!s_paramlist.empty() && s_paramlist.back() == ',') {
+                s_paramlist.pop_back();
+            }
+
+            print(fmt_proc,
+                s_paramlist.empty() ? std::string("None") : s_paramlist,
+                var_t_to_string(proc_ptr->return_type)
+            );
+        }
+
+        else {
+            print(" -- WARNING: SYMBOL BEING STORED AS BASE CLASS --");
+        }
+    }
+}
+

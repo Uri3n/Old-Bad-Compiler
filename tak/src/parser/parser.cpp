@@ -15,12 +15,14 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == LPAREN, "Expected beginning of parenthesized expression.");
 
-    ++parser.inside_parenthesized_expression; // haven't really figured this one out yet...
+    ++parser.inside_parenthesized_expression;
     lxr.advance(1);
 
     auto* expr = parse_expression(parser, lxr);
     if(expr == nullptr || (expr->type != NODE_SINGLETON_LITERAL
         && expr->type != NODE_BINEXPR
+        && expr->type != NODE_CALL
+        && expr->type != NODE_IDENT
         && expr->type != NODE_ASSIGN
         && expr->type != NODE_UNARYEXPR
     )) {
@@ -32,21 +34,16 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
 }
 
 ast_node*
-parse_singleton_literal(parser &parser, lexer &lxr) {
+parse_singleton_literal(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current().kind == LITERAL, "Expected literal.");
 
-    auto* node  = new ast_singleton_literal();
-    node->value = std::string(lxr.current().value);
-
-    lxr.advance(1);
-    if(lxr.current().kind == BINARY_EXPR_OPERATOR) {
-        return parse_binary_expression(node, parser, lxr); // literal becomes left operand
-    }
+    auto* node         = new ast_singleton_literal();
+    node->value        = std::string(lxr.current().value);
+    node->literal_type = lxr.current().type;
 
     return node;
 }
-
 
 ast_node*
 parse_braced_expression(parser& parser, lexer& lxr) {
@@ -55,59 +52,109 @@ parse_braced_expression(parser& parser, lexer& lxr) {
     return nullptr;
 }
 
-
 ast_node*
 parse_unary_expression(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current().kind == UNARY_EXPR_OPERATOR, "Expected unary operator.");
-    return nullptr;
-}
 
+
+    auto* node        = new ast_unaryexpr();
+    node->_operator   = lxr.current().type;
+
+    const size_t   src_pos  = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+
+    lxr.advance(1);
+    node->operand = parse_expression(parser, lxr);
+    if(node->operand == nullptr) {
+        delete node;
+        return nullptr;
+    }
+
+
+    const auto right_t = node->operand->type;
+    if(right_t != NODE_SINGLETON_LITERAL
+        && right_t != NODE_BINEXPR
+        && right_t != NODE_ASSIGN
+        && right_t != NODE_UNARYEXPR
+        && right_t != NODE_IDENT
+        && right_t != NODE_CALL
+        && right_t != NODE_BRACED_EXPRESSION
+    ) {
+        lxr.raise_error("Unexpected expression following unary operator.", src_pos, line);
+        delete node;
+        return nullptr;
+    }
+
+    node->operand->parent = node;
+    return node;
+}
 
 
 ast_node*
 parse_expression(parser& parser, lexer& lxr) {
 
-    auto&     curr = lxr.current();
-    ast_node* expr = nullptr;
+    const auto& curr = lxr.current();
+    ast_node*   expr = nullptr;
 
-    bool state = false;
-    auto _     = defer([&]{ if(!state){delete expr;} });
+    bool state       = false;
+    auto _           = defer([&]{ if(!state){delete expr;} });
 
 
-    if(curr == IDENTIFIER) {
-        expr = parse_identifier(parser, lxr);
+    switch(curr.type) {
+        case END_OF_FILE:
+            return nullptr;
+
+        case IDENTIFIER:
+            expr = parse_identifier(parser, lxr);
+            break;
+
+        case LPAREN:
+            expr = parse_parenthesized_expression(parser, lxr);
+            break;
+
+        case LBRACE:
+            expr = parse_braced_expression(parser, lxr);
+            break;
+
+        case INTEGER_LITERAL:
+        case FLOAT_LITERAL:
+        case STRING_LITERAL:
+        case CHARACTER_LITERAL:
+        case BOOLEAN_LITERAL:
+            expr = parse_singleton_literal(parser, lxr);
+            break;
+
+        case BITWISE_XOR_OR_PTR:
+        case BITWISE_NOT:
+        case CONDITIONAL_NOT:
+        case PLUS:
+        case SUB:
+            expr = parse_unary_expression(parser, lxr);
+            break;
+
+        case KW_RET:
+        case KW_BRK:
+        case KW_CONT:
+        case KW_FOR:
+        case KW_WHILE:
+        case KW_DO:
+        case KW_IF:
+        case KW_ELSE:
+        case KW_STRUCT:
+        case KW_ENUM:
+        case KW_SWITCH:
+        case KW_CASE:
+        case KW_ELIF:
+            expr = parse_keyword(parser, lxr);
+            break;
+
+        default:
+            lxr.raise_error("Invalid token at the beginning of an expression.");
+            return nullptr;
     }
 
-    else if(curr.kind == KEYWORD){
-        expr = parse_keyword(parser, lxr);
-    }
-
-    else if(curr.kind == LITERAL) {
-        expr = parse_singleton_literal(parser, lxr);
-    }
-
-    else if(curr == LBRACE) {
-        expr = parse_braced_expression(parser, lxr);
-    }
-
-    else if(curr == LPAREN) {
-        expr = parse_parenthesized_expression(parser, lxr)
-    }
-
-    else if(curr.kind == UNARY_EXPR_OPERATOR || curr == SUB || curr == PLUS || curr == BITWISE_XOR_OR_PTR) {
-        curr.kind = UNARY_EXPR_OPERATOR;
-        expr = parse_unary_expression(parser, lxr);
-    }
-
-    else {
-        lxr.raise_error("Illegal token at beginning of expression.");
-        return nullptr;
-    }
-
-    if(expr == nullptr) {
-        return nullptr;
-    }
 
 
     if(lxr.current() == RPAREN) {
@@ -117,25 +164,38 @@ parse_expression(parser& parser, lexer& lxr) {
         }
 
         --parser.inside_parenthesized_expression;
-        if(!parser.inside_parenthesized_expression) {
-            if(lxr.peek(1) != SEMICOLON) {
-                lxr.raise_error("Expected semicolon at the end of this expression.");
-                return nullptr;
-            }
-        }
-
         lxr.advance(1);
     }
 
-    else if(lxr.current() == SEMICOLON && parser.inside_parenthesized_expression) {
-        lxr.raise_error("Unexpected token inside of parenthesized expression.");
-        return nullptr;
+
+    if(lxr.current().kind == BINARY_EXPR_OPERATOR &&
+        (expr->type == NODE_ASSIGN
+        || expr->type == NODE_CALL
+        || expr->type == NODE_IDENT
+        || expr->type == NODE_BINEXPR
+        || expr->type == NODE_SINGLETON_LITERAL
+        || expr->type == NODE_UNARYEXPR)
+        ) {
+
+        state = true;
+        return parse_binary_expression(expr, parser, lxr);
     }
 
 
-    lxr.advance(1);
-    state = true;
-    return expr;
+    if(lxr.current() == SEMICOLON) {
+        if(parser.inside_parenthesized_expression) {
+            lxr.raise_error("Unexpected token inside of parenthesized expression.");
+            return nullptr;
+        }
+
+        lxr.advance(1);
+        state = true;
+        return expr;
+    }
+
+
+    lxr.raise_error("Unexpected token following expression.");
+    return nullptr;
 }
 
 
@@ -222,12 +282,10 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     var_ptr->pointer_depth = ptr_depth;
     var_ptr->variable_type = var_type;
 
-    ast_vardecl* vardecl   = new ast_vardecl();
-    vardecl->type          = NODE_VARDECL;
-    vardecl->identifier    = new ast_identifier();
+    auto* vardecl        = new ast_vardecl();
+    vardecl->identifier  = new ast_identifier();
 
     vardecl->identifier->parent       = vardecl;
-    vardecl->identifier->type         = NODE_IDENT;
     vardecl->identifier->symbol_index = var_ptr->symbol_index;
 
     return vardecl;
@@ -354,7 +412,7 @@ parse_procdecl(procedure* proc, parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(expr->type == NODE_STRUCT_DEFINITION || expr->type == NODE_PROCDECL) {
+        if(expr->type == NODE_STRUCT_DEFINITION || expr->type == NODE_PROCDECL || expr->type == NODE_ENUM_DEFINITION) {
             lxr.raise_error("Illegal expression inside of procedure body.", curr_pos, line);
             delete expr;
             return nullptr;
@@ -437,19 +495,14 @@ parse_vardecl(variable* var, parser& parser, lexer& lxr) {
     // Generate AST node
     //
 
-    bool         state             = false;
-    ast_vardecl* node              = new ast_vardecl();
-    node->type                     = NODE_VARDECL;
-    node->identifier               = new ast_identifier();
+    bool  state       = false;
+    auto* node        = new ast_vardecl();
+    node->identifier  = new ast_identifier();
 
     node->identifier->symbol_index = var->symbol_index;
     node->identifier->parent       = node;
-    node->identifier->type         = NODE_IDENT;
 
-
-    auto _ = defer([&]{
-       if(!state) { delete node; }
-    });
+    auto _ = defer([&]{ if(!state) { delete node; } });
 
 
     if(lxr.current() == VALUE_ASSIGNMENT) {
@@ -559,15 +612,10 @@ parse_decl(parser& parser, lexer& lxr) {
 
 
 ast_node*
-parse_assign(parser& parser, lexer& lxr) {
+parse_assign(ast_identifier* ident, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER,     "called parse_assign without an identifier.");
-    PARSER_ASSERT(lxr.peek(1) == VALUE_ASSIGNMENT, "called parse_assign but the next token is not '='.");
+    PARSER_ASSERT(lxr.current() == VALUE_ASSIGNMENT, "Expected '='.");
 
-
-    const std::string sym_name(lxr.current().value);
-
-    uint32_t sym_index = INVALID_SYMBOL_INDEX;
     uint32_t line      = lxr.current().line;
     size_t   src_pos   = lxr.current().src_pos;
 
@@ -576,20 +624,10 @@ parse_assign(parser& parser, lexer& lxr) {
     auto     _         = defer([&]{ if(!state){delete node;} });
 
 
-    if(sym_index = parser.lookup_scoped_symbol(sym_name); sym_index == INVALID_SYMBOL_INDEX) {
-        lxr.raise_error("Assignment to symbol that does not exist within this scope.");
-        return nullptr;
-    }
-
-
-    lxr.advance(2);
-    node->identifier = new ast_identifier();
-    node->type       = NODE_ASSIGN;
-
-    node->identifier->symbol_index = sym_index;
-    node->identifier->type         = NODE_IDENT;
-    node->identifier->parent       = node;
-    node->expression               = parse_expression(parser, lxr);
+    lxr.advance(1);
+    node->identifier         = ident;
+    node->identifier->parent = node;
+    node->expression         = parse_expression(parser, lxr);
 
     if(node->expression == nullptr) {
         return nullptr;
@@ -617,6 +655,8 @@ parse_assign(parser& parser, lexer& lxr) {
 
 ast_node*
 parse_call(parser& parser, lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected called identifier.");
     return nullptr;
 }
 
@@ -627,6 +667,18 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     PARSER_ASSERT(lxr.current().kind == BINARY_EXPR_OPERATOR, "Expected binary operator.");
     PARSER_ASSERT(left_operand != nullptr, "Null left operand passed.");
 
+
+    if(lxr.current() == VALUE_ASSIGNMENT) {
+        auto* ident = dynamic_cast<ast_identifier*>(left_operand);
+        if(ident == nullptr) {
+            lxr.raise_error("Assignment to constant.");
+            return nullptr;
+        }
+
+        return parse_assign(ident, parser, lxr);
+    }
+
+
     bool  state              = false;
     auto* binexpr            = new ast_binexpr();
     auto  _                  = defer([&]{ if(!state){ delete binexpr; } });
@@ -636,23 +688,10 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     binexpr->left_op->parent = binexpr;
 
 
-    lxr.advance(1);
-    if(lxr.current() == SEMICOLON) {
-        lxr.raise_error("Unexpected token.");
-        return nullptr;
-    }
-
-    /*
-     *  (add)
-     *  3      (add)
-     *      (add)   100
-     *     3   10
-    */
-    // x = 3 + 3 + 10 + 100
-
     size_t   src_pos = lxr.current().src_pos;
     uint32_t line    = lxr.current().line;
 
+    lxr.advance(1);
     binexpr->right_op = parse_expression(parser, lxr);
     if(binexpr->right_op == nullptr) {
         return nullptr;
@@ -665,6 +704,9 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
         && right_t != NODE_BINEXPR
         && right_t != NODE_ASSIGN
         && right_t != NODE_UNARYEXPR
+        && right_t != NODE_IDENT
+        && right_t != NODE_CALL
+        && right_t != NODE_BRACED_EXPRESSION
     ) {
         lxr.raise_error("Unexpected expression following binary operator.", src_pos, line);
         return nullptr;
@@ -680,31 +722,33 @@ ast_node*
 parse_identifier(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
-    const token next = lxr.peek(1);
+    const auto next_type = lxr.peek(1).type;
 
-    switch(next.type) {
-        case VALUE_ASSIGNMENT:      return parse_assign(parser, lxr);
-        case LPAREN:                return parse_call(parser, lxr);
-        case TYPE_ASSIGNMENT:
-        case CONST_TYPE_ASSIGNMENT: return parse_decl(parser, lxr);
 
-        case BINARY_EXPR_OPERATOR:
-            uint32_t sym_index = 0;
-            if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
-                lxr.raise_error("Symbol does not exist in this scope.");
-                return nullptr;
-            }
-
-            auto* ident         = new ast_identifier();
-            ident->symbol_index = sym_index;
-
-            lxr.advance(1);
-            return parse_binary_expression(ident, parser, lxr);
-
-        default:
-            lxr.raise_error("Illegal token following identifier.");
-            return nullptr;
+    if(next_type == TYPE_ASSIGNMENT || next_type == CONST_TYPE_ASSIGNMENT) {
+        return parse_decl(parser, lxr);
     }
+
+    if(next_type == LPAREN) {
+        return parse_call(parser, lxr);
+    }
+
+
+    uint32_t sym_index = 0;
+    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
+        lxr.raise_error("Symbol does not exist in this scope.");
+        return nullptr;
+    }
+
+    auto* ident         = new ast_identifier();
+    ident->symbol_index = sym_index;
+
+    lxr.advance(1);
+    if(next_type == VALUE_ASSIGNMENT) {
+        return parse_assign(ident, parser, lxr);
+    }
+
+    return ident;
 }
 
 
@@ -738,5 +782,7 @@ generate_ast_from_source(parser& parser, const std::string& source_file_name) {
         parser.toplevel_decls.emplace_back(toplevel_decl);
     } while(true);
 
+
+    parser.pop_scope();
     return lxr.current() == END_OF_FILE;
 }

@@ -60,6 +60,7 @@ enum ast_node_t : uint8_t {
     NODE_SINGLETON_LITERAL,
     NODE_BRACED_EXPRESSION,
     NODE_STRUCT_DEFINITION,
+    NODE_ENUM_DEFINITION,
 };
 
 enum sym_flags : uint32_t {
@@ -148,7 +149,7 @@ struct ast_branch  final : ast_node {
 };
 
 struct ast_identifier final : ast_node {
-    uint32_t    symbol_index = INVALID_SYMBOL_INDEX;
+    uint32_t symbol_index = INVALID_SYMBOL_INDEX;
 
     ~ast_identifier() override = default;
     ast_identifier() : ast_node(NODE_IDENT) {}
@@ -232,6 +233,7 @@ struct ast_brk final : ast_node {
 
 struct ast_singleton_literal final : ast_node {
     std::string value;
+    token_t     literal_type = TOKEN_NONE;
 
     ~ast_singleton_literal() override = default;
     ast_singleton_literal() : ast_node(NODE_SINGLETON_LITERAL) {}

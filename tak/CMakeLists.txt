@@ -19,6 +19,7 @@ add_executable(tak src/main.cpp
         src/parser/parser.cpp
         src/parser/parser_symtbl.cpp
         src/parser/parser_util.cpp
+        src/parser/parser_dump_nodes.cpp
 )
 
 target_include_directories(tak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

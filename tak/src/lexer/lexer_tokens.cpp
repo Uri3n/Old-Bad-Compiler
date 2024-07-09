@@ -601,7 +601,6 @@ lexer_token_colon(lexer &lxr) {
     }
 }
 
-
 void
 lexer_token_dot(lexer &lxr) {
 
@@ -616,6 +615,11 @@ lexer_token_dot(lexer &lxr) {
 }
 
 
+//
+// We can leave the following tokens as "illegal" for now.
+// can change easily if we decide to do anything with these characters.
+//
+
 void
 lexer_token_pound(lexer &lxr) {
 
@@ -629,6 +633,18 @@ lexer_token_pound(lexer &lxr) {
     }
 }
 
+void
+lexer_token_backtick(lexer& lxr) {
+
+    auto &[src, index, curr_line, _current, _] = lxr;
+
+    if(index >= src.size()) {
+        _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+    } else {
+        _current = token{ILLEGAL, PUNCTUATOR, index, {&src[index], 1}};
+        lxr.advance_char(1);
+    }
+}
 
 void lexer_token_at(lexer &lxr) {
 

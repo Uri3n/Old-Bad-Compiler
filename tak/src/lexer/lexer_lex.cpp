@@ -49,6 +49,7 @@ lexer::advance(const uint32_t amnt) {
         {'#', lexer_token_pound},
         {'@', lexer_token_at},
         {'.', lexer_token_dot},
+        {'`', lexer_token_backtick},
     };
 
 
