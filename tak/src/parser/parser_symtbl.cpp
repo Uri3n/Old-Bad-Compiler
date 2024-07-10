@@ -109,46 +109,47 @@ parser::lookup_unique_symbol(const uint32_t symbol_index) {
         return ref.get();
     }
 
+    print("Internal parse-error: failed to lookup unique symbol with index {}", symbol_index);
     return nullptr;
 }
 
 void
 parser::dump_symbols() {
 
-    static const std::string fmt_sym =
+    static constexpr std::string_view fmt_sym =
         "~ {} ~"
         "\n - Symbol Index:  {}"
         "\n - Line Number:   {}"
         "\n - File Position: {}"
         "\n - Symbol Type:   {}"
-        "\n - Flags:         {}";
+        "\n - Flags:         {}"
+        "\n - Pointer Depth: {}"
+        "\n - Array Length:  {}";
 
-    static const std::string fmt_proc =
+    static constexpr std::string_view fmt_proc =
         " - Parameter List: {}"
         "\n - Return Type:    {}";
 
-    static const std::string fmt_var =
-        " - Variable Type: {}"
-        "\n - Pointer Depth: {}"
-        "\n - Array Length:  {}";
+    static constexpr std::string_view fmt_var =
+        " - Variable Type: {}";
 
 
     for(const auto &[index, sym] : sym_table) {
 
         std::string flags;
-        if(sym->flags & SYM_VAR_IS_CONSTANT) {
+        if(sym->flags & SYM_IS_CONSTANT) {
             flags += "CONSTANT | ";
-        } if(sym->flags & SYM_PROC_IS_FOREIGN) {
-            flags += "FOREIGN_PROCEDURE | ";
+        } if(sym->flags & SYM_IS_FOREIGN) {
+            flags += "FOREIGN | ";
         } if(sym->flags & SYM_IS_POINTER) {
             flags += "POINTER | ";
         }  if(sym->flags & SYM_IS_GLOBAL) {
             flags += "GLOBAL | ";
-        } if(sym->flags & SYM_VAR_IS_ARRAY) {
+        } if(sym->flags & SYM_IS_ARRAY) {
             flags += "ARRAY | ";
-        } if(sym->flags & SYM_VAR_IS_PROCARG) {
+        } if(sym->flags & SYM_IS_PROCARG) {
             flags += "PROCEDURE_ARGUMENT | ";
-        } if(sym->flags & SYM_VAR_DEFAULT_INITIALIZED) {
+        } if(sym->flags & SYM_DEFAULT_INITIALIZED) {
             flags += "DEFAULT INITIALIZED";
         }
 
@@ -163,20 +164,19 @@ parser::dump_symbols() {
             sym->line_number,
             sym->src_pos,
             sym->sym_type == SYM_PROCEDURE ? "Procedure" : "Variable",
-            flags
+            flags.empty() ? std::string("None") : flags,
+            sym->pointer_depth,
+            sym->array_length
         );
 
 
         if(const auto* var_ptr = dynamic_cast<variable*>(sym.get())) {
-            print(fmt_var,
-                var_t_to_string(var_ptr->variable_type),
-                var_ptr->pointer_depth,
-                var_ptr->array_length
-            );
+            print(fmt_var, var_t_to_string(var_ptr->variable_type));
         }
 
         else if(const auto* proc_ptr = dynamic_cast<procedure*>(sym.get())) {
             std::string s_paramlist;
+
             for(const auto& param_t : proc_ptr->parameter_list) {
                 s_paramlist += var_t_to_string(param_t) + ',';
             }
@@ -192,8 +192,10 @@ parser::dump_symbols() {
         }
 
         else {
-            print(" -- WARNING: SYMBOL BEING STORED AS BASE CLASS --");
+            print(" -- WARNING: SYMBOL BEING STORED AS BASE CLASS --"); // This should never happen...
         }
+
+        std::cout << std::endl;
     }
 }
 

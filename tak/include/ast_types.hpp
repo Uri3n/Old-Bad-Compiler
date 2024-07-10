@@ -64,23 +64,31 @@ enum ast_node_t : uint8_t {
 };
 
 enum sym_flags : uint32_t {
-    SYM_FLAGS_NONE              = 0UL,
-    SYM_VAR_IS_CONSTANT         = 1UL,
-    SYM_PROC_IS_FOREIGN         = 1UL << 1,
-    SYM_IS_POINTER              = 1UL << 2,
-    SYM_IS_GLOBAL               = 1UL << 3,
-    SYM_VAR_IS_ARRAY            = 1UL << 4,
-    SYM_VAR_IS_PROCARG          = 1UL << 5,
-    SYM_VAR_DEFAULT_INITIALIZED = 1UL << 6,
+    SYM_FLAGS_NONE          = 0UL,
+    SYM_IS_CONSTANT         = 1UL,
+    SYM_IS_FOREIGN          = 1UL << 1,
+    SYM_IS_POINTER          = 1UL << 2,
+    SYM_IS_GLOBAL           = 1UL << 3,
+    SYM_IS_ARRAY            = 1UL << 4,
+    SYM_IS_PROCARG          = 1UL << 5,
+    SYM_DEFAULT_INITIALIZED = 1UL << 6,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct brief_vardata {
+    var_t                      type            = VAR_NONE;
+    uint16_t                   ptr_depth       = 0;
+    std::optional<std::string> user_type_name  = std::nullopt;
+};
 
 struct symbol {
     sym_t    sym_type      = SYM_NONE;
     uint32_t symbol_index  = INVALID_SYMBOL_INDEX;
     uint16_t flags         = SYM_FLAGS_NONE;
-    size_t   line_number   = 0;
+    uint16_t pointer_depth = 0;
+    uint32_t array_length  = 0;
+    uint32_t line_number   = 0;
     size_t   src_pos       = 0;
 
     std::string name;
@@ -90,17 +98,15 @@ struct symbol {
 };
 
 struct variable final : symbol {
-    var_t    variable_type = VAR_NONE;
-    uint16_t pointer_depth = 0;
-    uint32_t array_length  = 0;
+    var_t variable_type = VAR_NONE;
 
     ~variable() override = default;
     variable()           = default;
 };
 
 struct procedure final : symbol {
-    std::vector<var_t> parameter_list;         // params are also stored within the decl node. This is here for QOL.
-    var_t              return_type = VAR_NONE; // VAR_NONE here indicates a "void" return type.
+    std::vector<var_t> parameter_list; // Storing some useful type data here for easy checking later.
+    var_t              return_type;
 
     ~procedure() override = default;
     procedure()           = default;
@@ -156,8 +162,8 @@ struct ast_identifier final : ast_node {
 };
 
 struct ast_assign final : ast_node {
-    ast_identifier* identifier = nullptr;
-    ast_node*       expression = nullptr;
+    ast_node* assigned   = nullptr;
+    ast_node* expression = nullptr;
 
     ~ast_assign() override;
     ast_assign() : ast_node(NODE_ASSIGN) {}

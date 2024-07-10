@@ -5,14 +5,18 @@
 #include <lexer.hpp>
 
 void
-lexer::_raise_error_impl(const std::string& message, const size_t file_position, const uint32_t line) {
+lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
 
     size_t line_start = file_position;
     size_t line_end   = file_position;
 
-    if(file_position >= src.size()) {
-        print("Internal parse-error: illegal token file position is out of bounds.");
+
+    if(src.empty()) {
         return;
+    }
+
+    if(file_position >= src.size()) {
+        file_position = src.size() - 1;
     }
 
 

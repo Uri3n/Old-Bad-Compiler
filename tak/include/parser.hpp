@@ -25,6 +25,13 @@
     exit(1);                                                                    \
 }                                                                               \
 
+#define VALID_SUBEXPRESSION(node_type) (node_type == NODE_ASSIGN                \
+    || node_type == NODE_CALL                                                   \
+    || node_type == NODE_IDENT                                                  \
+    || node_type == NODE_BINEXPR                                                \
+    || node_type == NODE_SINGLETON_LITERAL                                      \
+    || node_type == NODE_UNARYEXPR)                                             \
+
 
 struct parser {
 
@@ -35,14 +42,17 @@ struct parser {
     std::unordered_map<uint32_t, std::unique_ptr<symbol>>  sym_table;
     std::vector<std::unordered_map<std::string, uint32_t>> scope_stack;
 
+
+    uint32_t lookup_scoped_symbol(const std::string& name);
     void     push_scope();
     void     pop_scope();
     bool     scoped_symbol_exists(const std::string& name);
     bool     scoped_symbol_exists_at_current_scope(const std::string& name);
-    uint32_t lookup_scoped_symbol(const std::string& name);
     symbol*  lookup_unique_symbol(uint32_t symbol_index);
     symbol*  create_symbol(const std::string& name, size_t src_index, uint32_t line_number, sym_t sym_type, uint16_t sym_flags);
     void     dump_symbols();
+    void     dump_nodes();
+
 
     parser() = default;
     ~parser();
@@ -51,24 +61,24 @@ struct parser {
 
 bool generate_ast_from_source(parser& parser, const std::string& source_file_name);
 void display_node_data(ast_node* node, uint32_t depth, parser& parser);
-void ast_dump_nodes(parser& parser);
 var_t token_to_var_t(token_t tok_t);
 std::string var_t_to_string(var_t type);
 
 
-ast_node* parse_expression(parser& parser, lexer& lxr);
+ast_node* parse_expression(parser& parser, lexer& lxr, bool subexpression, bool parse_single = false);
 ast_node* parse_identifier(parser& parser, lexer& lxr);
 ast_node* parse_unary_expression(parser& parser, lexer& lxr);
 ast_node* parse_decl(parser& parser, lexer& lxr);
 ast_node* parse_vardecl(variable* var, parser& parser, lexer& lxr);
 ast_node* parse_procdecl(procedure* proc, parser& parser, lexer& lxr);
-ast_node* parse_assign(ast_identifier* ident, parser& parser, lexer& lxr);
+ast_node* parse_assign(ast_node* ident, parser& parser, lexer& lxr);
 ast_node* parse_call(parser& parser, lexer& lxr);
+ast_vardecl* parse_parameterized_vardecl(parser& parser, lexer& lxr);
+ast_node* parse_proc_ptr(procedure* proc, parser& parser, lexer& lxr);
 ast_node* parse_keyword(parser& parser, lexer& lxr);
 ast_node* parse_singleton_literal(parser& parser, lexer& lxr);
 ast_node* parse_braced_expression(parser& parser, lexer& lxr);
 ast_node* parse_parenthesized_expression(parser& parser, lexer& lxr);
-ast_vardecl* parse_parameterized_vardecl(parser& parser, lexer& lxr);
 ast_node* parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr);
 
 #endif //PARSER_HPP

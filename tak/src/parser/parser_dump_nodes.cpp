@@ -59,6 +59,10 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
 
     if(!procdecl->parameters.empty() || !procdecl->body.empty()) {
         node_title.insert(0, "     ");
+        if(!depth) {
+            node_title += "|- ";
+        }
+
         ++depth;
     }
 
@@ -98,7 +102,7 @@ display_node_assign(ast_node* node, std::string& node_title, const uint32_t dept
     }
 
     print("{}", node_title);
-    display_node_data(assign->identifier, depth + 1, _);
+    display_node_data(assign->assigned, depth + 1, _);
     display_node_data(assign->expression, depth + 1, _);
 }
 
@@ -189,13 +193,15 @@ display_node_literal(ast_node* node, std::string& node_title) {
 void
 display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
-    uint32_t    num_spaces = (depth * 2) + (depth * 3);
-    std::string node_title;
+    const uint32_t num_spaces = (depth * 2) + (depth * 3);
+    std::string    node_title;
 
     for(uint32_t i = 0; i < num_spaces; ++i)
         node_title += ' ';
 
-    node_title += "|- ";
+    if(depth) {
+        node_title += "|- ";
+    }
 
 
     switch(node->type) {
@@ -229,6 +235,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
         case NODE_SINGLETON_LITERAL:
             display_node_literal(dynamic_cast<ast_singleton_literal*>(node), node_title);
+            break;
 
         /*
         case NODE_BRANCH:
@@ -253,9 +260,10 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
     }
 }
 
+
 void
-ast_dump_nodes(parser& parser) {
-    for(const auto node : parser.toplevel_decls) {
-        display_node_data(node, 0, parser);
+parser::dump_nodes() {
+    for(const auto node : toplevel_decls) {
+        display_node_data(node, 0, *this);
     }
 }

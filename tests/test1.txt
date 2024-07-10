@@ -1,3 +1,5 @@
 
-myvar: u32 = 300;
-myvar = (3 - 10) + 500;
+
+main :: proc() -> i32 {
+  myptr : proc^(i32, i8) -> i32 = main;
+}

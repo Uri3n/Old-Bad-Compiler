@@ -52,12 +52,12 @@ lexer_token_type_to_string(token_t type) {
         case DIVEQ:                  return "Division-Equals";
         case MOD:                    return "Modulus";
         case MODEQ:                  return "Modulus-Equals";
-        case BITWISE_AND:            return "Bitwise AND";
+        case BITWISE_AND:            return "Bitwise AND Or \"Address-Of\" Operator";
         case BITWISE_ANDEQ:          return "Bitwise AND-Equals";
         case BITWISE_NOT:            return "Bitwise NOT";
         case BITWISE_OR:             return "Bitwise OR";
         case BITWISE_OREQ:           return "Bitwise OR-Equals";
-        case BITWISE_XOR_OR_PTR:     return "Bitwise XOR Or Pointer";
+        case BITWISE_XOR_OR_PTR:     return "Bitwise XOR, Pointer Type, Or Pointer Dereference";
         case BITWISE_XOREQ:          return "Bitwise XOR-Equals";
         case BITWISE_LSHIFT:         return "Left Bitshift";
         case BITWISE_RSHIFT:         return "Right Bitshift";

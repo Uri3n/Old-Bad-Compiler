@@ -35,7 +35,7 @@ ast_else::~ast_else() {
 
 ast_assign::~ast_assign() {
     delete expression;
-    delete identifier;
+    delete assigned;
 }
 
 ast_procdecl::~ast_procdecl() {
