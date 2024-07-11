@@ -53,7 +53,7 @@ enum var_t : uint16_t {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct type_data {
-    std::variant<var_t, std::string, std::monostate> name;
+    std::variant<var_t, std::string, std::monostate> name;          // name of the TYPE. not whatever is using it.
 
     uint16_t pointer_depth = 0;
     uint16_t flags         = SYM_FLAGS_NONE;
@@ -77,6 +77,19 @@ struct symbol {
 
     ~symbol() = default;
     symbol()  = default;
+};
+
+struct member_data {
+
+    std::string name;
+    type_data   type;
+
+    ~member_data() = default;
+    member_data()  = default;
+    member_data(const std::string &name, const type_data &type)
+        : name(name),
+          type(type) {
+    }
 };
 
 #endif //SYM_TYPES_HPP

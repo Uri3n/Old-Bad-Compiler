@@ -41,7 +41,6 @@ display_node_vardecl(ast_node* node, std::string& node_title, const uint32_t dep
     }
 }
 
-
 static void
 display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
 
@@ -88,7 +87,6 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
     }
 }
 
-
 static void
 display_node_assign(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
 
@@ -105,7 +103,6 @@ display_node_assign(ast_node* node, std::string& node_title, const uint32_t dept
     display_node_data(assign->assigned, depth + 1, _);
     display_node_data(assign->expression, depth + 1, _);
 }
-
 
 static void
 display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
@@ -125,7 +122,6 @@ display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t dep
     display_node_data(binexpr->right_op, depth + 1, _);
 }
 
-
 static void
 display_node_unaryexpr(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
 
@@ -142,7 +138,6 @@ display_node_unaryexpr(ast_node* node, std::string& node_title, const uint32_t d
 
     display_node_data(unaryexpr->operand, depth + 1, _);
 }
-
 
 static void
 display_node_identifier(ast_node* node, std::string& node_title, parser& parser) {
@@ -180,9 +175,12 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
         sym_ptr->symbol_index
     );
 
+    if(ident->member_name.has_value()) {
+        node_title += fmt(" Accessing Member: {}", *ident->member_name);
+    }
+
     print("{}", node_title);
 }
-
 
 static void
 display_node_literal(ast_node* node, std::string& node_title) {
@@ -198,6 +196,86 @@ display_node_literal(ast_node* node, std::string& node_title) {
     node_title += fmt("{} ({})", lit->value, lexer_token_type_to_string(lit->literal_type));
     print("{}", node_title);
 }
+
+static void
+display_node_call(ast_node* node, std::string& node_title, uint32_t depth, parser& parser) {
+
+    const auto* call = dynamic_cast<ast_call*>(node);
+    if(call == nullptr) {
+        print("{} (Call) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+
+    print("{}Procedure Call", node_title);
+    display_node_data(call->identifier, depth + 1, parser);
+
+    if(!call->arguments.empty()) {
+        node_title.insert(0, "     ");
+        if(!depth) {
+            node_title += "|- ";
+        }
+
+        ++depth;
+        print("{}Arguments", node_title); // Another "fake node" here. Arguments are really just vector<ast_node*>, not a child.
+    }
+
+    for(ast_node* arg : call->arguments) {
+        display_node_data(arg, depth + 1, parser);
+    }
+}
+
+static void
+display_node_brk(ast_node* node, const std::string& node_title) {
+
+    const auto* brk = dynamic_cast<ast_brk*>(node);
+    if(brk == nullptr) {
+        print("{} (Break) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Break Statement", node_title);
+}
+
+static void
+display_node_cont(ast_node* node, const std::string& node_title) {
+
+    const auto* cont = dynamic_cast<ast_cont*>(node);
+    if(cont == nullptr) {
+        print("{} (Continue) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Continue Statement", node_title);
+}
+
+static void
+display_node_ret(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* ret = dynamic_cast<ast_ret*>(node);
+    if(ret == nullptr) {
+        print("{} (Return) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Return", node_title);
+    if(ret->value.has_value()) {
+        display_node_data(*ret->value, depth + 1, _);
+    }
+}
+
+static void
+display_node_structdef(ast_node* node, const std::string& node_title) {
+
+    const auto* _struct = dynamic_cast<ast_structdef*>(node);
+    if(_struct == nullptr) {
+        print("{} (Struct Definition) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}{} (Struct Definition)", node_title, _struct->name);
+}
+
 
 
 void
@@ -220,32 +298,51 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
             break;
 
         case NODE_VARDECL:
-            display_node_vardecl(dynamic_cast<ast_vardecl*>(node), node_title, depth, parser);
+            display_node_vardecl(node, node_title, depth, parser);
             break;
 
         case NODE_PROCDECL:
-            display_node_procdecl(dynamic_cast<ast_procdecl*>(node), node_title, depth, parser);
+            display_node_procdecl(node, node_title, depth, parser);
             break;
 
         case NODE_BINEXPR:
-            display_node_binexpr(dynamic_cast<ast_binexpr*>(node), node_title, depth, parser);
+            display_node_binexpr(node, node_title, depth, parser);
             break;
 
         case NODE_UNARYEXPR:
-            display_node_unaryexpr(dynamic_cast<ast_unaryexpr*>(node), node_title, depth, parser);
+            display_node_unaryexpr(node, node_title, depth, parser);
             break;
 
         case NODE_ASSIGN:
-            display_node_assign(dynamic_cast<ast_assign*>(node), node_title, depth, parser);
+            display_node_assign(node, node_title, depth, parser);
             break;
 
         case NODE_IDENT:
-            display_node_identifier(dynamic_cast<ast_identifier*>(node), node_title, parser);
+            display_node_identifier(node, node_title, parser);
             break;
 
         case NODE_SINGLETON_LITERAL:
-            display_node_literal(dynamic_cast<ast_singleton_literal*>(node), node_title);
+            display_node_literal(node, node_title);
             break;
+
+        case NODE_CALL:
+            display_node_call(node, node_title, depth, parser);
+            break;
+
+        case NODE_BRK:
+            display_node_brk(node, node_title);
+            break;
+
+        case NODE_CONT:
+            display_node_cont(node, node_title);
+            break;
+
+        case NODE_RET:
+            display_node_ret(node, node_title, depth, parser);
+            break;
+
+        case NODE_STRUCT_DEFINITION:
+            display_node_structdef(node, node_title);
 
         /*
         case NODE_BRANCH:
@@ -256,12 +353,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_CASE:
         case NODE_DEFAULT:
         case NODE_WHILE:
-        case NODE_CALL:
-        case NODE_BRK:
-        case NODE_CONT:
-        case NODE_RET:
         case NODE_BRACED_EXPRESSION:
-        case NODE_STRUCT_DEFINITION:
         */
 
         default:
@@ -273,6 +365,8 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
 void
 parser::dump_nodes() {
+
+    print("-- ABSTRACT SYNTAX TREE -- ");
     for(const auto node : toplevel_decls) {
         display_node_data(node, 0, *this);
     }

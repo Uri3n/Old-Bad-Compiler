@@ -15,7 +15,7 @@ add_executable(tak src/main.cpp
         src/parser/parser_symtbl.cpp
         src/parser/parser_util.cpp
         src/parser/parser_dump_nodes.cpp
-        src/parser/parser_parsedecl.cpp
+        src/parser/parser_parse_decls.cpp
         src/parser/parser_parse_expressions.cpp
         src/parser/parser_parse_keywords.cpp
         src/parser/parser_misc.cpp

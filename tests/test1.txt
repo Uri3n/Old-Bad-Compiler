@@ -1,5 +1,7 @@
 
-
 main :: proc() -> i32 {
-  myptr : proc^(i32, i8) -> i32 = main;
 }
+
+myvar: i32;
+
+main(myvar);

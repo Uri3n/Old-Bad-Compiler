@@ -84,6 +84,14 @@ ast_while::~ast_while() {
     delete condition;
 }
 
+ast_dowhile::~ast_dowhile() {
+    for(ast_node const* node : body) {
+        delete node;
+    }
+
+    delete condition;
+}
+
 ast_unaryexpr::~ast_unaryexpr() {
     delete operand;
 }

@@ -136,7 +136,8 @@ parse_type(parser& parser, lexer& lxr) {
             return std::nullopt;
         }
 
-        if(const auto param_data = parse_type(parser, lxr)) {
+        if(auto param_data = parse_type(parser, lxr)) {
+            param_data->flags |= SYM_IS_PROCARG;
             data.parameters->emplace_back(*param_data);
         } else {
             return std::nullopt;
@@ -182,6 +183,7 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
     PARSER_ASSERT(lxr.peek(1) == BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
     PARSER_ASSERT(proc != nullptr, "Null symbol pointer.");
 
+
     //
     // Evaluate type
     //
@@ -200,11 +202,15 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
     auto* node       = new ast_vardecl();
     node->identifier = new ast_identifier();
     bool state       = false;
-    auto _           = defer([&]{ if(!state){ delete node; } });
 
     node->identifier->parent       = node;
     node->identifier->symbol_index = proc->symbol_index;
+    defer([&]{ if(!state){ delete node; } });
 
+
+    //
+    // Parse assignment if it exists, otherwise leave as default initialized.
+    //
 
     lxr.advance(1);
     if(lxr.current() == VALUE_ASSIGNMENT) {
@@ -246,9 +252,12 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     const size_t   src_pos   = lxr.current().src_pos;
     const uint32_t line      = lxr.current().line;
     uint16_t       flags     = SYM_IS_PROCARG;
-    uint16_t       ptr_depth = 0;
-    var_t          var_type  = VAR_NONE;
 
+
+    if(parser.scoped_symbol_exists_at_current_scope(name)) {   // a new scope should be pushed by parse_procdecl
+        lxr.raise_error("Symbol already exists within this scope.");
+        return nullptr;
+    }
 
     lxr.advance(1);
     if(lxr.current() == CONST_TYPE_ASSIGNMENT) {
@@ -266,53 +275,35 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(lxr.current() == TOKEN_KW_VOID) {
-        lxr.raise_error("Void can only be used as a procedure return type.");
+
+    //
+    // Once we parse the type we need to make sure that it isn't a procedure or an array.
+    //
+
+    const auto _type_data = parse_type(parser, lxr);
+    if(!_type_data) {
         return nullptr;
     }
 
-    if(lxr.current() == TOKEN_KW_PROC) {
-        lxr.raise_error("Procedures cannot be used as procedure parameters.");
+    if(_type_data->sym_type == SYM_PROCEDURE && _type_data->pointer_depth < 1) {
+        lxr.raise_error("Procedures cannot be procedure parameters. Pass a pointer instead.");
         return nullptr;
     }
 
-    var_type = token_to_var_t(lxr.current().type);
-    if(var_type == VAR_NONE) {
-        lxr.raise_error("Unrecognized type identifier.");
-        return nullptr;
-    }
-
-
-    lxr.advance(1);
-    if(lxr.current() == BITWISE_XOR_OR_PTR) {
-        flags |= SYM_IS_POINTER;
-        while(lxr.current() == BITWISE_XOR_OR_PTR) {
-            ptr_depth++;
-            lxr.advance(1);
-        }
-    }
-
-
-    if(lxr.current() == LSQUARE_BRACKET) {
-        lxr.raise_error("Static arrays cannot be used as parameters. Pass an array as a pointer instead.");
-        return nullptr;
-    }
-
-    if(parser.scoped_symbol_exists_at_current_scope(name)) {   // a new scope should be pushed by parse_procdecl
-        lxr.raise_error("Symbol already exists within this scope.");
+    if(_type_data->array_length > 0) {
+        lxr.raise_error("Arrays cannot be procedure parameters. Pass an array as a pointer instead.");
         return nullptr;
     }
 
 
-    auto* var_ptr = parser.create_symbol(name, src_pos, line, SYM_VARIABLE, flags);
+    //
+    // Store the parameter as a symbol in the symbol table.
+    //
+
+    const auto* var_ptr = parser.create_symbol(name, src_pos, line, _type_data->sym_type, flags, _type_data);
     if(var_ptr == nullptr) {
         return nullptr;
     }
-
-
-    var_ptr->type.array_length  = 0;
-    var_ptr->type.pointer_depth = ptr_depth;
-    var_ptr->type.name          = var_type;
 
     auto* vardecl        = new ast_vardecl();
     vardecl->identifier  = new ast_identifier();
@@ -347,6 +338,10 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     }
 
 
+    //
+    // Create AST node
+    //
+
     parser.push_scope();
 
     auto* node         = new ast_procdecl();
@@ -356,7 +351,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     node->identifier->parent       = node;
 
     bool state = false;
-    auto _     = defer([&] {
+    defer([&] {
         if(!state) { delete node; }
         parser.pop_scope();
     });
@@ -432,7 +427,6 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     // In the future we should just be leaving this as a definition.
     //
 
-    lxr.advance(1);
     if(lxr.current() != LBRACE) {
         lxr.raise_error("Expected start of procedure body here.");
         return nullptr;
@@ -446,8 +440,8 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     lxr.advance(1);
     while(lxr.current() != RBRACE) {
 
-        size_t   curr_pos = lxr.current().src_pos;
-        uint32_t line     = lxr.current().line;
+        const size_t   curr_pos = lxr.current().src_pos;
+        const uint32_t line     = lxr.current().line;
 
         auto* expr = parse_expression(parser, lxr, false);
         if(expr == nullptr) {
@@ -497,7 +491,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     node->identifier->symbol_index = var->symbol_index;
     node->identifier->parent       = node;
 
-    auto _ = defer([&]{ if(!state) { delete node; } });
+    defer([&]{ if(!state) { delete node; } });
 
 
     if(lxr.current() == VALUE_ASSIGNMENT) {
@@ -533,6 +527,40 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 ast_node*
 parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 
+    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected struct type name.");
+
+    if(const auto type = parse_type(parser, lxr)) {
+        const uint16_t temp = _struct->type.flags;
+        _struct->type = *type;
+        _struct->type.flags |= temp;
+    }
+
+
+    auto* node = new ast_vardecl();
+    node->identifier = new ast_identifier();
+    node->identifier->parent = node;
+    node->identifier->symbol_index = _struct->symbol_index;
+
+    if(lxr.current() == VALUE_ASSIGNMENT) {
+
+        const size_t   curr_pos = lxr.current().src_pos;
+        const uint32_t line     = lxr.current().line;
+
+        lxr.advance(1);
+        node->init_value     = parse_expression(parser, lxr, true);
+        const auto expr_type = (*node->init_value)->type;
+
+        if(!VALID_SUBEXPRESSION(expr_type)) {
+            lxr.raise_error("Invalid subexpression being assigned to struct.", curr_pos, line);
+            delete node;
+            return nullptr;
+        }
+
+        return node;
+    }
+
+    _struct->type.flags |= SYM_DEFAULT_INITIALIZED;
+    return node;
 }
 
 
@@ -571,7 +599,6 @@ parse_decl(parser& parser, lexer& lxr) {
         lxr.raise_error("Symbol redeclaration, this already exists at the current scope.", src_pos, line);
         return nullptr;
     }
-
 
     lxr.advance(1);
     if(lxr.current().kind != TYPE_IDENTIFIER && lxr.current() != IDENTIFIER) {

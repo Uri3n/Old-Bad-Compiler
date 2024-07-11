@@ -29,6 +29,7 @@ enum ast_node_t : uint8_t {
     NODE_CASE,
     NODE_DEFAULT,
     NODE_WHILE,
+    NODE_DOWHILE,
     NODE_CALL,
     NODE_BRK,
     NODE_CONT,
@@ -83,7 +84,7 @@ struct ast_branch  final : ast_node {
 
 struct ast_identifier final : ast_node {
     uint32_t symbol_index = 0;                         // INVALID_SYMBOL_INDEX
-    std::optional<std::string> member_path;            // used if struct member.
+    std::optional<std::string> member_name;            // used if struct member.
 
     ~ast_identifier() override = default;
     ast_identifier() : ast_node(NODE_IDENT) {}
@@ -114,9 +115,16 @@ struct ast_procdecl final : ast_node {
     ast_procdecl() : ast_node(NODE_PROCDECL) {}
 };
 
+struct ast_structdef final : ast_node {
+    std::string name;
+
+    ~ast_structdef() override = default;
+    ast_structdef() : ast_node(NODE_STRUCT_DEFINITION) {}
+};
+
 struct ast_call final : ast_node {
     ast_identifier*        identifier = nullptr;
-    std::vector<ast_node*> arguments;
+    std::vector<ast_node*> arguments;                   // Can be empty, if the procedure is "paramless".
 
     ~ast_call() override;
     ast_call() : ast_node(NODE_CALL) {}
@@ -146,6 +154,14 @@ struct ast_while final : ast_node {
 
     ~ast_while() override;
     ast_while() : ast_node(NODE_WHILE) {}
+};
+
+struct ast_dowhile final : ast_node {
+    ast_node*              condition = nullptr;
+    std::vector<ast_node*> body;
+
+    ~ast_dowhile() override;
+    ast_dowhile() : ast_node(NODE_DOWHILE) {}
 };
 
 struct ast_ret final : ast_node {

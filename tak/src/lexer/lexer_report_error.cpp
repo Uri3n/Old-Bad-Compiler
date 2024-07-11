@@ -19,7 +19,6 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
         file_position = src.size() - 1;
     }
 
-
     while(line_start != 0 && src[line_start] != '\n') {
         --line_start;
     }
@@ -34,6 +33,7 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
 
     if(full_line.empty() || offset >= full_line.size()) {
         print("Internal parse-error: bad error report.");
+        return;
     }
 
     if(full_line.front() == '\n') {

@@ -206,7 +206,7 @@ lexer::init(const std::string& file_name) {
     std::ifstream input(file_name, std::ios::binary);
     source_file_name = file_name;
 
-    auto _ = defer([&] {
+    defer([&] {
        if(input.is_open()) {
            input.close();
        }

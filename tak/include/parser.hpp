@@ -14,14 +14,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//
-// PARSER_ASSERT:
-// should be used in situations where the callee expects certain tokens to
-// have already been checked. For instance, if parse_decl is called and the
-// the current token is not an identifier, we have made a fatal mistake and the process
-// should terminate itself (after logging the message).
-//
-
 #define PARSER_ASSERT(condition, msg) if(!(condition)) {                        \
     print("PARSER ASSERT FAILED :: FILE: {}, LINE: {}", __FILE__, __LINE__ );   \
     print(msg);                                                                 \
@@ -33,7 +25,9 @@
     || node_type == NODE_IDENT                                                  \
     || node_type == NODE_BINEXPR                                                \
     || node_type == NODE_SINGLETON_LITERAL                                      \
-    || node_type == NODE_UNARYEXPR)                                             \
+    || node_type == NODE_UNARYEXPR                                              \
+    || node_type == NODE_BRACED_EXPRESSION                                      \
+)                                                                               \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -43,11 +37,11 @@ public:
     uint32_t curr_sym_index = INVALID_SYMBOL_INDEX;
     uint16_t inside_parenthesized_expression = 0;
 
-    std::vector<ast_node*>                                  toplevel_decls;
-    std::vector<std::unordered_map<std::string, uint32_t>>  scope_stack;
+    std::vector<ast_node*> toplevel_decls;
+    std::vector<std::unordered_map<std::string, uint32_t>> scope_stack;
 
-    std::unordered_map<uint32_t, symbol>                    sym_table;
-    std::unordered_map<std::string, std::vector<type_data>> type_table;
+    std::unordered_map<uint32_t, symbol> sym_table;
+    std::unordered_map<std::string, std::vector<member_data>> type_table;
 
 
     void push_scope();
@@ -68,10 +62,11 @@ public:
 
     void dump_symbols();
     void dump_nodes();
+    void dump_types();
 
-    bool create_type(const std::string& name, const std::vector<type_data>& type_data);
+    bool create_type(const std::string& name, std::vector<member_data>&& type_data);
     bool type_exists(const std::string& name);
-    std::vector<type_data>* lookup_type(const std::string& name);
+    std::vector<member_data>* lookup_type(const std::string& name);
     uint32_t lookup_scoped_symbol(const std::string& name);
 
 
@@ -85,13 +80,19 @@ bool generate_ast_from_source(parser& parser, const std::string& source_file_nam
 void display_node_data(ast_node* node, uint32_t depth, parser& parser);
 var_t token_to_var_t(token_t tok_t);
 std::string var_t_to_string(var_t type);
-std::string format_type_data(const type_data& type);
+std::string format_type_data(const type_data& type, uint16_t num_tabs = 0);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::optional<type_data> parse_type(parser& parser, lexer& lxr);
 std::optional<uint32_t>  parse_array_size(lexer& lxr);
 
+ast_node* parse_ret(parser& parser, lexer& lxr);
+ast_node* parse_structdef(parser& parser, lexer& lxr);
+ast_node* parse_branch(parser& parser, lexer& lxr);
+ast_node* parse_switch(parser& parser, lexer& lxr);
+
+ast_node* parse_member_access(parser& parser, lexer& lxr);
 ast_node* parse_expression(parser& parser, lexer& lxr, bool subexpression, bool parse_single = false);
 ast_node* parse_identifier(parser& parser, lexer& lxr);
 ast_node* parse_unary_expression(parser& parser, lexer& lxr);

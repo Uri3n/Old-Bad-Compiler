@@ -11,38 +11,35 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     const auto  curr  = lxr.current();
     ast_node*   expr  = nullptr;
     bool        state = false;
-    auto        _     = defer([&]{ if(!state){delete expr;} });
+    defer([&]{ if(!state){delete expr;} });
 
 
-    if(curr == END_OF_FILE) {
-        return nullptr;
-    }
+    if(curr == END_OF_FILE)       return nullptr;
+    if(curr == IDENTIFIER)        expr = parse_identifier(parser, lxr);
+    else if(curr == LPAREN)       expr = parse_parenthesized_expression(parser, lxr);
+    else if(curr == LBRACE)       expr = parse_braced_expression(parser, lxr);
+    else if(curr.kind == LITERAL) expr = parse_singleton_literal(parser, lxr);
+    else if(curr.kind == KEYWORD) expr = parse_keyword(parser, lxr);
 
-    if(curr == IDENTIFIER) {
-        expr = parse_identifier(parser, lxr);
-    } else if(curr == LPAREN) {
-        expr = parse_parenthesized_expression(parser, lxr);
-    } else if(curr == LBRACE) {
-        expr = parse_braced_expression(parser, lxr);
-    } else if(curr.kind == LITERAL) {
-        expr = parse_singleton_literal(parser, lxr);
-    } else if(curr.kind == UNARY_EXPR_OPERATOR
+
+    else if(curr.kind == UNARY_EXPR_OPERATOR    // Tricky. Context dependent.
             || curr == PLUS                     // unary plus.
             || curr == SUB                      // unary minus.
             || curr == BITWISE_XOR_OR_PTR       // pointer dereference.
+            || curr == BITWISE_AND              // Address of.
         ) {
         expr = parse_unary_expression(parser, lxr);
-    } else if(curr.kind == KEYWORD) {
-        expr = parse_keyword(parser, lxr);
-    } else {
+    }
+
+    else {
         lxr.raise_error("Invalid token at the beginning of an expression.");
         return nullptr;
     }
 
-
     if(expr == nullptr) {
         return nullptr;
     }
+
 
     if(lxr.current() == RPAREN) {
         if(!parser.inside_parenthesized_expression) {
@@ -177,7 +174,8 @@ parse_assign(ast_node* assigned, parser& parser, lexer& lxr) {
 
     auto* node   = new ast_assign();
     bool  state  = false;
-    auto  _      = defer([&]{ if(!state){delete node;} });
+
+    defer([&]{ if(!state){delete node;} });
 
 
     lxr.advance(1);
@@ -206,7 +204,93 @@ ast_node*
 parse_call(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected called identifier.");
-    return nullptr;
+
+
+    //
+    // First we need to validate that the called symbol is a procedure.
+    // I COULD also just do this in the checker?? hmm....
+    //
+
+    uint32_t sym_index = 0;
+    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
+        lxr.raise_error("Symbol does not exist in this scope.");
+        return nullptr;
+    }
+
+    const auto* sym = parser.lookup_unique_symbol(sym_index);
+    if(sym == nullptr) {
+        return nullptr;
+    }
+
+    if(sym->type.sym_type != SYM_PROCEDURE) {
+        lxr.raise_error("Attempt to call symbol that is not a procedure.");
+        return nullptr;
+    }
+
+
+    //
+    // Generate AST node.
+    //
+
+    bool  state      = false;
+    auto* node       = new ast_call();
+    node->identifier = new ast_identifier();
+
+    node->identifier->parent       = node;
+    node->identifier->symbol_index = sym_index;
+
+    defer([&]{ if(!state){ delete node; }  });
+
+
+    //
+    // Parse the parameter list.
+    //
+
+    if(lxr.peek(1) != LPAREN) {
+        lxr.raise_error("Expected parameter list.");
+        return nullptr;
+    }
+
+    lxr.advance(2);
+    if(lxr.current() == RPAREN) {
+        lxr.advance(1);
+        state = true;
+        return node;
+    }
+
+
+    const uint16_t old_paren_index = parser.inside_parenthesized_expression++;
+    while(old_paren_index < parser.inside_parenthesized_expression) {
+
+        const size_t   curr_pos = lxr.current().src_pos;
+        const uint32_t line     = lxr.current().line;
+
+
+        auto* expr = parse_expression(parser, lxr, true);
+        if(expr == nullptr) {
+            return nullptr;
+        }
+
+        const auto _type = expr->type;
+        if(!VALID_SUBEXPRESSION(_type)) {
+            lxr.raise_error("Invalid subexpression within call.", curr_pos, line);
+            return nullptr;
+        }
+
+        if(lxr.current() == COMMA) {
+            lxr.advance(1);
+            if(lxr.current() == RPAREN) {
+                --parser.inside_parenthesized_expression;
+                lxr.advance(1);
+            }
+        }
+
+        node->arguments.emplace_back(expr);
+    }
+
+
+    state = true;
+    return node;
 }
 
 
@@ -224,7 +308,8 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
 
     bool  state    = false;
     auto* binexpr  = new ast_binexpr();
-    auto  _        = defer([&]{ if(!state){ delete binexpr; } });
+
+    defer([&]{ if(!state){ delete binexpr; } });
 
     binexpr->_operator       = lxr.current().type;
     binexpr->left_op         = left_operand;
@@ -255,19 +340,121 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
 
 
 ast_node*
+parse_member_access(parser& parser, lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
+    PARSER_ASSERT(lxr.peek(1) == DOT, "Expected dot as next token.");
+
+
+    //
+    // Scope check.
+    //
+
+    uint32_t sym_index = 0;
+    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
+        lxr.raise_error("Symbol does not exist in this scope.");
+        return nullptr;
+    }
+
+    const auto* sym = parser.lookup_unique_symbol(sym_index);
+    if(sym == nullptr) {
+        return nullptr;
+    }
+
+
+    //
+    // Check struct type.
+    //
+
+    const auto* type_name = std::get_if<std::string>(&sym->type.name);
+    if(type_name == nullptr || sym->type.sym_type != SYM_STRUCT) {
+        lxr.raise_error("Attempted member access on non-struct type.");
+        return nullptr;
+    }
+
+    if(!parser.type_exists(*type_name)) {
+        lxr.raise_error("Type does not exist.");
+        return nullptr;
+    }
+
+    const auto* _member_data = parser.lookup_type(*type_name);
+    if(_member_data == nullptr) {
+        return nullptr;
+    }
+
+
+    //
+    // Check if the member exists.
+    //
+
+    lxr.advance(2);
+    if(lxr.current() != IDENTIFIER) {
+        lxr.raise_error("Expected struct member name.");
+        return nullptr;
+    }
+
+
+    std::string path;
+    auto looking = std::string(lxr.current().value);
+
+    auto get_member_path = [&](const decltype(_member_data) members) -> bool {
+
+        if(members == nullptr) {
+            lxr.raise_error("Struct members do not exist.");
+            return false;
+        }
+
+        for(const auto& member : *members) {
+            if(member.name != looking) {
+                continue;
+            }
+
+            path += fmt(".{}", looking);
+            if(lxr.peek(1) == DOT && lxr.peek(2) == IDENTIFIER) {
+                lxr.advance(2);
+                looking = std::string(lxr.current().value);
+
+                auto* substruct_name = std::get_if<std::string>(&member.type.name);
+                if(substruct_name == nullptr || member.type.sym_type != SYM_STRUCT) {
+                    lxr.raise_error("Attemping to access member from non-struct type.");
+                    return false;
+                }
+
+                return get_member_path(parser.lookup_type(*substruct_name)); // recursively call until we find the member
+            }
+            return true;
+        }
+
+        lxr.raise_error("Struct member does not exist.");
+        return false;
+    };
+
+    if(!get_member_path(_member_data)) {
+        return nullptr;
+    }
+
+
+    //
+    // Generate AST node.
+    //
+
+    auto* node         = new ast_identifier();
+    node->member_name  = path;
+    node->symbol_index = sym->symbol_index;
+
+    return node;
+}
+
+
+ast_node*
 parse_identifier(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
+
     const auto next_type = lxr.peek(1).type;
-
-
-    if(next_type == TYPE_ASSIGNMENT || next_type == CONST_TYPE_ASSIGNMENT) {
-        return parse_decl(parser, lxr);
-    }
-
-    if(next_type == LPAREN) {
-        return parse_call(parser, lxr);
-    }
+    if(next_type == TYPE_ASSIGNMENT || next_type == CONST_TYPE_ASSIGNMENT) return parse_decl(parser, lxr);
+    if(next_type == LPAREN) return parse_call(parser, lxr);
+    if(next_type == DOT) return parse_member_access(parser, lxr);
 
 
     uint32_t sym_index = 0;

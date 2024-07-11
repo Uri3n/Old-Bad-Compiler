@@ -56,6 +56,7 @@ parser::create_symbol(
         const std::optional<type_data>& data
     ) {
 
+
     if(scope_stack.empty()) {
         print("parse-error: call to create_symbol with no symbol stack.");
         return nullptr;
@@ -75,12 +76,17 @@ parser::create_symbol(
         sym.type = *data;
     }
 
+
     sym.type.flags   |= sym_flags;
     sym.type.sym_type = sym_type;
     sym.line_number   = line_number;
     sym.src_pos       = src_index;
     sym.symbol_index  = curr_sym_index;
     sym.name          = name;
+
+    if(sym_type == SYM_PROCEDURE) {
+        sym.type.name = std::monostate(); // being lazy and setting this here.
+    }
 
     return &sym;
 }
@@ -114,16 +120,21 @@ parser::lookup_unique_symbol(const uint32_t symbol_index) {
 
 
 std::string
-format_type_data(const type_data& type) {
+format_type_data(const type_data& type, const uint16_t num_tabs) {
 
     static constexpr std::string_view fmt_type =
-        "\n - Symbol Type:   {}"
-        "\n - Flags:         {}"
-        "\n - Pointer Depth: {}"
-        "\n - Array Length:  {}"
-        "\n - Type Name:     {}"
-        "\n - Return Type:   {}"
-        "\n - Parameters:    {}";
+        "\n{} - Symbol Type:   {}"
+        "\n{} - Flags:         {}"
+        "\n{} - Pointer Depth: {}"
+        "\n{} - Array Length:  {}"
+        "\n{} - Type Name:     {}"
+        "\n{} - Return Type:   {}"
+        "\n{} - Parameters:    {}";
+
+    std::string tabs;
+    for(uint16_t i = 0; i < num_tabs; i++) {
+        tabs += '\t';
+    }
 
 
     std::string flags;
@@ -172,27 +183,38 @@ format_type_data(const type_data& type) {
     std::string param_data;
 
     if(type.return_type != nullptr) {
-        return_type_data = "\n~~ Return Type:\n";
-        return_type_data += format_type_data(*type.return_type);
+        return_type_data = "\n\n~~ BEGIN RETURN TYPE ~~";
+        return_type_data += format_type_data(*type.return_type, num_tabs + 1);
+        return_type_data += "\n~~ END RETURN TYPE ~~\n";
     } else {
         return_type_data = "N/A";
     }
 
     if(type.parameters != nullptr) {
-        param_data = "\n~~ Parameters:\n";
+        param_data = "\n\n~~ BEGIN PARAMETERS ~~";
         for(const auto& param : *type.parameters) {
-            param_data += format_type_data(param);
+            param_data += format_type_data(param, num_tabs + 1) + '\n';
         }
+        param_data += "~~ END PARAMETERS ~~\n";
+    } else {
+        param_data = "N/A";
     }
 
 
     return fmt(fmt_type,
+        tabs,
         sym_t_str,
+        tabs,
         flags,
+        tabs,
         type.pointer_depth,
+        tabs,
         type.array_length,
+        tabs,
         type_name_str,
+        tabs,
         return_type_data,
+        tabs,
         param_data
     );
 }
@@ -207,9 +229,8 @@ parser::dump_symbols() {
         "\n - File Position: {}"
         "{}"; //< type data
 
-
+    print(" -- SYMBOL TABLE -- ");
     for(const auto &[index, sym] : sym_table) {
-
         print(fmt_sym,
             sym.name,
             sym.symbol_index,
