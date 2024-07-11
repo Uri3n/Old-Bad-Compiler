@@ -6,6 +6,7 @@
 #define DEFER_HPP
 #include <type_traits>
 
+
 template<typename T> requires std::is_invocable_v<T>
 class defer_wrapper {
     T callable;

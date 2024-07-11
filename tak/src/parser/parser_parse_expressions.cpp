@@ -88,8 +88,6 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
 }
 
 
-
-
 ast_node*
 parse_parenthesized_expression(parser& parser, lexer& lxr) {
 
@@ -113,6 +111,7 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
     return expr;
 }
 
+
 ast_node*
 parse_singleton_literal(parser& parser, lexer& lxr) {
 
@@ -126,12 +125,14 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
     return node;
 }
 
+
 ast_node*
 parse_braced_expression(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == LBRACE, "Expected left-brace.");
     return nullptr;
 }
+
 
 ast_node*
 parse_unary_expression(parser& parser, lexer& lxr) {
@@ -164,10 +165,6 @@ parse_unary_expression(parser& parser, lexer& lxr) {
     node->operand->parent = node;
     return node;
 }
-
-
-
-
 
 
 ast_node*
@@ -234,8 +231,8 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     binexpr->left_op->parent = binexpr;
 
 
-    size_t   src_pos = lxr.current().src_pos;
-    uint32_t line    = lxr.current().line;
+    const size_t   src_pos = lxr.current().src_pos;
+    const uint32_t line    = lxr.current().line;
 
     lxr.advance(1);
     binexpr->right_op = parse_expression(parser, lxr, true);

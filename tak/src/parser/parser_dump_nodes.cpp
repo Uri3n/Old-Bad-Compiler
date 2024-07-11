@@ -163,10 +163,20 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
     }
 
 
+    std::string sym_t_str;
+    if(sym_ptr->type.sym_type == SYM_PROCEDURE) {
+        sym_t_str = "Procedure";
+    } else if(sym_ptr->type.sym_type == SYM_VARIABLE) {
+        sym_t_str = "Variable";
+    } else {
+        sym_t_str = "Struct";
+    }
+
+
     node_title += fmt(
         "{} ({}) (Sym Index {})",
         sym_ptr->name,
-        sym_ptr->sym_type == SYM_PROCEDURE ? "Proc" : "Var",
+        sym_t_str,
         sym_ptr->symbol_index
     );
 

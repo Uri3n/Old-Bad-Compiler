@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string_view>
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum token_t : uint32_t {
     TOKEN_NONE,
@@ -73,6 +74,7 @@ enum token_t : uint32_t {
     KW_ENUM,
     KW_SWITCH,
     KW_CASE,
+    KW_DEFAULT,
     KW_ELIF,
     TOKEN_KW_PROC,
     TOKEN_KW_F32,
@@ -99,6 +101,8 @@ enum token_kind : uint8_t {
     KEYWORD,
     TYPE_IDENTIFIER // This is still technically a keyword, But it's more specific.
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct token {
     token_t    type    = TOKEN_NONE;

@@ -10,32 +10,8 @@
 #include <vector>
 #include <token.hpp>
 
-#define INVALID_SYMBOL_INDEX 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum sym_t : uint8_t {
-    SYM_NONE,
-    SYM_VARIABLE,
-    SYM_PROCEDURE
-};
-
-enum var_t : uint16_t {
-    VAR_NONE,
-    U8,
-    I8,
-    U16,
-    I16,
-    U32,
-    I32,
-    U64,
-    I64,
-    F32,
-    F64,
-    BOOLEAN,
-    USER_DEFINED_STRUCT,
-    USER_DEFINED_ENUM,
-};
 
 enum ast_node_t : uint8_t {
     NODE_NONE,
@@ -61,55 +37,6 @@ enum ast_node_t : uint8_t {
     NODE_BRACED_EXPRESSION,
     NODE_STRUCT_DEFINITION,
     NODE_ENUM_DEFINITION,
-};
-
-enum sym_flags : uint32_t {
-    SYM_FLAGS_NONE          = 0UL,
-    SYM_IS_CONSTANT         = 1UL,
-    SYM_IS_FOREIGN          = 1UL << 1,
-    SYM_IS_POINTER          = 1UL << 2,
-    SYM_IS_GLOBAL           = 1UL << 3,
-    SYM_IS_ARRAY            = 1UL << 4,
-    SYM_IS_PROCARG          = 1UL << 5,
-    SYM_DEFAULT_INITIALIZED = 1UL << 6,
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct brief_vardata {
-    var_t                      type            = VAR_NONE;
-    uint16_t                   ptr_depth       = 0;
-    std::optional<std::string> user_type_name  = std::nullopt;
-};
-
-struct symbol {
-    sym_t    sym_type      = SYM_NONE;
-    uint32_t symbol_index  = INVALID_SYMBOL_INDEX;
-    uint16_t flags         = SYM_FLAGS_NONE;
-    uint16_t pointer_depth = 0;
-    uint32_t array_length  = 0;
-    uint32_t line_number   = 0;
-    size_t   src_pos       = 0;
-
-    std::string name;
-
-    virtual ~symbol() = default;
-    symbol()          = default;
-};
-
-struct variable final : symbol {
-    var_t variable_type = VAR_NONE;
-
-    ~variable() override = default;
-    variable()           = default;
-};
-
-struct procedure final : symbol {
-    std::vector<var_t> parameter_list; // Storing some useful type data here for easy checking later.
-    var_t              return_type;
-
-    ~procedure() override = default;
-    procedure()           = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,15 +74,16 @@ struct ast_else final : ast_node {
 };
 
 struct ast_branch  final : ast_node {
-    std::vector<ast_if*>     conditions;           // consecutive if/else statements
-    std::optional<ast_else*> _else = std::nullopt; // can be null!
+    std::vector<ast_if*>     conditions;               // consecutive if/else statements
+    std::optional<ast_else*> _else = std::nullopt;     // can be null!
 
     ~ast_branch() override;
     ast_branch() : ast_node(NODE_BRANCH) {}
 };
 
 struct ast_identifier final : ast_node {
-    uint32_t symbol_index = INVALID_SYMBOL_INDEX;
+    uint32_t symbol_index = 0;                         // INVALID_SYMBOL_INDEX
+    std::optional<std::string> member_path;            // used if struct member.
 
     ~ast_identifier() override = default;
     ast_identifier() : ast_node(NODE_IDENT) {}

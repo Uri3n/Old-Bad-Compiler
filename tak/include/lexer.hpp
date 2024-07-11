@@ -15,9 +15,13 @@
 #include <unordered_map>
 
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 std::optional<std::vector<char>> read_file(const std::string& file_name);
 
-struct lexer {
+
+class lexer {
+public:
 
     std::vector<char>   src;
 
@@ -46,6 +50,8 @@ struct lexer {
     lexer()  = default;
 };
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef void (*token_func)(lexer& lxr);
 
@@ -82,6 +88,7 @@ void lexer_token_at(lexer& lxr);
 void lexer_token_backtick(lexer& lxr);
 void lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& illegals);
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void lexer_display_token_data(const token& tok);
 std::string lexer_token_kind_to_string(token_kind kind);
@@ -91,5 +98,7 @@ std::optional<std::string> remove_escaped_chars(const std::string_view& str);
 std::optional<char>        get_escaped_char_via_real(char real);
 bool                       is_token_valid_numeric_literal(const std::string_view& token_value);
 token                      token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #endif //LEXER_HPP

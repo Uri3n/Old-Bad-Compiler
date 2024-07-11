@@ -43,6 +43,6 @@ token_to_var_t(const token_t tok_t) {
         case TOKEN_KW_F32:  return F32;
         case TOKEN_KW_F64:  return F64;
         case TOKEN_KW_BOOL: return BOOLEAN;
-        default:            return VAR_NONE; // TODO: add a check for a struct / user defined type.
+        default:            return VAR_NONE;
     }
 }

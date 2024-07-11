@@ -26,6 +26,8 @@ add_executable(tak src/main.cpp
         include/defer.hpp
         include/parser.hpp
         include/ast_types.hpp
+        include/sym_types.hpp
+        src/parser/parser_typetbl.cpp
 )
 
 target_include_directories(tak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
