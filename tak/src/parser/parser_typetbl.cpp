@@ -46,7 +46,9 @@ parser::dump_types() {
         print("~ {} ~\n  Members:", name);
         for(size_t i = 0; i < members.size(); ++i) {
             print("    {}. {}", std::to_string(i + 1), members[i].name);
-            print("{}", format_type_data(members[i].type));
+            print("{}", format_type_data(members[i].type, 1));
         }
     }
+
+    print("");
 }

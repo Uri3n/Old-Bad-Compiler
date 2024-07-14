@@ -22,6 +22,18 @@
 
 
 static void
+display_fake_node(const std::string& name, std::string& node_title, uint32_t& depth) {
+
+    node_title.insert(0, "     ");
+    if(!depth) {
+        node_title += "|- ";
+    }
+
+    ++depth;
+    print("{}{}", node_title, name);
+}
+
+static void
 display_node_vardecl(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
 
     node_title += "Variable Declaration";
@@ -65,12 +77,6 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
         ++depth;
     }
 
-
-    //
-    // NOTE: Parameters and Procedure Body are fake nodes.
-    // I still print them here as nodes to make it easy to interpret the AST but really
-    // we store both of these things as std::vector<ast_node*> inside of the procdecl node.
-    //
 
     if(!procdecl->parameters.empty()) {
         print("{}Parameters", node_title);
@@ -211,13 +217,7 @@ display_node_call(ast_node* node, std::string& node_title, uint32_t depth, parse
     display_node_data(call->identifier, depth + 1, parser);
 
     if(!call->arguments.empty()) {
-        node_title.insert(0, "     ");
-        if(!depth) {
-            node_title += "|- ";
-        }
-
-        ++depth;
-        print("{}Arguments", node_title); // Another "fake node" here. Arguments are really just vector<ast_node*>, not a child.
+        display_fake_node("Arguments", node_title, depth);
     }
 
     for(ast_node* arg : call->arguments) {
@@ -276,6 +276,145 @@ display_node_structdef(ast_node* node, const std::string& node_title) {
     print("{}{} (Struct Definition)", node_title, _struct->name);
 }
 
+static void
+display_node_braced_expression(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* expr = dynamic_cast<ast_braced_expression*>(node);
+    if(expr == nullptr) {
+        print("{} (Braced Expression) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Braced Expression", node_title);
+    for(ast_node* member : expr->members) {
+        display_node_data(member, depth + 1, _);
+    }
+}
+
+static void
+display_node_branch(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* branch = dynamic_cast<ast_branch*>(node);
+    if(branch == nullptr) {
+        print("{} (Branch) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Branch", node_title);
+    for(ast_node* if_stmt : branch->conditions) {
+        display_node_data(if_stmt, depth + 1, _);
+    }
+
+    if(branch->_else.has_value()) {
+        display_node_data(*branch->_else, depth + 1, _);
+    }
+}
+
+static void
+display_node_if(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* if_stmt = dynamic_cast<ast_if*>(node);
+    if(if_stmt == nullptr) {
+        print("{} (If) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}If", node_title);
+    display_node_data(if_stmt->condition, depth + 1, _);
+    display_fake_node("Body", node_title, depth);
+
+    for(ast_node* expr :  if_stmt->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_while(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* _while = dynamic_cast<ast_while*>(node);
+    if(_while == nullptr) {
+        print("{} (While) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}While", node_title);
+    display_node_data(_while->condition, depth + 1, _);
+    display_fake_node("Body", node_title, depth);
+
+    for(ast_node* expr : _while->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_else(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* else_stmt = dynamic_cast<ast_else*>(node);
+    if(else_stmt == nullptr) {
+        print("{} (Else) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Else", node_title);
+    display_fake_node("Body", node_title, depth);
+
+    for(ast_node* expr :  else_stmt->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_case(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* _case = dynamic_cast<ast_case*>(node);
+    if(_case == nullptr) {
+        print("{} (Default) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Case {} (Fallthrough={})", node_title, _case->value->value, _case->fallthrough ? "True" : "False");
+    display_fake_node("Body", node_title, depth);
+
+    for(ast_node* expr : _case->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_default(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* _default = dynamic_cast<ast_default*>(node);
+    if(_default == nullptr) {
+        print("{} (Default) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Default", node_title);
+    display_fake_node("Body", node_title, depth);
+
+    for(ast_node* expr : _default->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_switch(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* _switch = dynamic_cast<ast_switch*>(node);
+    if(_switch == nullptr) {
+        print("{} (Switch) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Switch", node_title);
+
+    display_node_data(_switch->target, depth + 1, _);
+    for(ast_node* _case : _switch->cases) {
+        display_node_data(_case, depth + 1, _);
+    }
+
+    display_node_data(_switch->_default, depth + 1, _);
+}
 
 
 void
@@ -294,7 +433,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
     switch(node->type) {
         case NODE_NONE:
-            print("{}None", node_title);
+            print("{}None", node_title); // Shouldn't ever happen...
             break;
 
         case NODE_VARDECL:
@@ -343,17 +482,42 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
         case NODE_STRUCT_DEFINITION:
             display_node_structdef(node, node_title);
+            break;
 
-        /*
-        case NODE_BRANCH:
-        case NODE_IF:
-        case NODE_ELSE:
-        case NODE_FOR:
-        case NODE_SWITCH:
-        case NODE_CASE:
-        case NODE_DEFAULT:
-        case NODE_WHILE:
         case NODE_BRACED_EXPRESSION:
+            display_node_braced_expression(node, node_title, depth, parser);
+            break;
+
+        case NODE_BRANCH:
+            display_node_branch(node, node_title, depth, parser);
+            break;
+
+        case NODE_IF:
+            display_node_if(node, node_title, depth, parser);
+            break;
+
+        case NODE_ELSE:
+            display_node_else(node, node_title, depth, parser);
+            break;
+
+        case NODE_WHILE:
+            display_node_while(node, node_title, depth, parser);
+            break;
+
+        case NODE_SWITCH:
+            display_node_switch(node, node_title, depth, parser);
+            break;
+
+        case NODE_CASE:
+            display_node_case(node, node_title, depth, parser);
+            break;
+
+        case NODE_DEFAULT:
+            display_node_default(node, node_title, depth, parser);
+            break;
+
+        /* -- Ones I'm Missing:
+        case NODE_FOR:
         */
 
         default:
@@ -367,7 +531,8 @@ void
 parser::dump_nodes() {
 
     print("-- ABSTRACT SYNTAX TREE -- ");
-    for(const auto node : toplevel_decls) {
+    for(const auto node : toplevel_decls)
         display_node_data(node, 0, *this);
-    }
+
+    print("");
 }

@@ -14,7 +14,7 @@ class defer_wrapper {
     T callable;
 public:
 
-    auto call() -> decltype(callable()) {
+    auto call() -> decltype(callable()) { // unused
         return callable();
     }
 

@@ -6,6 +6,7 @@
 #define CURRENT_TEST "tests/test1.txt"
 
 
+
 int main() {
 
 #if 1
@@ -18,7 +19,7 @@ int main() {
 
     parser.dump_nodes();
     parser.dump_symbols();
-
+    parser.dump_types();
 #endif
 
     return EXIT_SUCCESS;

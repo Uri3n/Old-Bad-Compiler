@@ -63,7 +63,7 @@ parse_type(parser& parser, lexer& lxr) {
         data.name     = std::monostate();
     }
 
-    else if(lxr.current().kind == IDENTIFIER) {
+    else if(lxr.current() == IDENTIFIER) {
         if(!parser.type_exists(std::string(lxr.current().value))) {
             lxr.raise_error("Invalid type specifier.");
             return std::nullopt;
@@ -536,10 +536,11 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
     }
 
 
-    auto* node = new ast_vardecl();
-    node->identifier = new ast_identifier();
-    node->identifier->parent = node;
+    auto* node                     = new ast_vardecl();
+    node->identifier               = new ast_identifier();
+    node->identifier->parent       = node;
     node->identifier->symbol_index = _struct->symbol_index;
+
 
     if(lxr.current() == VALUE_ASSIGNMENT) {
 
@@ -547,15 +548,21 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
         const uint32_t line     = lxr.current().line;
 
         lxr.advance(1);
-        node->init_value     = parse_expression(parser, lxr, true);
-        const auto expr_type = (*node->init_value)->type;
+        node->init_value = parse_expression(parser, lxr, true);
 
+        if(node->init_value == nullptr) {
+            delete node;
+            return nullptr;
+        }
+
+        const auto expr_type = (*node->init_value)->type;
         if(!VALID_SUBEXPRESSION(expr_type)) {
             lxr.raise_error("Invalid subexpression being assigned to struct.", curr_pos, line);
             delete node;
             return nullptr;
         }
 
+        (*node->init_value)->parent = node;
         return node;
     }
 

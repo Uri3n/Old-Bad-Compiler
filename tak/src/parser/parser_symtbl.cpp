@@ -123,13 +123,13 @@ std::string
 format_type_data(const type_data& type, const uint16_t num_tabs) {
 
     static constexpr std::string_view fmt_type =
-        "\n{} - Symbol Type:   {}"
+        "{} - Symbol Type:   {}"
         "\n{} - Flags:         {}"
         "\n{} - Pointer Depth: {}"
         "\n{} - Array Length:  {}"
         "\n{} - Type Name:     {}"
         "\n{} - Return Type:   {}"
-        "\n{} - Parameters:    {}";
+        "\n{} - Parameters:    {}\n";
 
     std::string tabs;
     for(uint16_t i = 0; i < num_tabs; i++) {
@@ -183,7 +183,7 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
     std::string param_data;
 
     if(type.return_type != nullptr) {
-        return_type_data = "\n\n~~ BEGIN RETURN TYPE ~~";
+        return_type_data = "\n\n~~ BEGIN RETURN TYPE ~~\n";
         return_type_data += format_type_data(*type.return_type, num_tabs + 1);
         return_type_data += "\n~~ END RETURN TYPE ~~\n";
     } else {
@@ -191,7 +191,7 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
     }
 
     if(type.parameters != nullptr) {
-        param_data = "\n\n~~ BEGIN PARAMETERS ~~";
+        param_data = "\n\n~~ BEGIN PARAMETERS ~~\n";
         for(const auto& param : *type.parameters) {
             param_data += format_type_data(param, num_tabs + 1) + '\n';
         }
@@ -238,7 +238,8 @@ parser::dump_symbols() {
             sym.src_pos,
             format_type_data(sym.type)
         );
-
     }
+
+    print("");
 }
 

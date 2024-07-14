@@ -29,6 +29,24 @@
     || node_type == NODE_BRACED_EXPRESSION                                      \
 )                                                                               \
 
+#define VALID_UNARY_OPERATOR(token) (token.kind == UNARY_EXPR_OPERATOR          \
+    || curr == PLUS                                                             \
+    || curr == SUB                                                              \
+    || curr == BITWISE_XOR_OR_PTR                                               \
+    || curr == BITWISE_AND                                                      \
+)                                                                               \
+
+#define EXPR_NEVER_NEEDS_TERMINAL(node_type) (node_type == NODE_PROCDECL        \
+    || node_type == NODE_BRANCH                                                 \
+    || node_type == NODE_IF                                                     \
+    || node_type == NODE_ELSE                                                   \
+    || node_type == NODE_FOR                                                    \
+    || node_type == NODE_WHILE                                                  \
+    || node_type == NODE_DOWHILE                                                \
+    || node_type == NODE_PROCDECL                                               \
+    || node_type == NODE_SWITCH                                                 \
+)                                                                               \
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class parser {
@@ -88,10 +106,15 @@ std::optional<type_data> parse_type(parser& parser, lexer& lxr);
 std::optional<uint32_t>  parse_array_size(lexer& lxr);
 
 ast_node* parse_ret(parser& parser, lexer& lxr);
-ast_node* parse_structdef(parser& parser, lexer& lxr);
+ast_node* parse_cont(lexer& lxr);
+ast_node* parse_brk(lexer& lxr);
+ast_node* parse_for(parser& parser, lexer& lxr);
+ast_node* parse_while(parser& parser, lexer& lxr);
 ast_node* parse_branch(parser& parser, lexer& lxr);
+ast_case* parse_case(parser& parser, lexer& lxr);
+ast_default* parse_default(parser& parser, lexer& lxr);
 ast_node* parse_switch(parser& parser, lexer& lxr);
-
+ast_node* parse_structdef(parser& parser, lexer& lxr);
 ast_node* parse_member_access(parser& parser, lexer& lxr);
 ast_node* parse_expression(parser& parser, lexer& lxr, bool subexpression, bool parse_single = false);
 ast_node* parse_identifier(parser& parser, lexer& lxr);

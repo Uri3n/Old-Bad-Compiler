@@ -52,6 +52,8 @@ lexer_token_type_to_string(const token_t type) {
         case DIVEQ:                  return "Division-Equals";
         case MOD:                    return "Modulus";
         case MODEQ:                  return "Modulus-Equals";
+        case INCREMENT:              return "Increment";
+        case DECREMENT:              return "Decrement";
         case BITWISE_AND:            return "Bitwise AND Or \"Address-Of\" Operator";
         case BITWISE_ANDEQ:          return "Bitwise AND-Equals";
         case BITWISE_NOT:            return "Bitwise NOT";
@@ -77,6 +79,7 @@ lexer_token_type_to_string(const token_t type) {
         case KW_ENUM:                return R"(Keyword "enum")";
         case TOKEN_KW_VOID:          return R"(Keyword "void")";
         case KW_DEFAULT:             return R"(Keyword "default")";
+        case KW_FALLTHROUGH:         return R"(Keyword "fallthrough")";
         case ARROW:                  return "Arrow";
         case TOKEN_KW_F64:           return "64-bit Float Type-Identifier";
         case TOKEN_KW_F32:           return "32-bit Float Type-Identifier";

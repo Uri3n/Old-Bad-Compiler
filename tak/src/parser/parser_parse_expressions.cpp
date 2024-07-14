@@ -11,35 +11,30 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     const auto  curr  = lxr.current();
     ast_node*   expr  = nullptr;
     bool        state = false;
-    defer([&]{ if(!state){delete expr;} });
+    defer([&]{ if(!state){ delete expr;} });
 
 
-    if(curr == END_OF_FILE)       return nullptr;
-    if(curr == IDENTIFIER)        expr = parse_identifier(parser, lxr);
-    else if(curr == LPAREN)       expr = parse_parenthesized_expression(parser, lxr);
-    else if(curr == LBRACE)       expr = parse_braced_expression(parser, lxr);
-    else if(curr.kind == LITERAL) expr = parse_singleton_literal(parser, lxr);
-    else if(curr.kind == KEYWORD) expr = parse_keyword(parser, lxr);
+    if(curr == END_OF_FILE)             return nullptr;
+    if(curr == IDENTIFIER)              expr = parse_identifier(parser, lxr);
+    else if(curr == LPAREN)             expr = parse_parenthesized_expression(parser, lxr);
+    else if(curr == LBRACE)             expr = parse_braced_expression(parser, lxr);
+    else if(curr.kind == LITERAL)       expr = parse_singleton_literal(parser, lxr);
+    else if(curr.kind == KEYWORD)       expr = parse_keyword(parser, lxr);
+    else if(VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
 
-
-    else if(curr.kind == UNARY_EXPR_OPERATOR    // Tricky. Context dependent.
-            || curr == PLUS                     // unary plus.
-            || curr == SUB                      // unary minus.
-            || curr == BITWISE_XOR_OR_PTR       // pointer dereference.
-            || curr == BITWISE_AND              // Address of.
-        ) {
-        expr = parse_unary_expression(parser, lxr);
-    }
 
     else {
         lxr.raise_error("Invalid token at the beginning of an expression.");
         return nullptr;
     }
 
-    if(expr == nullptr) {
+    if(expr == nullptr)
         return nullptr;
-    }
 
+
+    //
+    // Check if we're leaving a parenthesized expression
+    //
 
     if(lxr.current() == RPAREN) {
         if(!parser.inside_parenthesized_expression) {
@@ -54,14 +49,22 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     }
 
 
-    if(!VALID_SUBEXPRESSION(expr->type) && expr->type != NODE_VARDECL) {
+    //
+    // For these expressions we should not check the terminal no matter what.
+    //
+
+    if(EXPR_NEVER_NEEDS_TERMINAL(expr->type)) {
         state = true;
         return expr;
     }
 
-    if(lxr.current().kind == BINARY_EXPR_OPERATOR && !parse_single) {
+
+    //
+    // If the next token is an operator we can recurse until the subexpression is parsed.
+    //
+
+    if(lxr.current().kind == BINARY_EXPR_OPERATOR && !parse_single)
         expr = parse_binary_expression(expr, parser, lxr);
-    }
 
     if(subexpression) {
         state = true;
@@ -93,20 +96,20 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
     ++parser.inside_parenthesized_expression;
     lxr.advance(1);
 
-    auto* expr = parse_expression(parser, lxr, true);
-    if(expr == nullptr || (expr->type != NODE_SINGLETON_LITERAL
-        && expr->type != NODE_BINEXPR
-        && expr->type != NODE_CALL
-        && expr->type != NODE_IDENT
-        && expr->type != NODE_ASSIGN
-        && expr->type != NODE_UNARYEXPR
-    )) {
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+    auto* expr              = parse_expression(parser, lxr, true);
+
+    if(expr == nullptr) return nullptr;
+    if(!VALID_SUBEXPRESSION(expr->type)) {
+        lxr.raise_error("This expression cannot be used within parentheses.", curr_pos, line);
         delete expr;
         return nullptr;
     }
 
     return expr;
 }
+
 
 
 ast_node*
@@ -127,7 +130,40 @@ ast_node*
 parse_braced_expression(parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == LBRACE, "Expected left-brace.");
-    return nullptr;
+
+    bool  state = false;
+    auto* node  = new ast_braced_expression();
+
+    defer([&] {
+        if(!state) { delete node; }
+    });
+
+
+    lxr.advance(1);
+    while(lxr.current() != RBRACE) {
+
+        const size_t   curr_pos = lxr.current().src_pos;
+        const uint32_t line     = lxr.current().line;
+
+        node->members.emplace_back(parse_expression(parser, lxr, true));
+        if(node->members.back() == nullptr) {
+            return nullptr;
+        }
+
+        if(!VALID_SUBEXPRESSION(node->members.back()->type)) {
+            lxr.raise_error("Invalid subexpression within braced expression.", curr_pos, line);
+            return nullptr;
+        }
+
+        if(lxr.current() == COMMA) {
+            lxr.advance(1);
+        }
+    }
+
+
+    lxr.advance(1);
+    state = true;
+    return node;
 }
 
 
@@ -150,7 +186,6 @@ parse_unary_expression(parser& parser, lexer& lxr) {
         delete node;
         return nullptr;
     }
-
 
     const auto right_t = node->operand->type;
     if(!VALID_SUBEXPRESSION(right_t)) {
@@ -396,18 +431,23 @@ parse_member_access(parser& parser, lexer& lxr) {
 
     std::string path;
     auto looking = std::string(lxr.current().value);
+    std::function<bool(decltype(_member_data))> get_member_path;
 
-    auto get_member_path = [&](const decltype(_member_data) members) -> bool {
+
+    //
+    // Recurse through each sub-member (if they exist) until we find our target
+    //
+
+    get_member_path = [&](const decltype(_member_data) members) -> bool {
 
         if(members == nullptr) {
-            lxr.raise_error("Struct members do not exist.");
+            lxr.raise_error("Struct does not have any members.");
             return false;
         }
 
         for(const auto& member : *members) {
-            if(member.name != looking) {
+            if(member.name != looking)
                 continue;
-            }
 
             path += fmt(".{}", looking);
             if(lxr.peek(1) == DOT && lxr.peek(2) == IDENTIFIER) {
@@ -416,12 +456,14 @@ parse_member_access(parser& parser, lexer& lxr) {
 
                 auto* substruct_name = std::get_if<std::string>(&member.type.name);
                 if(substruct_name == nullptr || member.type.sym_type != SYM_STRUCT) {
-                    lxr.raise_error("Attemping to access member from non-struct type.");
+                    lxr.raise_error("Attempting to access member from non-struct type.");
                     return false;
                 }
 
-                return get_member_path(parser.lookup_type(*substruct_name)); // recursively call until we find the member
+                return get_member_path(parser.lookup_type(*substruct_name));
             }
+
+            lxr.advance(1);
             return true;
         }
 

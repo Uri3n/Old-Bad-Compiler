@@ -140,6 +140,11 @@ lexer_token_hyphen(lexer &lxr) {
             lxr.advance_char(2);
             break;
 
+        case '-':
+            _current = token{DECREMENT, UNARY_EXPR_OPERATOR, index, {&src[index], 2}};
+            lxr.advance_char(2);
+            break;
+
         default:
             _current = token{SUB, BINARY_EXPR_OPERATOR, index, {&src[index], 1}};
             lxr.advance_char(1);
@@ -157,14 +162,21 @@ lexer_token_plus(lexer &lxr) {
         _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
     }
 
-    else if(lxr.peek_char() == '=') {
-        _current = token{PLUSEQ, BINARY_EXPR_OPERATOR, index, {&src[index], 2}};
-        lxr.advance_char(2);
-    }
+    switch(lxr.peek_char()) {
+        case '=':
+            _current = token{PLUSEQ, BINARY_EXPR_OPERATOR, index, {&src[index], 2}};
+            lxr.advance_char(2);
+            break;
 
-    else {
-        _current = token{PLUS, BINARY_EXPR_OPERATOR, index, {&src[index], 1}};
-        lxr.advance_char(1);
+        case '+':
+            _current = token{INCREMENT, UNARY_EXPR_OPERATOR, index, {&src[index], 2}};
+            lxr.advance_char(2);
+            break;
+
+        default:
+            _current = token{PLUS, BINARY_EXPR_OPERATOR, index, {&src[index], 1}};
+            lxr.advance_char(1);
+            break;
     }
 }
 

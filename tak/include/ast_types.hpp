@@ -50,6 +50,21 @@ struct ast_node {
     explicit ast_node(const ast_node_t type) : type(type) {}
 };
 
+struct ast_singleton_literal final : ast_node {
+    std::string value;
+    token_t     literal_type = TOKEN_NONE;
+
+    ~ast_singleton_literal() override = default;
+    ast_singleton_literal() : ast_node(NODE_SINGLETON_LITERAL) {}
+};
+
+struct ast_braced_expression final : ast_node {
+    std::vector<ast_node*> members;
+
+    ~ast_braced_expression() override;
+    ast_braced_expression() : ast_node(NODE_BRACED_EXPRESSION) {}
+};
+
 struct ast_binexpr final : ast_node {
     token_t _operator  = TOKEN_NONE;
     ast_node* left_op  = nullptr;
@@ -74,12 +89,37 @@ struct ast_else final : ast_node {
     ast_else() : ast_node(NODE_ELSE) {}
 };
 
-struct ast_branch  final : ast_node {
+struct ast_branch final : ast_node {
     std::vector<ast_if*>     conditions;               // consecutive if/else statements
     std::optional<ast_else*> _else = std::nullopt;     // can be null!
 
     ~ast_branch() override;
     ast_branch() : ast_node(NODE_BRANCH) {}
+};
+
+struct ast_case final : ast_node {
+    ast_singleton_literal* value = nullptr;
+    bool fallthrough = false;
+    std::vector<ast_node*> body;
+
+    ~ast_case() override;
+    ast_case() : ast_node(NODE_CASE) {}
+};
+
+struct ast_default final : ast_node {                  // default case in switches.
+    std::vector<ast_node*> body;
+
+    ~ast_default() override;
+    ast_default() : ast_node(NODE_DEFAULT) {}
+};
+
+struct ast_switch final : ast_node {
+    ast_node*                   target   = nullptr;
+    ast_default*                _default = nullptr;
+    std::vector<ast_case*>      cases;
+
+    ~ast_switch() override;
+    ast_switch() : ast_node(NODE_SWITCH) {}
 };
 
 struct ast_identifier final : ast_node {
@@ -179,21 +219,6 @@ struct ast_cont final : ast_node {
 struct ast_brk final : ast_node {
     ~ast_brk() override = default;
     ast_brk() : ast_node(NODE_BRK) {}
-};
-
-struct ast_singleton_literal final : ast_node {
-    std::string value;
-    token_t     literal_type = TOKEN_NONE;
-
-    ~ast_singleton_literal() override = default;
-    ast_singleton_literal() : ast_node(NODE_SINGLETON_LITERAL) {}
-};
-
-struct ast_braced_expression final : ast_node {
-    std::vector<ast_node*> members;
-
-    ~ast_braced_expression() override;
-    ast_braced_expression() : ast_node(NODE_BRACED_EXPRESSION) {}
 };
 
 #endif //AST_TYPES_HPP

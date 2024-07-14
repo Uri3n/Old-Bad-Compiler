@@ -108,6 +108,29 @@ ast_ret::~ast_ret() {
     }
 }
 
+ast_case::~ast_case() {
+    for(ast_node const* node : body) {
+        delete node;
+    }
+
+    delete value;
+}
+
+ast_default::~ast_default() {
+    for(ast_node const* node : body) {
+        delete node;
+    }
+}
+
+ast_switch::~ast_switch() {
+    for(ast_node const* node : cases) {
+        delete node;
+    }
+
+    delete _default;
+    delete target;
+}
+
 parser::~parser() {
     for(ast_node const* node : toplevel_decls) {
         delete node;

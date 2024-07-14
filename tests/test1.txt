@@ -1,7 +1,14 @@
 
-main :: proc() -> i32 {
+foo :: i32 = 100;
+
+switch(foo) {
+   fallthrough 420 {
+     foo = 3 + 10;
+   }
+
+   case 'a' {
+      ~foo;
+   }
+
+   default {}
 }
-
-myvar: i32;
-
-main(myvar);
