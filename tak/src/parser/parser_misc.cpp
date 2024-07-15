@@ -55,8 +55,7 @@ ast_vardecl::~ast_vardecl() {
         delete *init_value;
     }
 
-    delete identifier;
-}
+    delete identifier;}
 
 ast_call::~ast_call() {
     for(ast_node const* node : arguments) {
@@ -66,14 +65,19 @@ ast_call::~ast_call() {
     delete identifier;
 }
 
+ast_subscript::~ast_subscript() {
+    delete operand;
+    delete value;
+}
+
 ast_for::~ast_for() {
     for(ast_node const* node : body) {
         delete node;
     }
 
-    delete condition;
-    delete initialization;
-    delete update;
+    if(condition) delete *condition;
+    if(init)      delete *init;
+    if(update)    delete *update;
 }
 
 ast_while::~ast_while() {

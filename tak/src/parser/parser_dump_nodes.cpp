@@ -416,6 +416,61 @@ display_node_switch(ast_node* node, const std::string& node_title, const uint32_
     display_node_data(_switch->_default, depth + 1, _);
 }
 
+static void
+display_node_for(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* _for = dynamic_cast<ast_for*>(node);
+    if(_for == nullptr) {
+        print("{} (For) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}For", node_title);
+
+    uint32_t    tmp_depth = depth;
+    std::string tmp_title = node_title;
+
+
+    if(_for->init.has_value()) {
+        display_fake_node("Initialization", tmp_title, tmp_depth);
+        display_node_data(*_for->init, tmp_depth + 1, _);
+    }
+
+    if(_for->condition.has_value()) {
+        tmp_title = node_title;
+        tmp_depth = depth;
+        display_fake_node("Condition", tmp_title, tmp_depth);
+        display_node_data(*_for->condition, tmp_depth + 1, _);
+    }
+
+    if(_for->update.has_value()) {
+        tmp_title = node_title;
+        tmp_depth = depth;
+        display_fake_node("Update", tmp_title, tmp_depth);
+        display_node_data(*_for->update, tmp_depth + 1, _);
+    }
+
+
+    display_fake_node("Body", node_title, depth);
+    for(ast_node* expr : _for->body) {
+        display_node_data(expr, depth + 1, _);
+    }
+}
+
+static void
+display_node_subscript(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* subscript = dynamic_cast<ast_subscript*>(node);
+    if(subscript == nullptr) {
+        print("{} (For) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Index Into (Subscript)", node_title);
+    display_node_data(subscript->operand, depth + 1, _);
+    display_node_data(subscript->value, depth + 1, _);
+}
+
 
 void
 display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
@@ -516,12 +571,16 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
             display_node_default(node, node_title, depth, parser);
             break;
 
-        /* -- Ones I'm Missing:
         case NODE_FOR:
-        */
+            display_node_for(node, node_title, depth, parser);
+            break;
+
+        case NODE_SUBSCRIPT:
+            display_node_subscript(node, node_title, depth, parser);
+            break;
 
         default:
-            print("{}{}", node_title, "No display impl for this node yet...");
+            print("{}{}", node_title, "?? Unknown Node Type...");
             break;
     }
 }

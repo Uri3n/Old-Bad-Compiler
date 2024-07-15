@@ -6,6 +6,42 @@
 
 
 ast_node*
+parse_subscript(ast_node* operand, parser& parser, lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == LSQUARE_BRACKET, "Expected '['.");
+    PARSER_ASSERT(operand != nullptr, "Null operand.");
+    lxr.advance(1);
+
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    auto* node            = new ast_subscript();
+    node->operand         = operand;
+    node->operand->parent = node;
+    node->value           = parse_expression(parser, lxr, true);
+
+    bool state = false;
+    defer([&] {
+        if(!state) { delete node; }
+    });
+
+
+    if(node->value == nullptr)
+        return nullptr;
+
+    if(!VALID_SUBEXPRESSION(node->value->type) || lxr.current() != RSQUARE_BRACKET) {
+        lxr.raise_error("Invalid expression within subscript operator.", curr_pos, line);
+        return nullptr;
+    }
+
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
+ast_node*
 parse_expression(parser& parser, lexer& lxr, const bool subexpression, const bool parse_single) {
 
     const auto  curr  = lxr.current();
@@ -63,6 +99,9 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     // If the next token is an operator we can recurse until the subexpression is parsed.
     //
 
+    while(lxr.current() == LSQUARE_BRACKET && !parse_single)
+        expr = parse_subscript(expr, parser, lxr);
+
     if(lxr.current().kind == BINARY_EXPR_OPERATOR && !parse_single)
         expr = parse_binary_expression(expr, parser, lxr);
 
@@ -118,8 +157,23 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
     PARSER_ASSERT(lxr.current().kind == LITERAL, "Expected literal.");
 
     auto* node         = new ast_singleton_literal();
-    node->value        = std::string(lxr.current().value);
     node->literal_type = lxr.current().type;
+
+
+    if(node->literal_type == STRING_LITERAL || node->literal_type == CHARACTER_LITERAL) {
+        const auto real = remove_escaped_chars(lxr.current().value);
+        if(!real) {
+            lxr.raise_error("String contains one or more invalid escaped characters.");
+            delete node;
+            return nullptr;
+        }
+
+        node->value = *real;
+    }
+
+    else {
+        node->value = std::string(lxr.current().value);
+    }
 
     lxr.advance(1);
     return node;
@@ -170,8 +224,7 @@ parse_braced_expression(parser& parser, lexer& lxr) {
 ast_node*
 parse_unary_expression(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == UNARY_EXPR_OPERATOR, "Expected unary operator.");
-
+    PARSER_ASSERT(VALID_UNARY_OPERATOR(lxr.current()), "Expected unary operator.");
 
     auto* node        = new ast_unaryexpr();
     node->_operator   = lxr.current().type;
@@ -312,15 +365,18 @@ parse_call(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.current() == COMMA) {
+        node->arguments.emplace_back(expr);
+
+        if(old_paren_index >= parser.inside_parenthesized_expression)
+            break;
+
+        if(lxr.current() == COMMA || lxr.current() == SEMICOLON) {
             lxr.advance(1);
             if(lxr.current() == RPAREN) {
                 --parser.inside_parenthesized_expression;
                 lxr.advance(1);
             }
         }
-
-        node->arguments.emplace_back(expr);
     }
 
 

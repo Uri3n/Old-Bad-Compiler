@@ -30,10 +30,10 @@
 )                                                                               \
 
 #define VALID_UNARY_OPERATOR(token) (token.kind == UNARY_EXPR_OPERATOR          \
-    || curr == PLUS                                                             \
-    || curr == SUB                                                              \
-    || curr == BITWISE_XOR_OR_PTR                                               \
-    || curr == BITWISE_AND                                                      \
+    || token == PLUS                                                            \
+    || token == SUB                                                             \
+    || token == BITWISE_XOR_OR_PTR                                              \
+    || token == BITWISE_AND                                                     \
 )                                                                               \
 
 #define EXPR_NEVER_NEEDS_TERMINAL(node_type) (node_type == NODE_PROCDECL        \
@@ -103,7 +103,7 @@ std::string format_type_data(const type_data& type, uint16_t num_tabs = 0);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::optional<type_data> parse_type(parser& parser, lexer& lxr);
-std::optional<uint32_t>  parse_array_size(lexer& lxr);
+std::optional<std::vector<uint32_t>> parse_array_data(lexer& lxr);
 
 ast_node* parse_ret(parser& parser, lexer& lxr);
 ast_node* parse_cont(lexer& lxr);
@@ -131,6 +131,7 @@ ast_node* parse_keyword(parser& parser, lexer& lxr);
 ast_node* parse_singleton_literal(parser& parser, lexer& lxr);
 ast_node* parse_braced_expression(parser& parser, lexer& lxr);
 ast_node* parse_parenthesized_expression(parser& parser, lexer& lxr);
+ast_node* parse_subscript(ast_node* operand, parser& parser, lexer& lxr);
 ast_node* parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

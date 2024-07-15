@@ -4,6 +4,7 @@
 
 #include <lexer.hpp>
 
+
 void
 lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
 
@@ -11,29 +12,26 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
     size_t line_end   = file_position;
 
 
-    if(src.empty()) {
+    if(src.empty())
         return;
-    }
 
-    if(file_position >= src.size()) {
+    if(file_position >= src.size())
         file_position = src.size() - 1;
-    }
 
-    while(line_start != 0 && src[line_start] != '\n') {
+    while(line_start != 0 && src[line_start] != '\n')
         --line_start;
-    }
 
-    while(line_end < src.size() && src[line_end] != '\n') {
+    while(line_end < src.size() && src[line_end] != '\n')
         ++line_end;
-    }
 
 
     uint32_t offset    = file_position - (line_start + 1);
     auto    full_line  = std::string(&src[line_start], line_end - line_start);
 
+
     if(full_line.empty() || offset >= full_line.size()) {
-        print("Internal parse-error: bad error report.");
-        return;
+        print("Unexpected end of file!");
+        exit(1); // @temporary: should be exiting regularly if this is the case.
     }
 
     if(full_line.front() == '\n') {

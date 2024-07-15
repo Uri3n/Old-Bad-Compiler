@@ -38,6 +38,7 @@ enum ast_node_t : uint8_t {
     NODE_BRACED_EXPRESSION,
     NODE_STRUCT_DEFINITION,
     NODE_ENUM_DEFINITION,
+    NODE_SUBSCRIPT
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,9 +173,10 @@ struct ast_call final : ast_node {
 
 struct ast_for final : ast_node {
     std::vector<ast_node*> body;
-    ast_node*              initialization = nullptr;
-    ast_node*              condition      = nullptr;
-    ast_node*              update         = nullptr;
+
+    std::optional<ast_node*> init      = std::nullopt;
+    std::optional<ast_node*> condition = std::nullopt;
+    std::optional<ast_node*> update    = std::nullopt;
 
     ~ast_for() override;
     ast_for() : ast_node(NODE_FOR) {}
@@ -202,6 +204,14 @@ struct ast_dowhile final : ast_node {
 
     ~ast_dowhile() override;
     ast_dowhile() : ast_node(NODE_DOWHILE) {}
+};
+
+struct ast_subscript final : ast_node {
+    ast_node* operand = nullptr;                   // The thing being subscripted.
+    ast_node* value   = nullptr;                   // The index value.
+
+    ~ast_subscript() override;
+    ast_subscript() : ast_node(NODE_SUBSCRIPT) {}
 };
 
 struct ast_ret final : ast_node {

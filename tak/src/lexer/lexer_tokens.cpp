@@ -498,7 +498,7 @@ lexer_token_quote(lexer &lxr) {
     while(true) {
 
         if(lxr.current_char() == '\0') {
-            _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+            _current = token{ILLEGAL, UNSPECIFIC, src.size() - 1, "\\0"};
             break;
         }
 
@@ -527,8 +527,12 @@ lexer_token_singlequote(lexer &lxr) {
 
     lxr.advance_char(1);
 
-    if(lxr.current_char() == '\\') { // check for escaped single-quote
+    if(lxr.current_char() == '\\') {          // check for escaped single-quote
         lxr.advance_char(2);
+    } else if(lxr.current_char() == '\'') {   // empty literal
+        lxr.advance_char(1);
+        _current = token{CHARACTER_LITERAL, LITERAL, start, {&src[start], index - start}};
+        return;
     } else {
         lxr.advance_char(1);
     }
@@ -536,7 +540,7 @@ lexer_token_singlequote(lexer &lxr) {
 
     switch(lxr.current_char()) {
         case '\0':
-            _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+            _current = token{ILLEGAL, UNSPECIFIC, src.size() - 1, "\\0"};
             break;
 
         case '\'':
@@ -626,10 +630,24 @@ lexer_token_dot(lexer &lxr) {
     }
 }
 
+void
+lexer_token_backslash(lexer& lxr) {
+
+    auto &[src, index, curr_line, _current, _] = lxr;
+
+    if(index >= src.size()) {
+        _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+    } else {
+        _current = token{NAMESPACE_ACCESS, UNSPECIFIC, index, {&src[index], 1}};
+        lxr.advance_char(1);
+    }
+}
+
 
 //
 // We can leave the following tokens as "illegal" for now.
 // can change easily if we decide to do anything with these characters.
+// for now, they are unused and don't do anything.
 //
 
 void

@@ -5,8 +5,6 @@
 
 #define CURRENT_TEST "tests/test1.txt"
 
-
-
 int main() {
 
 #if 1

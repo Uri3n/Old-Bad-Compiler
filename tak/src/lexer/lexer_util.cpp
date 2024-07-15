@@ -59,7 +59,7 @@ lexer_token_type_to_string(const token_t type) {
         case BITWISE_NOT:            return "Bitwise NOT";
         case BITWISE_OR:             return "Bitwise OR";
         case BITWISE_OREQ:           return "Bitwise OR-Equals";
-        case BITWISE_XOR_OR_PTR:     return "Bitwise XOR, Pointer Type, Or Pointer Dereference";
+        case BITWISE_XOR_OR_PTR:     return "XOR, Pointer Type, Or Dereference";
         case BITWISE_XOREQ:          return "Bitwise XOR-Equals";
         case BITWISE_LSHIFT:         return "Left Bitshift";
         case BITWISE_RSHIFT:         return "Right Bitshift";
@@ -72,6 +72,7 @@ lexer_token_type_to_string(const token_t type) {
         case KW_IF:                  return R"(Keyword "if")";
         case KW_ELSE:                return R"(Keyword "else")";
         case KW_ELIF:                return R"(Keyword "elif")";
+        case KW_NAMESPACE:           return R"(Keyword "namespace")";
         case TOKEN_KW_PROC:          return R"(Keyword "proc")";
         case KW_STRUCT:              return R"(Keyword "struct")";
         case KW_SWITCH:              return R"(Keyword "switch")";
@@ -92,6 +93,7 @@ lexer_token_type_to_string(const token_t type) {
         case TOKEN_KW_U64:           return "Unsigned 64-Bit Integer Type-Identifier";
         case TOKEN_KW_I64:           return "Signed 64-Bit Integer Type-Identifier";
         case TOKEN_KW_BOOL:          return "Boolean Type Identifier";
+        case NAMESPACE_ACCESS:       return "Namespace Access Operator";
         default:                     return "Unknown";
     }
 }
@@ -175,7 +177,6 @@ get_escaped_char_via_real(const char real) {
         case '0':  return '\0';
         default:   return std::nullopt;
     }
-
 }
 
 
@@ -196,6 +197,10 @@ remove_escaped_chars(const std::string_view& str) {
             } else {
                 return std::nullopt;
             }
+        }
+
+        else {
+            buffer += str[i];
         }
     }
 

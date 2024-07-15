@@ -126,7 +126,8 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
         "{} - Symbol Type:   {}"
         "\n{} - Flags:         {}"
         "\n{} - Pointer Depth: {}"
-        "\n{} - Array Length:  {}"
+        "\n{} - Matrix Depth:  {}"
+        "\n{} - Array Lengths: {}"
         "\n{} - Type Name:     {}"
         "\n{} - Return Type:   {}"
         "\n{} - Parameters:    {}\n";
@@ -201,6 +202,14 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
     }
 
 
+    std::string array_lengths;
+    for(const auto& len : type.array_lengths)
+        array_lengths += std::to_string(len) + ',';
+
+    if(!array_lengths.empty() && array_lengths.back() == ',')
+        array_lengths.pop_back();
+
+
     return fmt(fmt_type,
         tabs,
         sym_t_str,
@@ -209,7 +218,9 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
         tabs,
         type.pointer_depth,
         tabs,
-        type.array_length,
+        type.array_lengths.size(),
+        tabs,
+        array_lengths.empty() ? "N/A" : array_lengths,
         tabs,
         type_name_str,
         tabs,

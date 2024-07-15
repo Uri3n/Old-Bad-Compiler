@@ -5,45 +5,50 @@
 #include <parser.hpp>
 
 
-std::optional<uint32_t>
-parse_array_size(lexer& lxr) {
+std::optional<std::vector<uint32_t>>
+parse_array_data(lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == LSQUARE_BRACKET, "Expected begin of [] (array specifier)");
-
-    uint32_t len = 0;
-    lxr.advance(1);
+    PARSER_ASSERT(lxr.current() == LSQUARE_BRACKET, "Expected '['");
+    std::vector<uint32_t> lengths;
 
 
-    if(lxr.current() == INTEGER_LITERAL) {
+    while(lxr.current() == LSQUARE_BRACKET) {
+        lxr.advance(1);
 
-        const auto istr = std::string(lxr.current().value);
+        uint32_t len = 0; // 0 means size is determined by the compiler.
+        if(lxr.current() == INTEGER_LITERAL) {
 
-        try {
-            len = std::stoul(istr);
-        } catch(const std::out_of_range& _) {
-            lxr.raise_error("Array size is too large.");
-            return std::nullopt;
-        } catch(...) {
-            lxr.raise_error("Array size must be a valid non-negative integer literal.");
+            const auto istr = std::string(lxr.current().value);
+
+            try {
+                len = std::stoul(istr);
+            } catch(const std::out_of_range& _) {
+                lxr.raise_error("Array size is too large.");
+                return std::nullopt;
+            } catch(...) {
+                lxr.raise_error("Array size must be a valid non-negative integer literal.");
+                return std::nullopt;
+            }
+
+            if(len == 0) {
+                lxr.raise_error("Array length cannot be 0.");
+                return std::nullopt;
+            }
+
+            lxr.advance(1);
+        }
+
+        if(lxr.current() != RSQUARE_BRACKET) {
+            lxr.raise_error("Expected closing square bracket.");
             return std::nullopt;
         }
 
-        if(len == 0) {
-            lxr.raise_error("Array length cannot be 0.");
-            return std::nullopt;
-        }
-
+        lengths.emplace_back(len);
         lxr.advance(1);
     }
 
 
-    if(lxr.current() != RSQUARE_BRACKET) {
-        lxr.raise_error("Expected closing square bracket.");
-        return std::nullopt;
-    }
-
-    lxr.advance(1);
-    return len;
+    return lengths;
 }
 
 
@@ -100,8 +105,8 @@ parse_type(parser& parser, lexer& lxr) {
 
     if(lxr.current() == LSQUARE_BRACKET) {
         data.flags |= SYM_IS_ARRAY;
-        if(const auto arr_size = parse_array_size(lxr)) {
-            data.array_length = *arr_size;
+        if(const auto arr_data = parse_array_data(lxr)) {
+            data.array_lengths = *arr_data;
         } else {
             return std::nullopt;
         }
@@ -290,7 +295,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(_type_data->array_length > 0) {
+    if(!_type_data->array_lengths.empty()) {
         lxr.raise_error("Arrays cannot be procedure parameters. Pass an array as a pointer instead.");
         return nullptr;
     }

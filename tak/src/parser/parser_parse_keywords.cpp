@@ -510,6 +510,138 @@ parse_structdef(parser& parser, lexer& lxr) {
 
 
 ast_node*
+parse_for(parser& parser, lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == KW_FOR, "Expected \"for\" keyword.");
+
+    lxr.advance(1);
+    parser.push_scope();
+
+
+    auto* node  = new ast_for();
+    bool  state = false;
+
+    size_t   curr_pos = 0;
+    uint32_t line     = 0;
+
+    defer([&] {
+        if(!state) { delete node; }
+        parser.pop_scope();
+    });
+
+
+    //
+    // Initialization
+    //
+
+    if(lxr.current() == COMMA  || lxr.current() == SEMICOLON)
+        lxr.advance(1);
+
+    else {
+        curr_pos = lxr.current().src_pos;
+        line     = lxr.current().line;
+
+        node->init = parse_expression(parser, lxr, true);
+        if(*node->init == nullptr) {
+            return nullptr;
+        }
+
+        const auto init_t = (*node->init)->type;
+        if(!VALID_SUBEXPRESSION(init_t) && init_t != NODE_VARDECL) {
+            lxr.raise_error("Invalid subexpression used as part of for-loop initialization.", curr_pos, line);
+            return nullptr;
+        }
+
+        if(lxr.current() != COMMA && lxr.current() != SEMICOLON) {
+            lxr.raise_error("Expected ';' or ','.");
+            return nullptr;
+        }
+
+
+        (*node->init)->parent = node;
+        lxr.advance(1);
+    }
+
+
+    //
+    // Condition ( A lot of duplicate code here... kinda bad )
+    //
+
+    if(lxr.current() == COMMA  || lxr.current() == SEMICOLON)
+        lxr.advance(1);
+
+    else {
+        curr_pos = lxr.current().src_pos;
+        line     = lxr.current().line;
+
+        node->condition = parse_expression(parser, lxr, true);
+        if(*node->condition == nullptr) {
+            return nullptr;
+        }
+
+        const auto init_t = (*node->condition)->type;
+        if(!VALID_SUBEXPRESSION(init_t)) {
+            lxr.raise_error("Invalid subexpression used as part of for-loop condition.", curr_pos, line);
+            return nullptr;
+        }
+
+        if(lxr.current() != COMMA && lxr.current() != SEMICOLON) {
+            lxr.raise_error("Expected ';' or ','.");
+            return nullptr;
+        }
+
+        (*node->condition)->parent = node;
+        lxr.advance(1);
+    }
+
+
+    //
+    // Update
+    //
+
+    if(lxr.current() != LBRACE) {
+        curr_pos = lxr.current().src_pos;
+        line     = lxr.current().line;
+
+        node->update = parse_expression(parser, lxr, true);
+        if(*node->update == nullptr) {
+            return nullptr;
+        }
+
+        const auto init_t = (*node->update)->type;
+        if(!VALID_SUBEXPRESSION(init_t)) {
+            lxr.raise_error("Invalid subexpression used as part of for-loop update.", curr_pos, line);
+            return nullptr;
+        }
+
+        if(lxr.current() != LBRACE) {
+            lxr.raise_error("Expected '{' (start of loop body).");
+            return nullptr;
+        }
+
+        (*node->update)->parent = node;
+    }
+
+
+    //
+    // Loop body
+    //
+
+    lxr.advance(1);
+    while(lxr.current() != RBRACE) {
+        node->body.emplace_back(parse_expression(parser, lxr, false));
+        if(node->body.back() == nullptr) return nullptr;
+        node->body.back()->parent = node;
+    }
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
+
+
+ast_node*
 parse_keyword(parser &parser, lexer &lxr) {
 
     PARSER_ASSERT(lxr.current().kind == KEYWORD, "Expected keyword.");
@@ -518,6 +650,7 @@ parse_keyword(parser &parser, lexer &lxr) {
     if(lxr.current() == KW_IF)     return parse_branch(parser, lxr);
     if(lxr.current() == KW_SWITCH) return parse_switch(parser, lxr);
     if(lxr.current() == KW_WHILE)  return parse_while(parser, lxr);
+    if(lxr.current() == KW_FOR)    return parse_for(parser, lxr);
     if(lxr.current() == KW_STRUCT) return parse_structdef(parser, lxr);
 
 

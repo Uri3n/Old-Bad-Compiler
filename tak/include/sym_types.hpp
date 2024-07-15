@@ -15,7 +15,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum sym_flags : uint32_t {
+enum sym_flags : uint16_t {
     SYM_FLAGS_NONE          = 0UL,
     SYM_IS_CONSTANT         = 1UL,
     SYM_IS_FOREIGN          = 1UL << 1,
@@ -53,15 +53,16 @@ enum var_t : uint16_t {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct type_data {
-    std::variant<var_t, std::string, std::monostate> name;          // name of the TYPE. not whatever is using it.
 
-    uint16_t pointer_depth = 0;
-    uint16_t flags         = SYM_FLAGS_NONE;
-    uint32_t array_length  = 0;
-    sym_t    sym_type      = SYM_NONE;
+    uint16_t pointer_depth   = 0;
+    uint16_t flags           = SYM_FLAGS_NONE;
+    sym_t    sym_type        = SYM_NONE;
 
+    std::vector<uint32_t>                   array_lengths;          // Only multiple elements if matrix
     std::shared_ptr<std::vector<type_data>> parameters  = nullptr;  // Can be null, only used for procedures.
     std::shared_ptr<type_data>              return_type = nullptr;  // Can be null, only used for procedures.
+
+    std::variant<var_t, std::string, std::monostate> name;          // name of the TYPE. not whatever is using it.
 
     type_data()  = default;
     ~type_data() = default;

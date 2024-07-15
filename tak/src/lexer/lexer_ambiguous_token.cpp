@@ -103,6 +103,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         {"case",    KW_CASE},
         {"default", KW_DEFAULT},
         {"fallthrough", KW_FALLTHROUGH},
+        {"namespace", KW_NAMESPACE},
     };
 
     static std::unordered_map<std::string, token_t> type_identifiers =

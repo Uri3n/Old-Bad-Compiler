@@ -50,6 +50,7 @@ lexer::advance(const uint32_t amnt) {
         {'@', lexer_token_at},
         {'.', lexer_token_dot},
         {'`', lexer_token_backtick},
+        {'\\', lexer_token_backslash},
     };
 
 
