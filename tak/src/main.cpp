@@ -7,7 +7,7 @@
 
 int main() {
 
-#if 1
+#if 0
     parser parser;
 
     if(!generate_ast_from_source(parser, CURRENT_TEST)) {
@@ -18,6 +18,19 @@ int main() {
     parser.dump_nodes();
     parser.dump_symbols();
     parser.dump_types();
+
+#else
+
+    lexer lxr;
+    if(!lxr.init(CURRENT_TEST)) {
+        return EXIT_FAILURE;
+    }
+
+    do {
+        lxr.advance(1);
+        lexer_display_token_data(lxr.current());
+    } while(lxr.current() != TOKEN_END_OF_FILE && lxr.current() != TOKEN_ILLEGAL);
+
 #endif
 
     return EXIT_SUCCESS;

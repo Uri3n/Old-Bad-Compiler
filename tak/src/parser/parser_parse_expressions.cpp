@@ -8,7 +8,7 @@
 ast_node*
 parse_subscript(ast_node* operand, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == LSQUARE_BRACKET, "Expected '['.");
+    PARSER_ASSERT(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['.");
     PARSER_ASSERT(operand != nullptr, "Null operand.");
     lxr.advance(1);
 
@@ -30,7 +30,7 @@ parse_subscript(ast_node* operand, parser& parser, lexer& lxr) {
     if(node->value == nullptr)
         return nullptr;
 
-    if(!VALID_SUBEXPRESSION(node->value->type) || lxr.current() != RSQUARE_BRACKET) {
+    if(!VALID_SUBEXPRESSION(node->value->type) || lxr.current() != TOKEN_RSQUARE_BRACKET) {
         lxr.raise_error("Invalid expression within subscript operator.", curr_pos, line);
         return nullptr;
     }
@@ -50,12 +50,12 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     defer([&]{ if(!state){ delete expr;} });
 
 
-    if(curr == END_OF_FILE)             return nullptr;
-    if(curr == IDENTIFIER)              expr = parse_identifier(parser, lxr);
-    else if(curr == LPAREN)             expr = parse_parenthesized_expression(parser, lxr);
-    else if(curr == LBRACE)             expr = parse_braced_expression(parser, lxr);
-    else if(curr.kind == LITERAL)       expr = parse_singleton_literal(parser, lxr);
-    else if(curr.kind == KEYWORD)       expr = parse_keyword(parser, lxr);
+    if(curr == TOKEN_END_OF_FILE)             return nullptr;
+    if(curr == TOKEN_IDENTIFIER)              expr = parse_identifier(parser, lxr);
+    else if(curr == TOKEN_LPAREN)             expr = parse_parenthesized_expression(parser, lxr);
+    else if(curr == TOKEN_LBRACE)             expr = parse_braced_expression(parser, lxr);
+    else if(curr.kind == KIND_LITERAL)       expr = parse_singleton_literal(parser, lxr);
+    else if(curr.kind == KIND_KEYWORD)       expr = parse_keyword(parser, lxr);
     else if(VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
 
 
@@ -72,7 +72,7 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     // Check if we're leaving a parenthesized expression
     //
 
-    if(lxr.current() == RPAREN) {
+    if(lxr.current() == TOKEN_RPAREN) {
         if(!parser.inside_parenthesized_expression) {
             lxr.raise_error("Unexpected token.");
             return nullptr;
@@ -99,10 +99,10 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     // If the next token is an operator we can recurse until the subexpression is parsed.
     //
 
-    while(lxr.current() == LSQUARE_BRACKET && !parse_single)
+    while(lxr.current() == TOKEN_LSQUARE_BRACKET && !parse_single)
         expr = parse_subscript(expr, parser, lxr);
 
-    if(lxr.current().kind == BINARY_EXPR_OPERATOR && !parse_single)
+    if(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && !parse_single)
         expr = parse_binary_expression(expr, parser, lxr);
 
     if(subexpression) {
@@ -111,7 +111,7 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     }
 
 
-    if(lxr.current() == SEMICOLON || lxr.current() == COMMA) {
+    if(lxr.current() == TOKEN_SEMICOLON || lxr.current() == TOKEN_COMMA) {
         if(parser.inside_parenthesized_expression) {
             lxr.raise_error("Unexpected token inside of parenthesized expression.");
             return nullptr;
@@ -130,7 +130,7 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
 ast_node*
 parse_parenthesized_expression(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == LPAREN, "Expected beginning of parenthesized expression.");
+    PARSER_ASSERT(lxr.current() == TOKEN_LPAREN, "Expected beginning of parenthesized expression.");
 
     ++parser.inside_parenthesized_expression;
     lxr.advance(1);
@@ -154,13 +154,13 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
 ast_node*
 parse_singleton_literal(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == LITERAL, "Expected literal.");
+    PARSER_ASSERT(lxr.current().kind == KIND_LITERAL, "Expected literal.");
 
     auto* node         = new ast_singleton_literal();
     node->literal_type = lxr.current().type;
 
 
-    if(node->literal_type == STRING_LITERAL || node->literal_type == CHARACTER_LITERAL) {
+    if(node->literal_type == TOKEN_STRING_LITERAL || node->literal_type == TOKEN_CHARACTER_LITERAL) {
         const auto real = remove_escaped_chars(lxr.current().value);
         if(!real) {
             lxr.raise_error("String contains one or more invalid escaped characters.");
@@ -183,7 +183,7 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
 ast_node*
 parse_braced_expression(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == LBRACE, "Expected left-brace.");
+    PARSER_ASSERT(lxr.current() == TOKEN_LBRACE, "Expected left-brace.");
 
     bool  state = false;
     auto* node  = new ast_braced_expression();
@@ -194,7 +194,7 @@ parse_braced_expression(parser& parser, lexer& lxr) {
 
 
     lxr.advance(1);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
 
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
@@ -209,7 +209,7 @@ parse_braced_expression(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.current() == COMMA) {
+        if(lxr.current() == TOKEN_COMMA) {
             lxr.advance(1);
         }
     }
@@ -255,7 +255,7 @@ parse_unary_expression(parser& parser, lexer& lxr) {
 ast_node*
 parse_assign(ast_node* assigned, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == VALUE_ASSIGNMENT, "Expected '='.");
+    PARSER_ASSERT(lxr.current() == TOKEN_VALUE_ASSIGNMENT, "Expected '='.");
 
     const uint32_t line     = lxr.current().line;
     const size_t   src_pos  = lxr.current().src_pos;
@@ -289,21 +289,14 @@ parse_assign(ast_node* assigned, parser& parser, lexer& lxr) {
 
 
 ast_node*
-parse_call(parser& parser, lexer& lxr) {
+parse_call(const uint32_t sym_index, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected called identifier.");
-
+    PARSER_ASSERT(lxr.current() == TOKEN_LPAREN, "Expected '('.");
 
     //
     // First we need to validate that the called symbol is a procedure.
     // I COULD also just do this in the checker?? hmm....
     //
-
-    uint32_t sym_index = 0;
-    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
-        lxr.raise_error("Symbol does not exist in this scope.");
-        return nullptr;
-    }
 
     const auto* sym = parser.lookup_unique_symbol(sym_index);
     if(sym == nullptr) {
@@ -327,20 +320,17 @@ parse_call(parser& parser, lexer& lxr) {
     node->identifier->parent       = node;
     node->identifier->symbol_index = sym_index;
 
-    defer([&]{ if(!state){ delete node; }  });
+    defer([&] {
+        if(!state){ delete node; }
+    });
 
 
     //
     // Parse the parameter list.
     //
 
-    if(lxr.peek(1) != LPAREN) {
-        lxr.raise_error("Expected parameter list.");
-        return nullptr;
-    }
-
-    lxr.advance(2);
-    if(lxr.current() == RPAREN) {
+    lxr.advance(1);
+    if(lxr.current() == TOKEN_RPAREN) {
         lxr.advance(1);
         state = true;
         return node;
@@ -370,9 +360,9 @@ parse_call(parser& parser, lexer& lxr) {
         if(old_paren_index >= parser.inside_parenthesized_expression)
             break;
 
-        if(lxr.current() == COMMA || lxr.current() == SEMICOLON) {
+        if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
             lxr.advance(1);
-            if(lxr.current() == RPAREN) {
+            if(lxr.current() == TOKEN_RPAREN) {
                 --parser.inside_parenthesized_expression;
                 lxr.advance(1);
             }
@@ -388,11 +378,11 @@ parse_call(parser& parser, lexer& lxr) {
 ast_node*
 parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == BINARY_EXPR_OPERATOR, "Expected binary operator.");
+    PARSER_ASSERT(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR, "Expected binary operator.");
     PARSER_ASSERT(left_operand != nullptr, "Null left operand passed.");
 
 
-    if(lxr.current() == VALUE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
         return parse_assign(left_operand, parser, lxr);
     }
 
@@ -431,21 +421,9 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
 
 
 ast_node*
-parse_member_access(parser& parser, lexer& lxr) {
+parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
-    PARSER_ASSERT(lxr.peek(1) == DOT, "Expected dot as next token.");
-
-
-    //
-    // Scope check.
-    //
-
-    uint32_t sym_index = 0;
-    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
-        lxr.raise_error("Symbol does not exist in this scope.");
-        return nullptr;
-    }
+    PARSER_ASSERT(lxr.current() == TOKEN_DOT, "Expected '.'");
 
     const auto* sym = parser.lookup_unique_symbol(sym_index);
     if(sym == nullptr) {
@@ -478,8 +456,8 @@ parse_member_access(parser& parser, lexer& lxr) {
     // Check if the member exists.
     //
 
-    lxr.advance(2);
-    if(lxr.current() != IDENTIFIER) {
+    lxr.advance(1);
+    if(lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected struct member name.");
         return nullptr;
     }
@@ -506,7 +484,7 @@ parse_member_access(parser& parser, lexer& lxr) {
                 continue;
 
             path += fmt(".{}", looking);
-            if(lxr.peek(1) == DOT && lxr.peek(2) == IDENTIFIER) {
+            if(lxr.peek(1) == TOKEN_DOT && lxr.peek(2) == TOKEN_IDENTIFIER) {
                 lxr.advance(2);
                 looking = std::string(lxr.current().value);
 
@@ -544,27 +522,57 @@ parse_member_access(parser& parser, lexer& lxr) {
 }
 
 
+std::optional<std::string>
+get_namespaced_identifier(lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
+    auto full_name = std::string(lxr.current().value);
+
+    while(lxr.peek(1) == TOKEN_NAMESPACE_ACCESS) {
+        lxr.advance(2);
+        if(lxr.current() != TOKEN_IDENTIFIER) {
+            lxr.raise_error("Expected namespace identifier.");
+            return std::nullopt;
+        }
+
+        full_name += '\\' + std::string(lxr.current().value);
+    }
+
+    return full_name;
+}
+
+
 ast_node*
 parse_identifier(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
+    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
-    const auto next_type = lxr.peek(1).type;
-    if(next_type == TYPE_ASSIGNMENT || next_type == CONST_TYPE_ASSIGNMENT) return parse_decl(parser, lxr);
-    if(next_type == LPAREN) return parse_call(parser, lxr);
-    if(next_type == DOT) return parse_member_access(parser, lxr);
+    if(lxr.peek(1) == TOKEN_TYPE_ASSIGNMENT || lxr.peek(1) == TOKEN_CONST_TYPE_ASSIGNMENT)
+        return parse_decl(parser, lxr);
 
 
-    uint32_t sym_index = 0;
-    if(sym_index = parser.lookup_scoped_symbol(std::string(lxr.current().value)); sym_index == INVALID_SYMBOL_INDEX) {
-        lxr.raise_error("Symbol does not exist in this scope.");
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+    const auto     name     = get_namespaced_identifier(lxr);
+
+    if(!name) return nullptr;
+
+    uint32_t   sym_index      = 0;
+    const auto canonical_name = parser.get_canonical_sym_name(*name);
+
+
+    if(sym_index = parser.lookup_scoped_symbol(canonical_name); sym_index == INVALID_SYMBOL_INDEX) {
+        lxr.raise_error("Symbol does not exist in this scope.", curr_pos, line);
         return nullptr;
     }
 
 
-    auto* ident         = new ast_identifier();
+    lxr.advance(1);
+    if(lxr.current() == TOKEN_LPAREN) return parse_call(sym_index, parser, lxr);
+    if(lxr.current() == TOKEN_DOT)    return parse_member_access(sym_index, parser, lxr);
+
+    auto* ident         = new ast_identifier(); // Otherwise just return a raw identifier node
     ident->symbol_index = sym_index;
 
-    lxr.advance(1);
     return ident;
 }

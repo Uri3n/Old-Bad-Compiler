@@ -8,15 +8,15 @@
 std::optional<std::vector<uint32_t>>
 parse_array_data(lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == LSQUARE_BRACKET, "Expected '['");
+    PARSER_ASSERT(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['");
     std::vector<uint32_t> lengths;
 
 
-    while(lxr.current() == LSQUARE_BRACKET) {
+    while(lxr.current() == TOKEN_LSQUARE_BRACKET) {
         lxr.advance(1);
 
         uint32_t len = 0; // 0 means size is determined by the compiler.
-        if(lxr.current() == INTEGER_LITERAL) {
+        if(lxr.current() == TOKEN_INTEGER_LITERAL) {
 
             const auto istr = std::string(lxr.current().value);
 
@@ -38,7 +38,7 @@ parse_array_data(lexer& lxr) {
             lxr.advance(1);
         }
 
-        if(lxr.current() != RSQUARE_BRACKET) {
+        if(lxr.current() != TOKEN_RSQUARE_BRACKET) {
             lxr.raise_error("Expected closing square bracket.");
             return std::nullopt;
         }
@@ -55,7 +55,7 @@ parse_array_data(lexer& lxr) {
 std::optional<type_data>
 parse_type(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == TYPE_IDENTIFIER || lxr.current() == IDENTIFIER, "Expected type.");
+    PARSER_ASSERT(lxr.current().kind == KIND_TYPE_IDENTIFIER || lxr.current() == TOKEN_IDENTIFIER, "Expected type.");
     type_data data;
 
 
@@ -68,14 +68,21 @@ parse_type(parser& parser, lexer& lxr) {
         data.name     = std::monostate();
     }
 
-    else if(lxr.current() == IDENTIFIER) {
-        if(!parser.type_exists(std::string(lxr.current().value))) {
+    else if(lxr.current() == TOKEN_IDENTIFIER) {
+
+        const auto name = get_namespaced_identifier(lxr);
+        if(!name) {
+            return std::nullopt;
+        }
+
+        const auto canonical_name = parser.get_canonical_type_name(*name);
+        if(!parser.type_exists(canonical_name)) {
             lxr.raise_error("Invalid type specifier.");
             return std::nullopt;
         }
 
         data.sym_type = SYM_STRUCT;
-        data.name     = std::string(lxr.current().value);
+        data.name     = canonical_name;
     }
 
     else {
@@ -95,15 +102,15 @@ parse_type(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() == BITWISE_XOR_OR_PTR) {
+    if(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
         data.flags |= SYM_IS_POINTER;
-        while(lxr.current() == BITWISE_XOR_OR_PTR) {
+        while(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
             data.pointer_depth++;
             lxr.advance(1);
         }
     }
 
-    if(lxr.current() == LSQUARE_BRACKET) {
+    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
         data.flags |= SYM_IS_ARRAY;
         if(const auto arr_data = parse_array_data(lxr)) {
             data.array_lengths = *arr_data;
@@ -121,7 +128,7 @@ parse_type(parser& parser, lexer& lxr) {
         return data;
     }
 
-    if(lxr.current() != LPAREN) {
+    if(lxr.current() != TOKEN_LPAREN) {
         lxr.raise_error("Expected beginning of parameter type list.");
         return std::nullopt;
     }
@@ -134,9 +141,9 @@ parse_type(parser& parser, lexer& lxr) {
     lxr.advance(1);
     data.parameters = std::make_shared<std::vector<type_data>>();
 
-    while(lxr.current() != RPAREN) {
+    while(lxr.current() != TOKEN_RPAREN) {
 
-        if(lxr.current().kind != TYPE_IDENTIFIER && lxr.current() != IDENTIFIER) {
+        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
             lxr.raise_error("Expected type identifier.");
             return std::nullopt;
         }
@@ -148,7 +155,7 @@ parse_type(parser& parser, lexer& lxr) {
             return std::nullopt;
         }
 
-        if(lxr.current() == COMMA) {
+        if(lxr.current() == TOKEN_COMMA) {
             lxr.advance(1);
         }
     }
@@ -158,7 +165,7 @@ parse_type(parser& parser, lexer& lxr) {
     // Get return type. If VOID, we can just leave data.return_type as nullptr and return.
     //
 
-    if(lxr.peek(1) != ARROW || (lxr.peek(2).kind != TYPE_IDENTIFIER && lxr.peek(2) != IDENTIFIER)) {
+    if(lxr.peek(1) != TOKEN_ARROW || (lxr.peek(2).kind != KIND_TYPE_IDENTIFIER && lxr.peek(2) != TOKEN_IDENTIFIER)) {
         lxr.raise_error("Expected procedure return type after parameter list. Example: -> i32");
         return std::nullopt;
     }
@@ -185,7 +192,7 @@ ast_node*
 parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 
     PARSER_ASSERT(lxr.current() == TOKEN_KW_PROC, "Expected \"proc\" keyword.");
-    PARSER_ASSERT(lxr.peek(1) == BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
+    PARSER_ASSERT(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
     PARSER_ASSERT(proc != nullptr, "Null symbol pointer.");
 
 
@@ -218,7 +225,7 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() == VALUE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 
         const size_t   curr_pos  = lxr.current().src_pos;
         const uint32_t curr_line = lxr.current().line;
@@ -251,13 +258,18 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 ast_vardecl*
 parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected variable identifier.");
+    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected variable identifier.");
 
-    const auto     name      = std::string(lxr.current().value);
+    const auto     name      = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos   = lxr.current().src_pos;
     const uint32_t line      = lxr.current().line;
     uint16_t       flags     = SYM_IS_PROCARG;
 
+
+    if(parser.namespace_exists(std::string(lxr.current().value))) {
+        lxr.raise_error("Confusion: variable has the same name as a namespace it is declared in.");
+        return nullptr;
+    }
 
     if(parser.scoped_symbol_exists_at_current_scope(name)) {   // a new scope should be pushed by parse_procdecl
         lxr.raise_error("Symbol already exists within this scope.");
@@ -265,17 +277,17 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current() == CONST_TYPE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
         flags |= SYM_IS_CONSTANT;
     }
 
-    else if(lxr.current() != TYPE_ASSIGNMENT) {
+    else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
         lxr.raise_error("Expected type assignment here. Got this instead.");
         return nullptr;
     }
 
     lxr.advance(1);
-    if(lxr.current().kind != TYPE_IDENTIFIER && lxr.current() != IDENTIFIER) {
+    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected type identifier.");
         return nullptr;
     }
@@ -337,7 +349,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current() != LPAREN) {
+    if(lxr.current() != TOKEN_LPAREN) {
         lxr.raise_error("Expected parameter list here.");
         return nullptr;
     }
@@ -367,9 +379,9 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    while(lxr.current() != RPAREN) {
+    while(lxr.current() != TOKEN_RPAREN) {
 
-        if(lxr.current() != IDENTIFIER) {
+        if(lxr.current() != TOKEN_IDENTIFIER) {
             lxr.raise_error("Expected procedure parameter.");
             return nullptr;
         }
@@ -382,7 +394,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
         param->parent = node;
         node->parameters.emplace_back(param);
 
-        if(lxr.current() == COMMA) {
+        if(lxr.current() == TOKEN_COMMA) {
             lxr.advance(1);
         }
 
@@ -394,7 +406,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() != ARROW || (lxr.peek(1).kind != TYPE_IDENTIFIER && lxr.peek(1) != IDENTIFIER)) {
+    if(lxr.current() != TOKEN_ARROW || (lxr.peek(1).kind != KIND_TYPE_IDENTIFIER && lxr.peek(1) != TOKEN_IDENTIFIER)) {
         lxr.raise_error("Expected procedure return type after parameter list.");
         return nullptr;
     }
@@ -432,7 +444,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     // In the future we should just be leaving this as a definition.
     //
 
-    if(lxr.current() != LBRACE) {
+    if(lxr.current() != TOKEN_LBRACE) {
         lxr.raise_error("Expected start of procedure body here.");
         return nullptr;
     }
@@ -443,7 +455,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
 
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
@@ -473,7 +485,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 ast_node*
 parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == TYPE_IDENTIFIER, "Expected type identifier.");
+    PARSER_ASSERT(lxr.current().kind == KIND_TYPE_IDENTIFIER, "Expected type identifier.");
 
     const auto type_data = parse_type(parser, lxr);
     if(!type_data) {
@@ -499,7 +511,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     defer([&]{ if(!state) { delete node; } });
 
 
-    if(lxr.current() == VALUE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 
         const size_t   curr_pos  = lxr.current().src_pos;
         const uint32_t curr_line = lxr.current().line;
@@ -532,7 +544,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 ast_node*
 parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected struct type name.");
+    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
 
     if(const auto type = parse_type(parser, lxr)) {
         const uint16_t temp = _struct->type.flags;
@@ -547,7 +559,7 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
     node->identifier->symbol_index = _struct->symbol_index;
 
 
-    if(lxr.current() == VALUE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
@@ -579,9 +591,10 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 ast_node*
 parse_decl(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == IDENTIFIER, "Expected identifier.");
+    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
-    const auto     name     = std::string(lxr.current().value);
+
+    const auto     name     = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos  = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
     uint16_t       flags    = SYM_FLAGS_NONE;
@@ -589,12 +602,17 @@ parse_decl(parser& parser, lexer& lxr) {
 
 
     lxr.advance(1);
-    if(lxr.current() == CONST_TYPE_ASSIGNMENT) {
+    if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
         flags |= SYM_IS_CONSTANT;
     }
 
-    else if(lxr.current() != TYPE_ASSIGNMENT) {
+    else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
         lxr.raise_error("Expected type assignment.");
+        return nullptr;
+    }
+
+    if(parser.namespace_exists(std::string(lxr.current().value))) {
+        lxr.raise_error("Confusion: variable has the same name as a namespace it is declared within.");
         return nullptr;
     }
 
@@ -613,7 +631,7 @@ parse_decl(parser& parser, lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current().kind != TYPE_IDENTIFIER && lxr.current() != IDENTIFIER) {
+    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected type identifier here.");
         return nullptr;
     }
@@ -636,7 +654,7 @@ parse_decl(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.peek(1) == BITWISE_XOR_OR_PTR) { // function pointer
+        if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) { // function pointer
             proc_ptr->type.flags |= SYM_IS_POINTER;
             return parse_proc_ptr(proc_ptr, parser, lxr);
         }
@@ -649,7 +667,7 @@ parse_decl(parser& parser, lexer& lxr) {
     // Parse if struct
     //
 
-    if(lxr.current() == IDENTIFIER) {
+    if(lxr.current() == TOKEN_IDENTIFIER) {
 
         type             = SYM_STRUCT;
         auto* struct_ptr = parser.create_symbol(name, src_pos, line, type, flags);

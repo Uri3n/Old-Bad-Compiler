@@ -9,7 +9,7 @@
 void
 lexer::advance(const uint32_t amnt) {
 
-    if(_current == END_OF_FILE || _current == ILLEGAL) {
+    if(_current == TOKEN_END_OF_FILE || _current == TOKEN_ILLEGAL) {
         return;
     }
 

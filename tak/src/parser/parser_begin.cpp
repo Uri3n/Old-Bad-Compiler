@@ -32,5 +32,5 @@ generate_ast_from_source(parser& parser, const std::string& source_file_name) {
 
 
     parser.pop_scope();
-    return lxr.current() == END_OF_FILE;
+    return lxr.current() == TOKEN_END_OF_FILE;
 }

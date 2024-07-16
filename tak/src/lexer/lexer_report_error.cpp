@@ -47,7 +47,7 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
     whitespace.resize(offset);
     std::fill(whitespace.begin(), whitespace.end(), ' ');
 
-    print("ERROR compiling source file \"{}\" on line {}:", source_file_name, line);
+    print("ERROR at {}:{}", source_file_name, line);
     print("{}", full_line);
     print("{}^", whitespace);
     print("{}{}", whitespace, message);

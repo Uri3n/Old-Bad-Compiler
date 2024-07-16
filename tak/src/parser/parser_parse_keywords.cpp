@@ -7,14 +7,14 @@
 
 ast_node*
 parse_cont(lexer& lxr) {
-    PARSER_ASSERT(lxr.current() == KW_CONT, "expected \"cont\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
     lxr.advance(1);
     return new ast_cont();
 }
 
 ast_node*
 parse_brk(lexer& lxr) {
-    PARSER_ASSERT(lxr.current() == KW_BRK, "expected \"brk\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
     lxr.advance(1);
     return new ast_brk();
 }
@@ -22,7 +22,7 @@ parse_brk(lexer& lxr) {
 ast_node*
 parse_branch(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_IF, "Expected \"if\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
 
 
     bool  state = false;
@@ -59,7 +59,7 @@ parse_branch(parser &parser, lexer &lxr) {
             return nullptr;
         }
 
-        if(lxr.current() != LBRACE) {
+        if(lxr.current() != TOKEN_LBRACE) {
             lxr.raise_error("Expected branch body.");
             return nullptr;
         }
@@ -70,7 +70,7 @@ parse_branch(parser &parser, lexer &lxr) {
         //
 
         lxr.advance(1);
-        while(lxr.current() != RBRACE) {
+        while(lxr.current() != TOKEN_RBRACE) {
             if_stmt->body.emplace_back(parse_expression(parser, lxr, false));
             if(if_stmt->body.back() == nullptr) return nullptr;
             if_stmt->body.back()->parent = if_stmt;
@@ -78,20 +78,20 @@ parse_branch(parser &parser, lexer &lxr) {
 
         lxr.advance(1);
         parser.pop_scope();
-    } while(lxr.current() == KW_ELIF);
+    } while(lxr.current() == TOKEN_KW_ELIF);
 
 
     //
     // Check if there's a final "else" branch
     //
 
-    if(lxr.current() == KW_ELSE) {
+    if(lxr.current() == TOKEN_KW_ELSE) {
 
         auto* else_stmt   = new ast_else();
         else_stmt->parent = node;
         node->_else       = else_stmt;
 
-        if(lxr.peek(1) != LBRACE) {
+        if(lxr.peek(1) != TOKEN_LBRACE) {
             lxr.raise_error("Expected beginning of \"else\" branch body.");
             return nullptr;
         }
@@ -99,7 +99,7 @@ parse_branch(parser &parser, lexer &lxr) {
         lxr.advance(2);
         parser.push_scope();
 
-        while(lxr.current() != RBRACE) {
+        while(lxr.current() != TOKEN_RBRACE) {
             else_stmt->body.emplace_back(parse_expression(parser, lxr, false));
             if(else_stmt->body.back() == nullptr) return nullptr;
             else_stmt->body.back()->parent = else_stmt;
@@ -117,7 +117,7 @@ parse_branch(parser &parser, lexer &lxr) {
 ast_case*
 parse_case(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_CASE || lxr.current() == KW_FALLTHROUGH, "Unexpected keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
     parser.push_scope();
 
 
@@ -126,7 +126,7 @@ parse_case(parser& parser, lexer& lxr) {
 
     bool  state       = false;
     auto* node        = new ast_case();
-    node->fallthrough = lxr.current() == KW_FALLTHROUGH;
+    node->fallthrough = lxr.current() == TOKEN_KW_FALLTHROUGH;
 
     defer([&] {
         if(!state) { delete node; }
@@ -138,21 +138,21 @@ parse_case(parser& parser, lexer& lxr) {
     node->value = dynamic_cast<ast_singleton_literal*>(parse_expression(parser, lxr, true));
 
     if(node->value == nullptr
-        || node->value->literal_type == STRING_LITERAL
-        || node->value->literal_type == FLOAT_LITERAL
+        || node->value->literal_type == TOKEN_STRING_LITERAL
+        || node->value->literal_type == TOKEN_FLOAT_LITERAL
         ) {
         lxr.raise_error("Case value must be a constant, integer literal.", curr_pos, line);
         return nullptr;
     }
 
-    if(lxr.current() != LBRACE) {
+    if(lxr.current() != TOKEN_LBRACE) {
         lxr.raise_error("Expected '{' (beginning of case body).");
         return nullptr;
     }
 
 
     lxr.advance(1);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
         node->body.emplace_back(parse_expression(parser, lxr, false));
         if(node->body.back() == nullptr) return nullptr;
         node->body.back()->parent = node;
@@ -167,7 +167,7 @@ parse_case(parser& parser, lexer& lxr) {
 ast_default*
 parse_default(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_DEFAULT, "Expected \"default\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
     parser.push_scope();
 
 
@@ -180,13 +180,13 @@ parse_default(parser& parser, lexer& lxr) {
     });
 
 
-    if(lxr.peek(1) != LBRACE) {
+    if(lxr.peek(1) != TOKEN_LBRACE) {
         lxr.raise_error("Expected '{' after \"default\" (case body is missing).");
         return nullptr;
     }
 
     lxr.advance(2);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
         const auto& child = node->body.emplace_back(parse_expression(parser, lxr, false));
         if(child == nullptr) {
             return nullptr;
@@ -203,7 +203,7 @@ parse_default(parser& parser, lexer& lxr) {
 ast_node*
 parse_switch(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_SWITCH, "Expected \"switch\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
     lxr.advance(1);
 
 
@@ -227,7 +227,7 @@ parse_switch(parser &parser, lexer &lxr) {
         return nullptr;
     }
 
-    if(lxr.current() != LBRACE) {
+    if(lxr.current() != TOKEN_LBRACE) {
         lxr.raise_error("Expected beginning of switch body.");
         return nullptr;
     }
@@ -235,9 +235,9 @@ parse_switch(parser &parser, lexer &lxr) {
 
     lxr.advance(1);
     bool reached_default = false;
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
 
-        if(lxr.current() == KW_CASE || lxr.current() == KW_FALLTHROUGH) {
+        if(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH) {
             if(reached_default) {
                 lxr.raise_error("Case definition after \"default\".");
                 return nullptr;
@@ -261,7 +261,7 @@ parse_switch(parser &parser, lexer &lxr) {
             node->cases.emplace_back(new_case);
         }
 
-        else if(lxr.current() == KW_DEFAULT) {
+        else if(lxr.current() == TOKEN_KW_DEFAULT) {
             if(reached_default) {
                 lxr.raise_error("Multiple definitions of default case.");
                 return nullptr;
@@ -296,11 +296,11 @@ parse_switch(parser &parser, lexer &lxr) {
 ast_node*
 parse_ret(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_RET, "Expected \"ret\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
     auto* node = new ast_ret();
 
     lxr.advance(1);
-    if(lxr.current() == SEMICOLON || lxr.current() == COMMA) {
+    if(lxr.current() == TOKEN_SEMICOLON || lxr.current() == TOKEN_COMMA) {
         return node;
     }
 
@@ -325,7 +325,7 @@ parse_ret(parser &parser, lexer &lxr) {
 ast_node*
 parse_while(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_WHILE, "Expected \"while\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
 
     lxr.advance(1);
     parser.push_scope();
@@ -353,17 +353,17 @@ parse_while(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(lxr.current() != LBRACE) {
+    if(lxr.current() != TOKEN_LBRACE) {
         lxr.raise_error("Expected '{' (start of loop body)");
         return nullptr;
     }
 
 
     lxr.advance(1);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
 
-        if(lxr.current() == KW_CONT) {
-            if(lxr.peek(1) != SEMICOLON && lxr.peek(1) != COMMA) {
+        if(lxr.current() == TOKEN_KW_CONT) {
+            if(lxr.peek(1) != TOKEN_SEMICOLON && lxr.peek(1) != TOKEN_COMMA) {
                 lxr.raise_error("Unxpected end of expression after \"cont\" keyword.");
                 return nullptr;
             }
@@ -372,8 +372,8 @@ parse_while(parser& parser, lexer& lxr) {
             lxr.advance(1);
         }
 
-        else if(lxr.current() == KW_BRK) {
-            if(lxr.peek(1) != SEMICOLON && lxr.peek(1) != COMMA) {
+        else if(lxr.current() == TOKEN_KW_BRK) {
+            if(lxr.peek(1) != TOKEN_SEMICOLON && lxr.peek(1) != TOKEN_COMMA) {
                 lxr.raise_error("Unxpected end of expression after \"brk\" keyword.");
                 return nullptr;
             }
@@ -400,9 +400,9 @@ parse_while(parser& parser, lexer& lxr) {
 ast_node*
 parse_structdef(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_STRUCT, "Expected \"struct\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_STRUCT, "Expected \"struct\" keyword.");
 
-    if(parser.scope_stack.size() <= 1) {
+    if(parser.scope_stack.size() > 1) {
         lxr.raise_error("Struct definition at non-global scope.");
         return nullptr;
     }
@@ -413,22 +413,21 @@ parse_structdef(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() != IDENTIFIER) {
+    if(lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected struct name.");
         return nullptr;
     }
 
-    if(parser.type_exists(std::string(lxr.current().value))) {
+    const auto type_name = parser.namespace_as_string() + std::string(lxr.current().value);
+    std::vector<member_data> members;
+
+    if(parser.type_exists(type_name)) {
         lxr.raise_error("Naming conflict: type has already been defined elsewhere.");
         return nullptr;
     }
 
-
-    const auto type_name = std::string(lxr.current().value);
-    std::vector<member_data> members;
-
-    if(lxr.peek(1) != LBRACE) {
-        lxr.raise_error("Unexpected end of struct definition.");
+    if(lxr.peek(1) != TOKEN_LBRACE) {
+        lxr.raise_error("Unexpected token.");
     }
 
 
@@ -437,9 +436,9 @@ parse_structdef(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(2);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
 
-        if(lxr.current() != IDENTIFIER) {
+        if(lxr.current() != TOKEN_IDENTIFIER) {
             lxr.raise_error("Expected identifier.");
             return nullptr;
         }
@@ -453,16 +452,16 @@ parse_structdef(parser& parser, lexer& lxr) {
 
 
         lxr.advance(1);
-        if(lxr.current() == CONST_TYPE_ASSIGNMENT) {
+        if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
             is_const = true;
-        } else if(lxr.current() != TYPE_ASSIGNMENT) {
+        } else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
             lxr.raise_error("Expected type assignment.");
             return nullptr;
         }
 
 
         lxr.advance(1);
-        if(lxr.current().kind != TYPE_IDENTIFIER && lxr.current() != IDENTIFIER) {
+        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
             lxr.raise_error("Expected type identifier.");
             return nullptr;
         }
@@ -487,7 +486,7 @@ parse_structdef(parser& parser, lexer& lxr) {
         }
 
 
-        if(lxr.current() == COMMA || lxr.current() == SEMICOLON) {
+        if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
             lxr.advance(1);
         }
     }
@@ -512,7 +511,7 @@ parse_structdef(parser& parser, lexer& lxr) {
 ast_node*
 parse_for(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == KW_FOR, "Expected \"for\" keyword.");
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
 
     lxr.advance(1);
     parser.push_scope();
@@ -534,7 +533,7 @@ parse_for(parser& parser, lexer& lxr) {
     // Initialization
     //
 
-    if(lxr.current() == COMMA  || lxr.current() == SEMICOLON)
+    if(lxr.current() == TOKEN_COMMA  || lxr.current() == TOKEN_SEMICOLON)
         lxr.advance(1);
 
     else {
@@ -552,7 +551,7 @@ parse_for(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.current() != COMMA && lxr.current() != SEMICOLON) {
+        if(lxr.current() != TOKEN_COMMA && lxr.current() != TOKEN_SEMICOLON) {
             lxr.raise_error("Expected ';' or ','.");
             return nullptr;
         }
@@ -567,7 +566,7 @@ parse_for(parser& parser, lexer& lxr) {
     // Condition ( A lot of duplicate code here... kinda bad )
     //
 
-    if(lxr.current() == COMMA  || lxr.current() == SEMICOLON)
+    if(lxr.current() == TOKEN_COMMA  || lxr.current() == TOKEN_SEMICOLON)
         lxr.advance(1);
 
     else {
@@ -585,7 +584,7 @@ parse_for(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.current() != COMMA && lxr.current() != SEMICOLON) {
+        if(lxr.current() != TOKEN_COMMA && lxr.current() != TOKEN_SEMICOLON) {
             lxr.raise_error("Expected ';' or ','.");
             return nullptr;
         }
@@ -599,7 +598,7 @@ parse_for(parser& parser, lexer& lxr) {
     // Update
     //
 
-    if(lxr.current() != LBRACE) {
+    if(lxr.current() != TOKEN_LBRACE) {
         curr_pos = lxr.current().src_pos;
         line     = lxr.current().line;
 
@@ -614,7 +613,7 @@ parse_for(parser& parser, lexer& lxr) {
             return nullptr;
         }
 
-        if(lxr.current() != LBRACE) {
+        if(lxr.current() != TOKEN_LBRACE) {
             lxr.raise_error("Expected '{' (start of loop body).");
             return nullptr;
         }
@@ -628,7 +627,7 @@ parse_for(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    while(lxr.current() != RBRACE) {
+    while(lxr.current() != TOKEN_RBRACE) {
         node->body.emplace_back(parse_expression(parser, lxr, false));
         if(node->body.back() == nullptr) return nullptr;
         node->body.back()->parent = node;
@@ -640,18 +639,82 @@ parse_for(parser& parser, lexer& lxr) {
 }
 
 
+ast_node*
+parse_namespace(parser& parser, lexer& lxr) {
+
+    PARSER_ASSERT(lxr.current() == TOKEN_KW_NAMESPACE, "Expected \"namespace\" keyword.");
+    lxr.advance(1);
+
+
+    if(parser.scope_stack.size() > 1) {
+        lxr.raise_error("Namespace declaration at non-global scope.");
+        return nullptr;
+    }
+
+    if(lxr.current() != TOKEN_IDENTIFIER) {
+        lxr.raise_error("Expected namespace identifier.");
+        return nullptr;
+    }
+
+    if(!parser.enter_namespace(std::string(lxr.current().value))) { // Duplicate namespace.
+        lxr.raise_error("Nested namespace has the same name as a parent.");
+        return nullptr;
+    }
+
+    if(lxr.peek(1) != TOKEN_LBRACE) {
+        lxr.raise_error("Expected '{' (Beginning of namespace block).");
+        return nullptr;
+    }
+
+
+    bool  state     = false;
+    auto* node      = new ast_namespacedecl();
+    node->full_path = parser.namespace_as_string();
+
+    defer([&] {
+        if(!state) { delete node; }
+        parser.leave_namespace();
+    });
+
+
+    lxr.advance(2);
+    while(lxr.current() != TOKEN_RBRACE) {
+
+        const size_t   curr_pos = lxr.current().src_pos;
+        const uint32_t line     = lxr.current().line;
+
+        node->children.emplace_back(parse_expression(parser, lxr, false));
+        if(node->children.back() == nullptr)
+            return nullptr;
+
+        if(!VALID_AT_TOPLEVEL(node->children.back()->type)) {
+            lxr.raise_error("Expression is invalid as a toplevel statement.", curr_pos, line);
+            return nullptr;
+        }
+
+        node->children.back()->parent = node;
+    }
+
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
+
 
 ast_node*
 parse_keyword(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == KEYWORD, "Expected keyword.");
+    PARSER_ASSERT(lxr.current().kind == KIND_KEYWORD, "Expected keyword.");
 
-    if(lxr.current() == KW_RET)    return parse_ret(parser, lxr);
-    if(lxr.current() == KW_IF)     return parse_branch(parser, lxr);
-    if(lxr.current() == KW_SWITCH) return parse_switch(parser, lxr);
-    if(lxr.current() == KW_WHILE)  return parse_while(parser, lxr);
-    if(lxr.current() == KW_FOR)    return parse_for(parser, lxr);
-    if(lxr.current() == KW_STRUCT) return parse_structdef(parser, lxr);
+    if(lxr.current() == TOKEN_KW_RET)       return parse_ret(parser, lxr);
+    if(lxr.current() == TOKEN_KW_IF)        return parse_branch(parser, lxr);
+    if(lxr.current() == TOKEN_KW_SWITCH)    return parse_switch(parser, lxr);
+    if(lxr.current() == TOKEN_KW_WHILE)     return parse_while(parser, lxr);
+    if(lxr.current() == TOKEN_KW_FOR)       return parse_for(parser, lxr);
+    if(lxr.current() == TOKEN_KW_STRUCT)    return parse_structdef(parser, lxr);
+    if(lxr.current() == TOKEN_KW_NAMESPACE) return parse_namespace(parser, lxr);
 
 
     lxr.raise_error("This keyword is not allowed here.");

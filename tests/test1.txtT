@@ -1,8 +1,0 @@
-
-print :: proc(msg: i8^) -> void {
- // ...
-}
-
-
-print("Hello "world"!!");
-

@@ -1,5 +1,11 @@
 
+namespace foo {
+   namespace poop {
+     foo: i64 = 1;
+    }
 
-foo :: i8;
+   print :: proc(msg: i8^) -> void {
+     foo\poop\foo = 1;
+   }  
+}
 
-foo[69][300] = 100;

@@ -458,7 +458,7 @@ display_node_for(ast_node* node, std::string& node_title, uint32_t depth, parser
 }
 
 static void
-display_node_subscript(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_subscript(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
 
     const auto* subscript = dynamic_cast<ast_subscript*>(node);
     if(subscript == nullptr) {
@@ -469,6 +469,21 @@ display_node_subscript(ast_node* node, std::string& node_title, uint32_t depth, 
     print("{}Index Into (Subscript)", node_title);
     display_node_data(subscript->operand, depth + 1, _);
     display_node_data(subscript->value, depth + 1, _);
+}
+
+static void
+display_node_namespacedecl(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* _namespace = dynamic_cast<ast_namespacedecl*>(node);
+    if(_namespace == nullptr) {
+        print("{} (For) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}{} (Namespace Decl)", node_title, _namespace->full_path);
+    for(ast_node* expr : _namespace->children) {
+        display_node_data(expr, depth + 1, _);
+    }
 }
 
 
@@ -487,96 +502,32 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
 
 
     switch(node->type) {
+        case NODE_VARDECL:            display_node_vardecl(node, node_title, depth, parser); break;
+        case NODE_PROCDECL:           display_node_procdecl(node, node_title, depth, parser); break;
+        case NODE_BINEXPR:            display_node_binexpr(node, node_title, depth, parser); break;
+        case NODE_UNARYEXPR:          display_node_unaryexpr(node, node_title, depth, parser); break;
+        case NODE_ASSIGN:             display_node_assign(node, node_title, depth, parser); break;
+        case NODE_IDENT:              display_node_identifier(node, node_title, parser); break;
+        case NODE_SINGLETON_LITERAL:  display_node_literal(node, node_title); break;
+        case NODE_CALL:               display_node_call(node, node_title, depth, parser); break;
+        case NODE_BRK:                display_node_brk(node, node_title); break;
+        case NODE_CONT:               display_node_cont(node, node_title); break;
+        case NODE_RET:                display_node_ret(node, node_title, depth, parser); break;
+        case NODE_STRUCT_DEFINITION:  display_node_structdef(node, node_title); break;
+        case NODE_BRACED_EXPRESSION:  display_node_braced_expression(node, node_title, depth, parser); break;
+        case NODE_BRANCH:             display_node_branch(node, node_title, depth, parser); break;
+        case NODE_IF:                 display_node_if(node, node_title, depth, parser); break;
+        case NODE_ELSE:               display_node_else(node, node_title, depth, parser); break;
+        case NODE_WHILE:              display_node_while(node, node_title, depth, parser);break;
+        case NODE_SWITCH:             display_node_switch(node, node_title, depth, parser);break;
+        case NODE_CASE:               display_node_case(node, node_title, depth, parser);break;
+        case NODE_DEFAULT:            display_node_default(node, node_title, depth, parser); break;
+        case NODE_FOR:                display_node_for(node, node_title, depth, parser); break;
+        case NODE_SUBSCRIPT:          display_node_subscript(node, node_title, depth, parser); break;
+        case NODE_NAMESPACEDECL:      display_node_namespacedecl(node, node_title, depth, parser); break;
+
         case NODE_NONE:
             print("{}None", node_title); // Shouldn't ever happen...
-            break;
-
-        case NODE_VARDECL:
-            display_node_vardecl(node, node_title, depth, parser);
-            break;
-
-        case NODE_PROCDECL:
-            display_node_procdecl(node, node_title, depth, parser);
-            break;
-
-        case NODE_BINEXPR:
-            display_node_binexpr(node, node_title, depth, parser);
-            break;
-
-        case NODE_UNARYEXPR:
-            display_node_unaryexpr(node, node_title, depth, parser);
-            break;
-
-        case NODE_ASSIGN:
-            display_node_assign(node, node_title, depth, parser);
-            break;
-
-        case NODE_IDENT:
-            display_node_identifier(node, node_title, parser);
-            break;
-
-        case NODE_SINGLETON_LITERAL:
-            display_node_literal(node, node_title);
-            break;
-
-        case NODE_CALL:
-            display_node_call(node, node_title, depth, parser);
-            break;
-
-        case NODE_BRK:
-            display_node_brk(node, node_title);
-            break;
-
-        case NODE_CONT:
-            display_node_cont(node, node_title);
-            break;
-
-        case NODE_RET:
-            display_node_ret(node, node_title, depth, parser);
-            break;
-
-        case NODE_STRUCT_DEFINITION:
-            display_node_structdef(node, node_title);
-            break;
-
-        case NODE_BRACED_EXPRESSION:
-            display_node_braced_expression(node, node_title, depth, parser);
-            break;
-
-        case NODE_BRANCH:
-            display_node_branch(node, node_title, depth, parser);
-            break;
-
-        case NODE_IF:
-            display_node_if(node, node_title, depth, parser);
-            break;
-
-        case NODE_ELSE:
-            display_node_else(node, node_title, depth, parser);
-            break;
-
-        case NODE_WHILE:
-            display_node_while(node, node_title, depth, parser);
-            break;
-
-        case NODE_SWITCH:
-            display_node_switch(node, node_title, depth, parser);
-            break;
-
-        case NODE_CASE:
-            display_node_case(node, node_title, depth, parser);
-            break;
-
-        case NODE_DEFAULT:
-            display_node_default(node, node_title, depth, parser);
-            break;
-
-        case NODE_FOR:
-            display_node_for(node, node_title, depth, parser);
-            break;
-
-        case NODE_SUBSCRIPT:
-            display_node_subscript(node, node_title, depth, parser);
             break;
 
         default:

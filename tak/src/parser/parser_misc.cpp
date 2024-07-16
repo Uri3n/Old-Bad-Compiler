@@ -4,6 +4,7 @@
 
 #include <parser.hpp>
 
+
 ast_binexpr::~ast_binexpr() {
     delete left_op;
     delete right_op;
@@ -133,6 +134,12 @@ ast_switch::~ast_switch() {
 
     delete _default;
     delete target;
+}
+
+ast_namespacedecl::~ast_namespacedecl() {
+    for(ast_node const* node : children) {
+        delete node;
+    }
 }
 
 parser::~parser() {

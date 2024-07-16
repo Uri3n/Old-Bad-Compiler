@@ -35,19 +35,19 @@ enum sym_t : uint8_t {
 
 enum var_t : uint16_t {
     VAR_NONE,
-    U8,
-    I8,
-    U16,
-    I16,
-    U32,
-    I32,
-    U64,
-    I64,
-    F32,
-    F64,
-    BOOLEAN,
-    USER_DEFINED_STRUCT,
-    USER_DEFINED_ENUM,
+    VAR_U8,
+    VAR_I8,
+    VAR_U16,
+    VAR_I16,
+    VAR_U32,
+    VAR_I32,
+    VAR_U64,
+    VAR_I64,
+    VAR_F32,
+    VAR_F64,
+    VAR_BOOLEAN,
+    VAR_USER_DEFINED_STRUCT,
+    VAR_USER_DEFINED_ENUM,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

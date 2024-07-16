@@ -61,7 +61,7 @@ token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals
     //
 
     if(illegals.contains(token_raw.back()) || !is_token_valid_numeric_literal(token_raw)) {
-        return token{ILLEGAL, UNSPECIFIC, start, token_raw};
+        return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
 
@@ -72,10 +72,10 @@ token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals
     auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [](char c) { return c == '.'; });
 
     if(is_float != token_raw.end()) {
-        return token{FLOAT_LITERAL, LITERAL, start, token_raw};
+        return token{TOKEN_FLOAT_LITERAL, KIND_LITERAL, start, token_raw};
     }
 
-    return token{INTEGER_LITERAL, LITERAL, start, token_raw};
+    return token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
 }
 
 
@@ -88,22 +88,22 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
 
     static std::unordered_map<std::string, token_t> keywords =
     {
-        {"ret",     KW_RET},
-        {"brk",     KW_BRK},
-        {"for",     KW_FOR},
-        {"while",   KW_WHILE},
-        {"do",      KW_DO},
-        {"if",      KW_IF},
-        {"elif",    KW_ELIF},
-        {"else",    KW_ELSE},
-        {"cont",    KW_CONT},
-        {"struct",  KW_STRUCT},
-        {"enum",    KW_ENUM},
-        {"switch",  KW_SWITCH},
-        {"case",    KW_CASE},
-        {"default", KW_DEFAULT},
-        {"fallthrough", KW_FALLTHROUGH},
-        {"namespace", KW_NAMESPACE},
+        {"ret",     TOKEN_KW_RET},
+        {"brk",     TOKEN_KW_BRK},
+        {"for",     TOKEN_KW_FOR},
+        {"while",   TOKEN_KW_WHILE},
+        {"do",      TOKEN_KW_DO},
+        {"if",      TOKEN_KW_IF},
+        {"elif",    TOKEN_KW_ELIF},
+        {"else",    TOKEN_KW_ELSE},
+        {"cont",    TOKEN_KW_CONT},
+        {"struct",  TOKEN_KW_STRUCT},
+        {"enum",    TOKEN_KW_ENUM},
+        {"switch",  TOKEN_KW_SWITCH},
+        {"case",    TOKEN_KW_CASE},
+        {"default", TOKEN_KW_DEFAULT},
+        {"fallthrough", TOKEN_KW_FALLTHROUGH},
+        {"namespace", TOKEN_KW_NAMESPACE},
     };
 
     static std::unordered_map<std::string, token_t> type_identifiers =
@@ -125,7 +125,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
 
 
     if(index >= src.size()) {
-        _current = token{END_OF_FILE, UNSPECIFIC, src.size() - 1, "\\0"};
+        _current = token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
     }
 
@@ -152,7 +152,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
     //
 
     if(illegals.contains(token_raw.back())) {
-        _current = token{ILLEGAL, UNSPECIFIC, start, token_raw};
+        _current = token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
         return;
     }
 
@@ -162,7 +162,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
     //
 
     if(token_raw == "true" || token_raw == "false") {
-        _current = token{BOOLEAN_LITERAL, LITERAL, start, token_raw};
+        _current = token{TOKEN_BOOLEAN_LITERAL, KIND_LITERAL, start, token_raw};
         return;
     }
 
@@ -174,14 +174,14 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
     const auto temp = std::string(token_raw.begin(), token_raw.end());
 
     if(keywords.contains(temp)) {
-        _current = token{keywords[temp], KEYWORD, start, token_raw};
+        _current = token{keywords[temp], KIND_KEYWORD, start, token_raw};
     }
 
     else if(type_identifiers.contains(temp)) {
-        _current = token{type_identifiers[temp], TYPE_IDENTIFIER, start, token_raw};
+        _current = token{type_identifiers[temp], KIND_TYPE_IDENTIFIER, start, token_raw};
     }
 
     else {
-        _current = token{IDENTIFIER, UNSPECIFIC, start, token_raw};
+        _current = token{TOKEN_IDENTIFIER, KIND_UNSPECIFIC, start, token_raw};
     }
 }

@@ -13,7 +13,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum ast_node_t : uint8_t {
+enum ast_node_t : uint16_t {
     NODE_NONE,
     NODE_VARDECL,
     NODE_PROCDECL,
@@ -38,7 +38,8 @@ enum ast_node_t : uint8_t {
     NODE_BRACED_EXPRESSION,
     NODE_STRUCT_DEFINITION,
     NODE_ENUM_DEFINITION,
-    NODE_SUBSCRIPT
+    NODE_SUBSCRIPT,
+    NODE_NAMESPACEDECL
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +213,14 @@ struct ast_subscript final : ast_node {
 
     ~ast_subscript() override;
     ast_subscript() : ast_node(NODE_SUBSCRIPT) {}
+};
+
+struct ast_namespacedecl final : ast_node {
+    std::string            full_path;
+    std::vector<ast_node*> children;
+
+    ~ast_namespacedecl() override;
+    ast_namespacedecl() : ast_node(NODE_NAMESPACEDECL) {}
 };
 
 struct ast_ret final : ast_node {
