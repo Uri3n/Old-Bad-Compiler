@@ -23,12 +23,11 @@ std::optional<std::vector<char>> read_file(const std::string& file_name);
 class lexer {
 public:
 
-    std::vector<char>   src;
-
-    size_t              src_index   = 0;
-    uint32_t            curr_line   = 1;
-    token               _current;
-    std::string         source_file_name;
+    std::vector<char>   src_;
+    size_t              src_index_ = 0;
+    uint32_t            curr_line_ = 1;
+    token               current_;
+    std::string         source_file_name_;
 
     void   advance(uint32_t amnt);
     token& current();

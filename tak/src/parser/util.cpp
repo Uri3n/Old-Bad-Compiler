@@ -6,10 +6,10 @@
 
 
 std::string
-var_t_to_string(const var_t type) {
+var_t_to_string(const var_t type) { // TODO: maybe convert this enum to an X macro too?
 
     switch(type) {
-        case VAR_NONE:            return "None (void)";
+        case VAR_NONE:                return "None (void)";
         case VAR_U8:                  return "U8";
         case VAR_I8:                  return "I8";
         case VAR_U16:                 return "U16";
@@ -23,7 +23,7 @@ var_t_to_string(const var_t type) {
         case VAR_BOOLEAN:             return "Boolean";
         case VAR_USER_DEFINED_STRUCT: return "Struct";
         case VAR_USER_DEFINED_ENUM:   return "Enumeration";
-        default:                  return "Unknown";
+        default:                      return "Unknown";
     }
 }
 

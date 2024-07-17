@@ -5,195 +5,12 @@
 #include <parser.hpp>
 
 
-std::optional<std::vector<uint32_t>>
-parse_array_data(lexer& lxr) {
-
-    PARSER_ASSERT(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['");
-    std::vector<uint32_t> lengths;
-
-
-    while(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        lxr.advance(1);
-
-        uint32_t len = 0; // 0 means size is determined by the compiler.
-        if(lxr.current() == TOKEN_INTEGER_LITERAL) {
-
-            const auto istr = std::string(lxr.current().value);
-
-            try {
-                len = std::stoul(istr);
-            } catch(const std::out_of_range& _) {
-                lxr.raise_error("Array size is too large.");
-                return std::nullopt;
-            } catch(...) {
-                lxr.raise_error("Array size must be a valid non-negative integer literal.");
-                return std::nullopt;
-            }
-
-            if(len == 0) {
-                lxr.raise_error("Array length cannot be 0.");
-                return std::nullopt;
-            }
-
-            lxr.advance(1);
-        }
-
-        if(lxr.current() != TOKEN_RSQUARE_BRACKET) {
-            lxr.raise_error("Expected closing square bracket.");
-            return std::nullopt;
-        }
-
-        lengths.emplace_back(len);
-        lxr.advance(1);
-    }
-
-
-    return lengths;
-}
-
-
-std::optional<type_data>
-parse_type(parser& parser, lexer& lxr) {
-
-    PARSER_ASSERT(lxr.current().kind == KIND_TYPE_IDENTIFIER || lxr.current() == TOKEN_IDENTIFIER, "Expected type.");
-    type_data data;
-
-
-    //
-    // Determine if variable, struct, or proc.
-    //
-
-    if(lxr.current() == TOKEN_KW_PROC) {
-        data.sym_type = SYM_PROCEDURE;
-        data.name     = std::monostate();
-    }
-
-    else if(lxr.current() == TOKEN_IDENTIFIER) {
-
-        const auto name = get_namespaced_identifier(lxr);
-        if(!name) {
-            return std::nullopt;
-        }
-
-        const auto canonical_name = parser.get_canonical_type_name(*name);
-        if(!parser.type_exists(canonical_name)) {
-            lxr.raise_error("Invalid type specifier.");
-            return std::nullopt;
-        }
-
-        data.sym_type = SYM_STRUCT;
-        data.name     = canonical_name;
-    }
-
-    else {
-        const var_t _var_t = token_to_var_t(lxr.current().type);
-        if(_var_t == VAR_NONE) {
-            lxr.raise_error("Invalid type specifier.");
-            return std::nullopt;
-        }
-
-        data.name     = _var_t;
-        data.sym_type = SYM_VARIABLE;
-    }
-
-
-    //
-    // Get pointer depth, array size (if exists)
-    //
-
-    lxr.advance(1);
-    if(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
-        data.flags |= SYM_IS_POINTER;
-        while(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
-            data.pointer_depth++;
-            lxr.advance(1);
-        }
-    }
-
-    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        data.flags |= SYM_IS_ARRAY;
-        if(const auto arr_data = parse_array_data(lxr)) {
-            data.array_lengths = *arr_data;
-        } else {
-            return std::nullopt;
-        }
-    }
-
-
-    //
-    // If the type isn't a proc, we can simply return here.
-    //
-
-    if(data.sym_type != SYM_PROCEDURE) {
-        return data;
-    }
-
-    if(lxr.current() != TOKEN_LPAREN) {
-        lxr.raise_error("Expected beginning of parameter type list.");
-        return std::nullopt;
-    }
-
-
-    //
-    // Parse procedure parameter list.
-    //
-
-    lxr.advance(1);
-    data.parameters = std::make_shared<std::vector<type_data>>();
-
-    while(lxr.current() != TOKEN_RPAREN) {
-
-        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
-            lxr.raise_error("Expected type identifier.");
-            return std::nullopt;
-        }
-
-        if(auto param_data = parse_type(parser, lxr)) {
-            param_data->flags |= SYM_IS_PROCARG;
-            data.parameters->emplace_back(*param_data);
-        } else {
-            return std::nullopt;
-        }
-
-        if(lxr.current() == TOKEN_COMMA) {
-            lxr.advance(1);
-        }
-    }
-
-
-    //
-    // Get return type. If VOID, we can just leave data.return_type as nullptr and return.
-    //
-
-    if(lxr.peek(1) != TOKEN_ARROW || (lxr.peek(2).kind != KIND_TYPE_IDENTIFIER && lxr.peek(2) != TOKEN_IDENTIFIER)) {
-        lxr.raise_error("Expected procedure return type after parameter list. Example: -> i32");
-        return std::nullopt;
-    }
-
-    lxr.advance(2);
-    if(lxr.current() == TOKEN_KW_VOID) {
-        lxr.advance(1);
-        return data;
-    }
-
-
-    data.return_type = std::make_shared<type_data>();
-    if(const auto ret_type = parse_type(parser, lxr)) {
-        *data.return_type = *ret_type; // expensive copy
-    } else {
-        return std::nullopt;
-    }
-
-    return data;
-}
-
-
 ast_node*
 parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_PROC, "Expected \"proc\" keyword.");
-    PARSER_ASSERT(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
-    PARSER_ASSERT(proc != nullptr, "Null symbol pointer.");
+    parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected \"proc\" keyword.");
+    parser_assert(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
+    parser_assert(proc != nullptr, "Null symbol pointer.");
 
 
     //
@@ -217,7 +34,10 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 
     node->identifier->parent       = node;
     node->identifier->symbol_index = proc->symbol_index;
-    defer([&]{ if(!state){ delete node; } });
+
+    defer_if(!state, [&] {
+        delete node;
+    });
 
 
     //
@@ -258,7 +78,7 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 ast_vardecl*
 parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected variable identifier.");
+    parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected variable identifier.");
 
     const auto     name      = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos   = lxr.current().src_pos;
@@ -335,7 +155,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 ast_node*
 parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
+    parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
 
 
     if(!(proc->type.flags & SYM_IS_GLOBAL)) {
@@ -485,7 +305,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 ast_node*
 parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current().kind == KIND_TYPE_IDENTIFIER, "Expected type identifier.");
+    parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER, "Expected type identifier.");
 
     const auto type_data = parse_type(parser, lxr);
     if(!type_data) {
@@ -508,7 +328,9 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     node->identifier->symbol_index = var->symbol_index;
     node->identifier->parent       = node;
 
-    defer([&]{ if(!state) { delete node; } });
+    defer_if(!state, [&] {
+        delete node;
+    });
 
 
     if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
@@ -544,7 +366,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 ast_node*
 parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
+    parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
 
     if(const auto type = parse_type(parser, lxr)) {
         const uint16_t temp = _struct->type.flags;
@@ -591,7 +413,7 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 ast_node*
 parse_decl(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
+    parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
 
     const auto     name     = parser.namespace_as_string() + std::string(lxr.current().value);
@@ -616,7 +438,7 @@ parse_decl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(parser.scope_stack.size() <= 1) {
+    if(parser.scope_stack_.size() <= 1) {
         flags |= SYM_IS_GLOBAL;
     }
 

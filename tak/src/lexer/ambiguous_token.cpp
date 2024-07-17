@@ -38,7 +38,7 @@ token
 token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-    const size_t start = lxr.src_index;
+    const size_t start = lxr.src_index_;
 
 
     while(true) {

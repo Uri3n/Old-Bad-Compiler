@@ -143,7 +143,7 @@ ast_namespacedecl::~ast_namespacedecl() {
 }
 
 parser::~parser() {
-    for(ast_node const* node : toplevel_decls) {
+    for(ast_node const* node : toplevel_decls_) {
         delete node;
     }
 }

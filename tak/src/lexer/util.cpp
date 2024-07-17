@@ -41,32 +41,32 @@ lexer_display_token_data(const token& tok) {
 
 void
 lexer::advance_char(const uint32_t amnt) {
-    if(_current.type != TOKEN_END_OF_FILE && src_index < src.size()) {
-        src_index += amnt;
+    if(current_.type != TOKEN_END_OF_FILE && src_index_ < src_.size()) {
+        src_index_ += amnt;
     }
 }
 
 void
 lexer::advance_line() {
-    ++curr_line;
+    ++curr_line_;
 }
 
 char
 lexer::peek_char() {
-    if(src_index + 1 >= src.size()) {
+    if(src_index_ + 1 >= src_.size()) {
         return '\0';
     }
 
-    return src[src_index + 1];
+    return src_[src_index_ + 1];
 }
 
 char
 lexer::current_char() {
-    if(src_index >= src.size()) {
+    if(src_index_ >= src_.size()) {
         return '\0';
     }
 
-    return src[src_index];
+    return src_[src_index_];
 }
 
 std::optional<char>
@@ -117,7 +117,7 @@ bool
 lexer::init(const std::string& file_name) {
 
     std::ifstream input(file_name, std::ios::binary);
-    source_file_name = file_name;
+    source_file_name_ = file_name;
 
     defer([&] {
        if(input.is_open()) {
@@ -137,8 +137,8 @@ lexer::init(const std::string& file_name) {
     input.seekg(0, std::ios::beg);
 
 
-    src.resize(file_size);
-    if(!input.read(src.data(), file_size)) {
+    src_.resize(file_size);
+    if(!input.read(src_.data(), file_size)) {
         print("FATAL, opened source file but contents could not be read.");
         return false;
     }
@@ -148,6 +148,6 @@ lexer::init(const std::string& file_name) {
 
 bool
 lexer::init(const std::vector<char>& src) {
-    this->src = src;
+    this->src_ = src;
     return true;
 }

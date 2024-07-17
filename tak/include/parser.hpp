@@ -14,10 +14,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define PARSER_ASSERT(condition, msg) if(!(condition)) {                        \
+#define parser_assert(condition, msg) if(!(condition)) {                        \
     print("PARSER ASSERT FAILED :: FILE: {}, LINE: {}", __FILE__, __LINE__ );   \
     print(msg);                                                                 \
     exit(1);                                                                    \
+}                                                                               \
+
+// Should I actually use this? hides control flow too much...
+#define parser_expect(condition, msg) if((condition)) {                         \
+   lxr.raise_error(msg);                                                        \
+   return nullptr;                                                              \
 }                                                                               \
 
 #define VALID_SUBEXPRESSION(node_type) (node_type == NODE_ASSIGN                \
@@ -53,15 +59,15 @@
 class parser {
 public:
 
-    uint32_t curr_sym_index = INVALID_SYMBOL_INDEX;
-    uint16_t inside_parenthesized_expression = 0;
+    uint32_t curr_sym_index_ = INVALID_SYMBOL_INDEX;
+    uint16_t inside_parenthesized_expression_ = 0;
 
-    std::vector<std::string> namespace_stack;
-    std::vector<ast_node*>   toplevel_decls;
-    std::vector<std::unordered_map<std::string, uint32_t>> scope_stack;
+    std::vector<std::string> namespace_stack_;
+    std::vector<ast_node*>   toplevel_decls_;
 
-    std::unordered_map<uint32_t, symbol> sym_table;
-    std::unordered_map<std::string, std::vector<member_data>> type_table;
+    std::vector<std::unordered_map<std::string, uint32_t>>    scope_stack_;
+    std::unordered_map<uint32_t, symbol>                      sym_table_;
+    std::unordered_map<std::string, std::vector<member_data>> type_table_;
 
 
     void push_scope();

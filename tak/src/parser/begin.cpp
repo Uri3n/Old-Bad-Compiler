@@ -16,7 +16,7 @@ generate_ast_from_source(parser& parser, const std::string& source_file_name) {
         return false;
     }
 
-    if(parser.scope_stack.empty()) {
+    if(parser.scope_stack_.empty()) {
         parser.push_scope(); // push global scope
     }
 
@@ -27,7 +27,7 @@ generate_ast_from_source(parser& parser, const std::string& source_file_name) {
             break;
         }
 
-        parser.toplevel_decls.emplace_back(toplevel_decl);
+        parser.toplevel_decls_.emplace_back(toplevel_decl);
     } while(true);
 
 

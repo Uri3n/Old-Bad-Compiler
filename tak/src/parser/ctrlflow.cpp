@@ -7,29 +7,30 @@
 
 ast_node*
 parse_cont(lexer& lxr) {
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
     lxr.advance(1);
     return new ast_cont();
 }
 
+
 ast_node*
 parse_brk(lexer& lxr) {
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
     lxr.advance(1);
     return new ast_brk();
 }
 
+
 ast_node*
 parse_branch(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
-
+    parser_assert(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
 
     bool  state = false;
     auto* node  = new ast_branch();
 
-    defer([&] {
-       if(!state) { delete node; }
+    defer_if(!state, [&] {
+        delete node;
     });
 
 
@@ -117,7 +118,7 @@ parse_branch(parser &parser, lexer &lxr) {
 ast_case*
 parse_case(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
     parser.push_scope();
 
 
@@ -164,10 +165,11 @@ parse_case(parser& parser, lexer& lxr) {
     return node;
 }
 
+
 ast_default*
 parse_default(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
     parser.push_scope();
 
 
@@ -200,10 +202,11 @@ parse_default(parser& parser, lexer& lxr) {
     return node;
 }
 
+
 ast_node*
 parse_switch(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
     lxr.advance(1);
 
 
@@ -214,9 +217,9 @@ parse_switch(parser &parser, lexer &lxr) {
     auto* node   = new ast_switch();
     node->target = parse_expression(parser, lxr, true);
 
-    defer([&] {
-        if(!state) { delete node; }
-    })
+    defer_if(!state, [&] {
+        delete node;
+    });
 
 
     if(node->target == nullptr)
@@ -296,7 +299,7 @@ parse_switch(parser &parser, lexer &lxr) {
 ast_node*
 parse_ret(parser &parser, lexer &lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
     auto* node = new ast_ret();
 
     lxr.advance(1);
@@ -325,7 +328,7 @@ parse_ret(parser &parser, lexer &lxr) {
 ast_node*
 parse_while(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
 
     lxr.advance(1);
     parser.push_scope();
@@ -398,120 +401,9 @@ parse_while(parser& parser, lexer& lxr) {
 
 
 ast_node*
-parse_structdef(parser& parser, lexer& lxr) {
-
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_STRUCT, "Expected \"struct\" keyword.");
-
-    if(parser.scope_stack.size() > 1) {
-        lxr.raise_error("Struct definition at non-global scope.");
-        return nullptr;
-    }
-
-
-    //
-    // Check for type redeclaration
-    //
-
-    lxr.advance(1);
-    if(lxr.current() != TOKEN_IDENTIFIER) {
-        lxr.raise_error("Expected struct name.");
-        return nullptr;
-    }
-
-    const auto type_name = parser.namespace_as_string() + std::string(lxr.current().value);
-    std::vector<member_data> members;
-
-    if(parser.type_exists(type_name)) {
-        lxr.raise_error("Naming conflict: type has already been defined elsewhere.");
-        return nullptr;
-    }
-
-    if(lxr.peek(1) != TOKEN_LBRACE) {
-        lxr.raise_error("Unexpected token.");
-    }
-
-
-    //
-    // Parse out each struct member
-    //
-
-    lxr.advance(2);
-    while(lxr.current() != TOKEN_RBRACE) {
-
-        if(lxr.current() != TOKEN_IDENTIFIER) {
-            lxr.raise_error("Expected identifier.");
-            return nullptr;
-        }
-
-
-        auto name     = std::string(lxr.current().value);
-        bool is_const = false;
-
-        const size_t src_pos = lxr.current().src_pos;
-        const uint32_t line  = lxr.current().line;
-
-
-        lxr.advance(1);
-        if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
-            is_const = true;
-        } else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
-            lxr.raise_error("Expected type assignment.");
-            return nullptr;
-        }
-
-
-        lxr.advance(1);
-        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
-            lxr.raise_error("Expected type identifier.");
-            return nullptr;
-        }
-
-        if(lxr.current().value == type_name) {
-            lxr.raise_error("A struct cannot contain itself.");
-            return nullptr;
-        }
-
-
-        if(const auto type = parse_type(parser, lxr)) {
-            if(type->sym_type == SYM_PROCEDURE && type->pointer_depth < 1) {
-                lxr.raise_error("Procedures cannot be used as struct members.", src_pos, line);
-                return nullptr;
-            }
-
-            members.emplace_back(member_data(name, *type));
-            members.back().type.flags |= is_const ? SYM_IS_CONSTANT | SYM_DEFAULT_INITIALIZED : SYM_DEFAULT_INITIALIZED;
-
-        } else {
-            return nullptr;
-        }
-
-
-        if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
-            lxr.advance(1);
-        }
-    }
-
-
-    //
-    // Store type, create AST node.
-    //
-
-    if(!parser.create_type(type_name, std::move(members))) {
-        return nullptr;
-    }
-
-    auto* node = new ast_structdef();
-    node->name = type_name;
-
-    lxr.advance(1);
-    return node;
-}
-
-
-ast_node*
 parse_for(parser& parser, lexer& lxr) {
 
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
+    parser_assert(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
 
     lxr.advance(1);
     parser.push_scope();
@@ -636,87 +528,4 @@ parse_for(parser& parser, lexer& lxr) {
     lxr.advance(1);
     state = true;
     return node;
-}
-
-
-ast_node*
-parse_namespace(parser& parser, lexer& lxr) {
-
-    PARSER_ASSERT(lxr.current() == TOKEN_KW_NAMESPACE, "Expected \"namespace\" keyword.");
-    lxr.advance(1);
-
-
-    if(parser.scope_stack.size() > 1) {
-        lxr.raise_error("Namespace declaration at non-global scope.");
-        return nullptr;
-    }
-
-    if(lxr.current() != TOKEN_IDENTIFIER) {
-        lxr.raise_error("Expected namespace identifier.");
-        return nullptr;
-    }
-
-    if(!parser.enter_namespace(std::string(lxr.current().value))) { // Duplicate namespace.
-        lxr.raise_error("Nested namespace has the same name as a parent.");
-        return nullptr;
-    }
-
-    if(lxr.peek(1) != TOKEN_LBRACE) {
-        lxr.raise_error("Expected '{' (Beginning of namespace block).");
-        return nullptr;
-    }
-
-
-    bool  state     = false;
-    auto* node      = new ast_namespacedecl();
-    node->full_path = parser.namespace_as_string();
-
-    defer([&] {
-        if(!state) { delete node; }
-        parser.leave_namespace();
-    });
-
-
-    lxr.advance(2);
-    while(lxr.current() != TOKEN_RBRACE) {
-
-        const size_t   curr_pos = lxr.current().src_pos;
-        const uint32_t line     = lxr.current().line;
-
-        node->children.emplace_back(parse_expression(parser, lxr, false));
-        if(node->children.back() == nullptr)
-            return nullptr;
-
-        if(!VALID_AT_TOPLEVEL(node->children.back()->type)) {
-            lxr.raise_error("Expression is invalid as a toplevel statement.", curr_pos, line);
-            return nullptr;
-        }
-
-        node->children.back()->parent = node;
-    }
-
-
-    lxr.advance(1);
-    state = true;
-    return node;
-}
-
-
-
-ast_node*
-parse_keyword(parser &parser, lexer &lxr) {
-
-    PARSER_ASSERT(lxr.current().kind == KIND_KEYWORD, "Expected keyword.");
-
-    if(lxr.current() == TOKEN_KW_RET)       return parse_ret(parser, lxr);
-    if(lxr.current() == TOKEN_KW_IF)        return parse_branch(parser, lxr);
-    if(lxr.current() == TOKEN_KW_SWITCH)    return parse_switch(parser, lxr);
-    if(lxr.current() == TOKEN_KW_WHILE)     return parse_while(parser, lxr);
-    if(lxr.current() == TOKEN_KW_FOR)       return parse_for(parser, lxr);
-    if(lxr.current() == TOKEN_KW_STRUCT)    return parse_structdef(parser, lxr);
-    if(lxr.current() == TOKEN_KW_NAMESPACE) return parse_namespace(parser, lxr);
-
-
-    lxr.raise_error("This keyword is not allowed here.");
-    return nullptr;
 }

@@ -541,8 +541,166 @@ void
 parser::dump_nodes() {
 
     print("-- ABSTRACT SYNTAX TREE -- ");
-    for(const auto node : toplevel_decls)
+    for(const auto node : toplevel_decls_)
         display_node_data(node, 0, *this);
+
+    print("");
+}
+
+
+void
+parser::dump_types() {
+
+    if(type_table_.empty()) {
+        print("No user-defined types exist.");
+        return;
+    }
+
+    print(" -- USER DEFINED TYPES -- ");
+    for(const auto &[name, members] : type_table_) {
+        print("~ {} ~\n  Members:", name);
+        for(size_t i = 0; i < members.size(); ++i) {
+            print("    {}. {}", std::to_string(i + 1), members[i].name);
+            print("{}", format_type_data(members[i].type, 1));
+        }
+    }
+
+    print("");
+}
+
+
+std::string
+format_type_data(const type_data& type, const uint16_t num_tabs) {
+
+    static constexpr std::string_view fmt_type =
+        "{} - Symbol Type:   {}"
+        "\n{} - Flags:         {}"
+        "\n{} - Pointer Depth: {}"
+        "\n{} - Matrix Depth:  {}"
+        "\n{} - Array Lengths: {}"
+        "\n{} - Type Name:     {}"
+        "\n{} - Return Type:   {}"
+        "\n{} - Parameters:    {}\n";
+
+    std::string tabs;
+    for(uint16_t i = 0; i < num_tabs; i++) {
+        tabs += '\t';
+    }
+
+
+    std::string flags;
+    if(type.flags & SYM_IS_CONSTANT) {
+        flags += "CONSTANT | ";
+    } if(type.flags & SYM_IS_FOREIGN) {
+        flags += "FOREIGN | ";
+    } if(type.flags & SYM_IS_POINTER) {
+        flags += "POINTER | ";
+    }  if(type.flags & SYM_IS_GLOBAL) {
+        flags += "GLOBAL | ";
+    } if(type.flags & SYM_IS_ARRAY) {
+        flags += "ARRAY | ";
+    } if(type.flags & SYM_IS_PROCARG) {
+        flags += "PROCEDURE_ARGUMENT | ";
+    } if(type.flags & SYM_DEFAULT_INITIALIZED) {
+        flags += "DEFAULT INITIALIZED";
+    }
+
+    if(flags.size() >= 2 && flags[flags.size()-2] == '|') {
+        flags.erase(flags.size()-2);
+    }
+
+
+    std::string sym_t_str;
+    if(type.sym_type == SYM_PROCEDURE) {
+        sym_t_str = "Procedure";
+    } else if(type.sym_type == SYM_VARIABLE) {
+        sym_t_str = "Variable";
+    } else if(type.sym_type == SYM_STRUCT) {
+        sym_t_str = "Struct";
+    }
+
+
+    std::string type_name_str;
+    if(auto is_var = std::get_if<var_t>(&type.name)) {
+        type_name_str = var_t_to_string(*is_var);
+    } else if(auto is_struct = std::get_if<std::string>(&type.name)) {
+        type_name_str = fmt("{} (User Defined Struct)", *is_struct);
+    } else {
+        type_name_str = "Procedure";
+    }
+
+
+    std::string return_type_data;
+    std::string param_data;
+
+    if(type.return_type != nullptr) {
+        return_type_data = "\n\n~~ BEGIN RETURN TYPE ~~\n";
+        return_type_data += format_type_data(*type.return_type, num_tabs + 1);
+        return_type_data += "\n~~ END RETURN TYPE ~~\n";
+    } else {
+        return_type_data = "N/A";
+    }
+
+    if(type.parameters != nullptr) {
+        param_data = "\n\n~~ BEGIN PARAMETERS ~~\n";
+        for(const auto& param : *type.parameters) {
+            param_data += format_type_data(param, num_tabs + 1) + '\n';
+        }
+        param_data += "~~ END PARAMETERS ~~\n";
+    } else {
+        param_data = "N/A";
+    }
+
+
+    std::string array_lengths;
+    for(const auto& len : type.array_lengths)
+        array_lengths += std::to_string(len) + ',';
+
+    if(!array_lengths.empty() && array_lengths.back() == ',')
+        array_lengths.pop_back();
+
+
+    return fmt(fmt_type,
+        tabs,
+        sym_t_str,
+        tabs,
+        flags,
+        tabs,
+        type.pointer_depth,
+        tabs,
+        type.array_lengths.size(),
+        tabs,
+        array_lengths.empty() ? "N/A" : array_lengths,
+        tabs,
+        type_name_str,
+        tabs,
+        return_type_data,
+        tabs,
+        param_data
+    );
+}
+
+
+void
+parser::dump_symbols() {
+
+    static constexpr std::string_view fmt_sym =
+        "~ {} ~"
+        "\n - Symbol Index:  {}"
+        "\n - Line Number:   {}"
+        "\n - File Position: {}"
+        "{}"; //< type data
+
+    print(" -- SYMBOL TABLE -- ");
+    for(const auto &[index, sym] : sym_table_) {
+        print(fmt_sym,
+            sym.name,
+            sym.symbol_index,
+            sym.line_number,
+            sym.src_pos,
+            format_type_data(sym.type)
+        );
+    }
 
     print("");
 }

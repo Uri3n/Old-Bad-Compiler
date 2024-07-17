@@ -101,7 +101,8 @@ struct ast_branch final : ast_node {
 
 struct ast_case final : ast_node {
     ast_singleton_literal* value = nullptr;
-    bool fallthrough = false;
+    bool fallthrough             = false;
+
     std::vector<ast_node*> body;
 
     ~ast_case() override;

@@ -7,7 +7,7 @@
 
 int main() {
 
-#if 0
+#if 1
     parser parser;
 
     if(!generate_ast_from_source(parser, CURRENT_TEST)) {

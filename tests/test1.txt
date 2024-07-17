@@ -1,11 +1,10 @@
 
-namespace foo {
-   namespace poop {
-     foo: i64 = 1;
-    }
+print :: proc(msg: i8^) -> void {
+   msg += ~9 * 1;
+}
 
-   print :: proc(msg: i8^) -> void {
-     foo\poop\foo = 1;
-   }  
+
+for foo : i32 = 0, foo < 10, ++foo {
+   print("Hello, W\borld!");
 }
 
