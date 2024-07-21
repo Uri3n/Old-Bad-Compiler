@@ -34,11 +34,6 @@ ast_else::~ast_else() {
     }
 }
 
-ast_assign::~ast_assign() {
-    delete expression;
-    delete assigned;
-}
-
 ast_procdecl::~ast_procdecl() {
     for(ast_node const* node : body) {
         delete node;
@@ -56,7 +51,8 @@ ast_vardecl::~ast_vardecl() {
         delete *init_value;
     }
 
-    delete identifier;}
+    delete identifier;
+}
 
 ast_call::~ast_call() {
     for(ast_node const* node : arguments) {
@@ -64,6 +60,21 @@ ast_call::~ast_call() {
     }
 
     delete identifier;
+}
+
+ast_enumdef::~ast_enumdef() {
+    delete _namespace;
+    delete alias;
+}
+
+ast_cast::~ast_cast() {
+    delete target;
+}
+
+ast_block::~ast_block() {
+    for(ast_node const* node : body) {
+        delete node;
+    }
 }
 
 ast_subscript::~ast_subscript() {

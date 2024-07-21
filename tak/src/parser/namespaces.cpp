@@ -54,7 +54,7 @@ parser::get_canonical_name(const std::string& name) {
 
 std::string
 parser::get_canonical_type_name(const std::string& name) {
-    if(type_exists(name))
+    if(type_exists(name) || type_alias_exists(name))
         return name;
 
     return get_canonical_name(name);

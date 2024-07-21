@@ -14,7 +14,7 @@ lexer::advance(const uint32_t amnt) {
     }
 
 
-    static std::unordered_map<char, token_func> map =
+    static std::unordered_map<char, token_func> token_map =
     {
         {' ',  lexer_token_skip},
         {'\r', lexer_token_skip},
@@ -51,15 +51,16 @@ lexer::advance(const uint32_t amnt) {
         {'.', lexer_token_dot},
         {'`', lexer_token_backtick},
         {'\\', lexer_token_backslash},
+        {'\0', lexer_token_null},
     };
 
 
     for(uint32_t i = 0; i < amnt; i++) {
         do {
-            if(map.contains(current_char())) {
-                map[current_char()](*this);
+            if(token_map.contains(current_char())) {
+                token_map[current_char()](*this);
             } else {
-                lexer_infer_ambiguous_token(*this, map);
+                lexer_infer_ambiguous_token(*this, token_map);
             }
         } while(current_ == TOKEN_NONE);
 

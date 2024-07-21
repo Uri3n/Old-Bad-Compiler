@@ -5,7 +5,6 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 #include <ast_types.hpp>
-#include <sym_types.hpp>
 #include <unordered_map>
 #include <lexer.hpp>
 #include <io.hpp>
@@ -33,6 +32,9 @@
     || node_type == NODE_SINGLETON_LITERAL                                      \
     || node_type == NODE_UNARYEXPR                                              \
     || node_type == NODE_BRACED_EXPRESSION                                      \
+    || node_type == NODE_CAST                                                   \
+    || node_type == NODE_SUBSCRIPT                                              \
+    || node_type == NODE_CAST                                                   \
 )                                                                               \
 
 #define EXPR_NEVER_NEEDS_TERMINAL(node_type) (node_type == NODE_PROCDECL        \
@@ -41,10 +43,11 @@
     || node_type == NODE_ELSE                                                   \
     || node_type == NODE_FOR                                                    \
     || node_type == NODE_WHILE                                                  \
-    || node_type == NODE_DOWHILE                                                \
     || node_type == NODE_PROCDECL                                               \
     || node_type == NODE_SWITCH                                                 \
     || node_type == NODE_NAMESPACEDECL                                          \
+    || node_type == NODE_BLOCK                                                  \
+    || node_type == NODE_ENUM_DEFINITION                                        \
 )                                                                               \
 
 #define VALID_AT_TOPLEVEL(node_type) (node_type == NODE_VARDECL                 \
@@ -52,6 +55,7 @@
     || node_type == NODE_NAMESPACEDECL                                          \
     || node_type == NODE_PROCDECL                                               \
     || node_type == NODE_ENUM_DEFINITION                                        \
+    || node_type == NODE_TYPE_ALIAS                                             \
 )                                                                               \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +72,7 @@ public:
     std::vector<std::unordered_map<std::string, uint32_t>>    scope_stack_;
     std::unordered_map<uint32_t, symbol>                      sym_table_;
     std::unordered_map<std::string, std::vector<member_data>> type_table_;
+    std::unordered_map<std::string, type_data>                type_aliases_;
 
 
     void push_scope();
@@ -104,6 +109,9 @@ public:
     std::vector<member_data>* lookup_type(const std::string& name);
     uint32_t lookup_scoped_symbol(const std::string& name);
 
+    type_data  lookup_type_alias(const std::string& name);
+    bool       create_type_alias(const std::string& name, const type_data& data);
+    bool       type_alias_exists(const std::string& name);
 
     parser() = default;
     ~parser();
@@ -113,6 +121,7 @@ public:
 
 bool generate_ast_from_source(parser& parser, const std::string& source_file_name);
 void display_node_data(ast_node* node, uint32_t depth, parser& parser);
+uint16_t precedence_of(token_t _operator);
 var_t token_to_var_t(token_t tok_t);
 std::string var_t_to_string(var_t type);
 std::string format_type_data(const type_data& type, uint16_t num_tabs = 0);
@@ -123,10 +132,15 @@ std::optional<type_data> parse_type(parser& parser, lexer& lxr);
 std::optional<std::vector<uint32_t>> parse_array_data(lexer& lxr);
 std::optional<std::string> get_namespaced_identifier(lexer& lxr);
 
+ast_node* parse_type_alias(parser& parser, lexer& lxr);
+ast_node* parse_compiler_directive(parser& parser, lexer& lxr);
+
 ast_node* parse_ret(parser& parser, lexer& lxr);
 ast_node* parse_cont(lexer& lxr);
 ast_node* parse_brk(lexer& lxr);
 ast_node* parse_for(parser& parser, lexer& lxr);
+ast_node* parse_dowhile(parser& parser, lexer& lxr);
+ast_node* parse_block(parser& parser, lexer& lxr);
 ast_node* parse_while(parser& parser, lexer& lxr);
 ast_node* parse_branch(parser& parser, lexer& lxr);
 ast_case* parse_case(parser& parser, lexer& lxr);
@@ -141,7 +155,6 @@ ast_node* parse_decl(parser& parser, lexer& lxr);
 ast_node* parse_vardecl(symbol* var, parser& parser, lexer& lxr);
 ast_node* parse_procdecl(symbol* proc, parser& parser, lexer& lxr);
 ast_node* parse_structdecl(symbol* _struct, parser& parser, lexer& lxr);
-ast_node* parse_assign(ast_node* assigned, parser& parser, lexer& lxr);
 ast_node* parse_call(uint32_t sym_index, parser& parser, lexer& lxr);
 ast_vardecl* parse_parameterized_vardecl(parser& parser, lexer& lxr);
 ast_node* parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr);
@@ -149,9 +162,11 @@ ast_node* parse_keyword(parser& parser, lexer& lxr);
 ast_node* parse_singleton_literal(parser& parser, lexer& lxr);
 ast_node* parse_braced_expression(parser& parser, lexer& lxr);
 ast_node* parse_namespace(parser& parser, lexer& lxr);
+ast_node* parse_enumdef(parser& parser, lexer& lxr);
 ast_node* parse_parenthesized_expression(parser& parser, lexer& lxr);
 ast_node* parse_subscript(ast_node* operand, parser& parser, lexer& lxr);
 ast_node* parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr);
+ast_node* parse_cast(parser& parser, lexer& lxr);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

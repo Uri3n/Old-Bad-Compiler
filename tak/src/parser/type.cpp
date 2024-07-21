@@ -4,6 +4,165 @@
 
 #include <parser.hpp>
 
+/*
+    enum foo, i32 {
+        VALUE_ONE,
+        VALUE_TWO,
+        VALUE_THREE
+    }
+*/
+
+static bool
+type_is_valid_as_enumeration(const type_data& type) {
+    if(auto* _var_t = std::get_if<var_t>(&type.name)) {
+        return (*_var_t == VAR_I8
+            || *_var_t == VAR_U8
+            || *_var_t == VAR_I16
+            || *_var_t == VAR_U16
+            || *_var_t == VAR_I32
+            || *_var_t == VAR_U32
+            || *_var_t == VAR_I64
+            || *_var_t == VAR_U64)
+            && (type.array_lengths.empty()
+            && type.pointer_depth == 0
+            && type.sym_type == SYM_VARIABLE);
+    }
+
+    return false;
+}
+
+ast_node*
+parse_enumdef(parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_ENUM, "Expected \"enum\" keyword.");
+
+    if(parser.scope_stack_.size() > 1) {
+        lxr.raise_error("Enum definition at non-global scope.");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    if(lxr.current() != TOKEN_IDENTIFIER) {
+        lxr.raise_error("Expected enum name.");
+    }
+
+
+    bool state       = false;
+    auto* node       = new ast_enumdef();
+    node->_namespace = new ast_namespacedecl();
+    node->alias      = new ast_type_alias();
+
+    node->_namespace->parent = node;
+    node->alias->parent      = node;
+    node->alias->name        = parser.namespace_as_string() + std::string(lxr.current().value);
+
+    defer_if(!state,[&] {
+       delete node;
+    });
+
+
+    //
+    // Enter enum as namespace
+    //
+
+    if(parser.namespace_exists(std::string(lxr.current().value))
+        || parser.type_alias_exists(node->alias->name)
+        || parser.type_exists(node->alias->name)
+    ) {
+        lxr.raise_error("Naming conflict: a namespace, type alias, or struct has the same name as this enum.");
+        return nullptr;
+    }
+
+    parser.enter_namespace(std::string(lxr.current().value));
+    node->_namespace->full_path = parser.namespace_as_string();
+
+
+    if(lxr.peek(1) != TOKEN_COMMA && lxr.peek(1) != TOKEN_SEMICOLON) {
+        lxr.raise_error("Unexpected token after enum name.");
+        return nullptr;
+    }
+
+    lxr.advance(2);
+    if(lxr.current() != TOKEN_IDENTIFIER && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
+        lxr.raise_error("Expected enum type identifier.");
+        return nullptr;
+    }
+
+
+    //
+    // Use enum name as a type alias
+    //
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+    auto           type     = parse_type(parser, lxr);
+
+    if(!type) {
+        return nullptr;
+    }
+
+    if(!type_is_valid_as_enumeration(*type)) {
+        lxr.raise_error("Specified type is not valid for an enum.", curr_pos, line);
+        return nullptr;
+    }
+
+    parser.create_type_alias(node->alias->name, *type);
+
+
+    //
+    // Parse enum members
+    //
+
+    if(lxr.current() != TOKEN_LBRACE) {
+        lxr.raise_error("Expected '{'.");
+        return nullptr;
+    }
+
+
+    lxr.advance(1);
+    while(lxr.current() != TOKEN_RBRACE){
+
+        //
+        // Get member name
+        //
+
+        if(lxr.current() != TOKEN_IDENTIFIER) {
+            lxr.raise_error("Expected identifier.");
+        }
+
+        auto member_name = parser.namespace_as_string() + std::string(lxr.current().value);
+        if(parser.scoped_symbol_exists_at_current_scope(member_name)) {
+            lxr.raise_error("Redeclaration of enum member.");
+            return nullptr;
+        }
+
+        if(parser.namespace_exists(std::string(lxr.current().value))) {
+            lxr.raise_error("Enum member has the same name as a namespace it is declared in.");
+            return nullptr;
+        }
+
+        //
+        // Create a symbol for the enum member.
+        //
+
+        auto* sym        = parser.create_symbol(member_name, lxr.current().src_pos, lxr.current().line, SYM_VARIABLE, SYM_FLAGS_NONE, *type);
+        auto* decl       = new ast_vardecl();
+        decl->identifier = new ast_identifier();
+
+        sym->type.flags |= SYM_IS_CONSTANT;
+        sym->type.flags |= SYM_IS_GLOBAL;
+
+        decl->identifier->symbol_index = sym->symbol_index;
+        decl->identifier->parent       = decl;
+
+        // TODO: finish
+    }
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
 
 ast_node*
 parse_structdef(parser& parser, lexer& lxr) {
@@ -29,8 +188,8 @@ parse_structdef(parser& parser, lexer& lxr) {
     const auto type_name = parser.namespace_as_string() + std::string(lxr.current().value);
     std::vector<member_data> members;
 
-    if(parser.type_exists(type_name)) {
-        lxr.raise_error("Naming conflict: type has already been defined elsewhere.");
+    if(parser.type_exists(type_name) || parser.type_alias_exists(type_name)) {
+        lxr.raise_error("Naming conflict: type or type alias has already been defined elsewhere.");
         return nullptr;
     }
 
@@ -187,20 +346,34 @@ parse_type(parser& parser, lexer& lxr) {
         }
 
         const auto canonical_name = parser.get_canonical_type_name(*name);
-        if(!parser.type_exists(canonical_name)) {
+        if(parser.type_alias_exists(canonical_name)) {
+            data = parser.lookup_type_alias(canonical_name);
+        }
+        else if(!parser.type_exists(canonical_name)) {
             lxr.raise_error("Invalid type specifier.");
             return std::nullopt;
         }
-
-        data.sym_type = SYM_STRUCT;
-        data.name     = canonical_name;
+        else {
+            data.sym_type = SYM_STRUCT;
+            data.name     = canonical_name;
+        }
     }
 
     else {
-        const var_t _var_t = token_to_var_t(lxr.current().type);
-        if(_var_t == VAR_NONE) {
-            lxr.raise_error("Invalid type specifier.");
-            return std::nullopt;
+        var_t _var_t = VAR_NONE;
+
+        if(lxr.current() == TOKEN_KW_VOID) {
+            _var_t = VAR_VOID;
+            if(lxr.peek(1) != TOKEN_BITWISE_XOR_OR_PTR) {
+                lxr.raise_error("Use of \"void\" as non pointer type.");
+                return std::nullopt;
+            }
+        } else {
+            _var_t = token_to_var_t(lxr.current().type);
+            if(_var_t == VAR_NONE) {
+                lxr.raise_error("Invalid type specifier.");
+                return std::nullopt;
+            }
         }
 
         data.name     = _var_t;

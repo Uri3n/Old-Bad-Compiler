@@ -314,6 +314,7 @@ lexer_token_lessthan(lexer &lxr) {
         return;
     }
 
+    const size_t start = index;
 
     switch(lxr.peek_char()) {
         case '=':
@@ -322,8 +323,14 @@ lexer_token_lessthan(lexer &lxr) {
             break;
 
         case '<':
-            _current = token{TOKEN_BITWISE_LSHIFT, KIND_BINARY_EXPR_OPERATOR, index, {&src[index], 2}};
-            lxr.advance_char(2);
+            lxr.advance_char(1);
+            if(lxr.peek_char() == '=') {
+                _current = token{TOKEN_BITWISE_LSHIFTEQ, KIND_BINARY_EXPR_OPERATOR, start, {&src[start], 3}};
+                lxr.advance_char(2);
+            } else {
+                _current = token{TOKEN_BITWISE_LSHIFT, KIND_BINARY_EXPR_OPERATOR, start, {&src[start], 2}};
+                lxr.advance_char(1);
+            }
             break;
 
         default:
@@ -345,6 +352,8 @@ lexer_token_greaterthan(lexer &lxr) {
     }
 
 
+    const size_t start = index;
+
     switch(lxr.peek_char()) {
         case '=':
             _current = token{TOKEN_COMP_GTE, KIND_BINARY_EXPR_OPERATOR, index, {&src[index], 2}};
@@ -352,8 +361,14 @@ lexer_token_greaterthan(lexer &lxr) {
             break;
 
         case '>':
-            _current = token{TOKEN_BITWISE_RSHIFT, KIND_BINARY_EXPR_OPERATOR, index, {&src[index], 2}};
-            lxr.advance_char(2);
+            lxr.advance_char(1);
+            if(lxr.peek_char() == '=') {
+                _current = token{TOKEN_BITWISE_RSHIFTEQ, KIND_BINARY_EXPR_OPERATOR, start, {&src[start], 3}};
+                lxr.advance_char(2);
+            } else {
+                _current = token{TOKEN_BITWISE_RSHIFT, KIND_BINARY_EXPR_OPERATOR, start, {&src[start], 2}};
+                lxr.advance_char(1);
+            }
             break;
 
         default:
@@ -387,7 +402,7 @@ lexer_token_ampersand(lexer &lxr) {
             break;
 
         default:
-            _current = token{TOKEN_BITWISE_AND, KIND_BINARY_EXPR_OPERATOR, index, {&src[index], 1}};
+            _current = token{TOKEN_BITWISE_AND, KIND_BINARY_EXPR_OPERATOR, index, {&src[index], 1}}; // can also mean address-of!
             lxr.advance_char(1);
             break;
     }
@@ -439,7 +454,8 @@ lexer_token_exclamation(lexer &lxr) {
     }
 
     else {
-        _current = token{TOKEN_CONDITIONAL_NOT, KIND_UNARY_EXPR_OPERATOR, index, {&src[index], 2}};
+        _current = token{TOKEN_CONDITIONAL_NOT, KIND_UNARY_EXPR_OPERATOR, index, {&src[index], 1}};
+        lxr.advance_char(1);
     }
 }
 
@@ -643,25 +659,29 @@ lexer_token_backslash(lexer& lxr) {
     }
 }
 
-
-//
-// We can leave the following tokens as "illegal" for now.
-// can change easily if we decide to do anything with these characters.
-// for now, they are unused and don't do anything.
-//
-
 void
-lexer_token_pound(lexer &lxr) {
+lexer_token_null(lexer& lxr) {
+    lxr.current_ = token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, lxr.src_.size() - 1, "\\0"};
+}
+
+void lexer_token_at(lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
-        _current = token{TOKEN_ILLEGAL, KIND_PUNCTUATOR, index, {&src[index], 1}};
+        _current = token{TOKEN_AT, KIND_PUNCTUATOR, index, {&src[index], 1}};
         lxr.advance_char(1);
     }
 }
+
+
+//
+// We can leave the following tokens as "illegal" for now.
+// can change easily if we decide to do anything with these characters.
+// for now, they are unused and don't do anything.
+//
 
 void
 lexer_token_backtick(lexer& lxr) {
@@ -676,7 +696,8 @@ lexer_token_backtick(lexer& lxr) {
     }
 }
 
-void lexer_token_at(lexer &lxr) {
+void
+lexer_token_pound(lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 

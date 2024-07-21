@@ -93,22 +93,6 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
     }
 }
 
-static void
-display_node_assign(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
-
-    node_title += "Assign";
-    const auto* assign = dynamic_cast<ast_assign*>(node);
-
-    if(assign == nullptr) {
-        node_title += " !! INVALID NODE TYPE";
-        print("{}", node_title);
-        return;
-    }
-
-    print("{}", node_title);
-    display_node_data(assign->assigned, depth + 1, _);
-    display_node_data(assign->expression, depth + 1, _);
-}
 
 static void
 display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
@@ -472,6 +456,21 @@ display_node_subscript(ast_node* node, const std::string& node_title, const uint
 }
 
 static void
+display_node_block(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* block = dynamic_cast<ast_block*>(node);
+    if(block == nullptr) {
+        print("{} (Block) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Scope Block", node_title);
+    for(ast_node* child : block->body) {
+        display_node_data(child, depth + 1, _);
+    }
+}
+
+static void
 display_node_namespacedecl(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
 
     const auto* _namespace = dynamic_cast<ast_namespacedecl*>(node);
@@ -484,6 +483,72 @@ display_node_namespacedecl(ast_node* node, const std::string& node_title, const 
     for(ast_node* expr : _namespace->children) {
         display_node_data(expr, depth + 1, _);
     }
+}
+
+static void
+display_node_dowhile(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* dowhile = dynamic_cast<ast_dowhile*>(node);
+    if(dowhile == nullptr) {
+        print("{} (Do-While) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Do", node_title);
+    uint32_t    tmp_depth = depth;
+    std::string tmp_title = node_title;
+
+    display_fake_node("Body", tmp_title, tmp_depth);
+    for(ast_node* expr : dowhile->body) {
+        display_node_data(expr, tmp_depth + 1, _);
+    }
+
+    tmp_depth = depth;
+    tmp_title = node_title;
+
+    display_fake_node("While", tmp_title, tmp_depth);
+    display_node_data(dowhile->condition, tmp_depth + 1, _);
+}
+
+static void
+display_node_cast(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+
+    const auto* cast = dynamic_cast<ast_cast*>(node);
+    if(cast == nullptr) {
+        print("{} (Type Cast) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Type Cast", node_title);
+    display_node_data(cast->target, depth + 1, _);
+
+
+    //
+    // Type data displayed is not detailed at all... should be ok though
+    //
+
+    std::string type_name;
+    if(const auto* is_var = std::get_if<var_t>(&cast->type.name)) {
+        type_name = var_t_to_string(*is_var);
+    } else if(const auto* is_struct = std::get_if<std::string>(&cast->type.name)) {
+        type_name = fmt("{} (Structure)", *is_struct);
+    } else {
+        type_name = "Procedure";
+    }
+
+    display_fake_node(fmt("Type: {}", type_name), node_title, depth);
+}
+
+static void
+display_node_type_alias(ast_node* node,const std::string& node_title) {
+
+    const auto* alias = dynamic_cast<ast_type_alias*>(node);
+    if(alias == nullptr) {
+        print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}{} (Type Alias Definition)", node_title, alias->name);
 }
 
 
@@ -506,7 +571,6 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_PROCDECL:           display_node_procdecl(node, node_title, depth, parser); break;
         case NODE_BINEXPR:            display_node_binexpr(node, node_title, depth, parser); break;
         case NODE_UNARYEXPR:          display_node_unaryexpr(node, node_title, depth, parser); break;
-        case NODE_ASSIGN:             display_node_assign(node, node_title, depth, parser); break;
         case NODE_IDENT:              display_node_identifier(node, node_title, parser); break;
         case NODE_SINGLETON_LITERAL:  display_node_literal(node, node_title); break;
         case NODE_CALL:               display_node_call(node, node_title, depth, parser); break;
@@ -525,13 +589,17 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_FOR:                display_node_for(node, node_title, depth, parser); break;
         case NODE_SUBSCRIPT:          display_node_subscript(node, node_title, depth, parser); break;
         case NODE_NAMESPACEDECL:      display_node_namespacedecl(node, node_title, depth, parser); break;
+        case NODE_BLOCK:              display_node_block(node, node_title, depth, parser); break;
+        case NODE_DOWHILE:            display_node_dowhile(node, node_title, depth,parser); break;
+        case NODE_CAST:               display_node_cast(node,node_title, depth, parser); break;
+        case NODE_TYPE_ALIAS:         display_node_type_alias(node, node_title); break;
 
         case NODE_NONE:
-            print("{}None", node_title); // Shouldn't ever happen...
+            print("{}None", node_title);                            // Shouldn't ever happen...
             break;
 
         default:
-            print("{}{}", node_title, "?? Unknown Node Type...");
+            print("{}{}", node_title, "?? Unknown Node Type...");   // Shouldn't ever happen...
             break;
     }
 }

@@ -27,6 +27,12 @@ generate_ast_from_source(parser& parser, const std::string& source_file_name) {
             break;
         }
 
+        /*
+        if(!VALID_AT_TOPLEVEL(toplevel_decl->type)) {
+            lxr.raise_error("Invalid toplevel statement or expression.");
+            return false;
+        }*/
+
         parser.toplevel_decls_.emplace_back(toplevel_decl);
     } while(true);
 

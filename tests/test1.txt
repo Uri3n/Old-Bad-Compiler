@@ -1,10 +1,15 @@
 
-print :: proc(msg: i8^) -> void {
-   msg += ~9 * 1;
+
+namespace foo {
+ struct bar {
+  fucker :: i8^^;
+ };
+ 
+ @alias typedef = bar; 
+  myvar : typedef;
 }
 
 
-for foo : i32 = 0, foo < 10, ++foo {
-   print("Hello, W\borld!");
+main :: proc() -> void {
+  var1 : foo\typedef = -0;    
 }
-

@@ -23,10 +23,10 @@ var_t_to_string(const var_t type) { // TODO: maybe convert this enum to an X mac
         case VAR_BOOLEAN:             return "Boolean";
         case VAR_USER_DEFINED_STRUCT: return "Struct";
         case VAR_USER_DEFINED_ENUM:   return "Enumeration";
+        case VAR_VOID:                return "Void";
         default:                      return "Unknown";
     }
 }
-
 
 var_t
 token_to_var_t(const token_t tok_t) {
@@ -46,3 +46,52 @@ token_to_var_t(const token_t tok_t) {
         default:            return VAR_NONE;
     }
 }
+
+uint16_t
+precedence_of(const token_t _operator) {
+
+    switch(_operator) {
+
+        case TOKEN_CONDITIONAL_AND:    return 13;
+        case TOKEN_CONDITIONAL_OR:     return 12;
+
+        case TOKEN_MUL:
+        case TOKEN_DIV:
+        case TOKEN_MOD:                return 8;
+
+        case TOKEN_PLUS:
+        case TOKEN_SUB:                return 7;
+
+        case TOKEN_BITWISE_LSHIFT:
+        case TOKEN_BITWISE_RSHIFT:     return 6;
+
+        case TOKEN_COMP_GTE:
+        case TOKEN_COMP_GT:
+        case TOKEN_COMP_LTE:
+        case TOKEN_COMP_LT:            return 5;
+
+        case TOKEN_COMP_EQUALS:
+        case TOKEN_COMP_NOT_EQUALS:    return 4;
+
+        case TOKEN_BITWISE_AND:        return 3;
+        case TOKEN_BITWISE_XOR_OR_PTR: return 2;
+        case TOKEN_BITWISE_OR:         return 1;
+
+        case TOKEN_VALUE_ASSIGNMENT:
+        case TOKEN_PLUSEQ:
+        case TOKEN_SUBEQ:
+        case TOKEN_MULEQ:
+        case TOKEN_DIVEQ:
+        case TOKEN_MODEQ:
+        case TOKEN_BITWISE_LSHIFTEQ:
+        case TOKEN_BITWISE_RSHIFTEQ:
+        case TOKEN_BITWISE_ANDEQ:
+        case TOKEN_BITWISE_OREQ:
+        case TOKEN_BITWISE_XOREQ:      return 0;
+
+        default:
+            print("FATAL, predence_of: default case reached. Panicking.");
+            exit(1);
+    }
+}
+

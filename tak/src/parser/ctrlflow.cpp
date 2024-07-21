@@ -351,7 +351,7 @@ parse_while(parser& parser, lexer& lxr) {
         return nullptr;
 
     node->condition->parent = node;
-    if(!VALID_SUBEXPRESSION(node->condition->type) && node->condition->type != NODE_VARDECL) {
+    if(!VALID_SUBEXPRESSION(node->condition->type)) {
         lxr.raise_error("Invalid \"while\" condition.", curr_pos, line);
         return nullptr;
     }
@@ -395,6 +395,96 @@ parse_while(parser& parser, lexer& lxr) {
     }
 
     lxr.advance(1);
+    state = true;
+    return node;
+}
+
+ast_node*
+parse_block(parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_BLK, "Expected \"blk\" keyword.");
+
+    if(lxr.peek(1) != TOKEN_LBRACE) {
+        lxr.raise_error("Expected '{' after \"blk\" keyword (start of scope block).");
+        return nullptr;
+    }
+
+
+    auto* node  = new ast_block();
+    bool  state = false;
+
+    defer([&] {
+       if(!state) { delete node; }
+        parser.pop_scope();
+    });
+
+
+    parser.push_scope();
+    lxr.advance(2);
+    while(lxr.current() != TOKEN_RBRACE) {
+        node->body.emplace_back(parse_expression(parser, lxr, false));
+        if(node->body.back() == nullptr)
+            return nullptr;
+
+        node->body.back()->parent = node;
+    }
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
+
+ast_node*
+parse_dowhile(parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_DO, "Expected \"do\" keyword.");
+
+    if(lxr.peek(1) != TOKEN_LBRACE) {
+        lxr.raise_error("Expected '{' after \"do\" (start of do-while body).");
+        return nullptr;
+    }
+
+
+    bool  state = false;
+    auto* node  = new ast_dowhile();
+
+    defer([&] {
+        if(!state) { delete node; }
+        parser.pop_scope();
+    });
+
+
+    lxr.advance(2);
+    parser.push_scope();
+
+    while(lxr.current() != TOKEN_RBRACE) {
+        node->body.emplace_back(parse_expression(parser,lxr,false));
+        if(node->body.back() == nullptr) return nullptr;
+        node->body.back()->parent = node;
+    }
+
+    if(lxr.peek(1) != TOKEN_KW_WHILE) {
+        lxr.raise_error("Expected \"while\" keyword after \"do\" block.");
+        return nullptr;
+    }
+
+
+    lxr.advance(2);
+    const size_t curr_pos = lxr.current().src_pos;
+    const uint32_t line   = lxr.current().line;
+    node->condition       = parse_expression(parser,lxr,true);
+
+    if(node->condition == nullptr)
+        return nullptr;
+
+    if(!VALID_SUBEXPRESSION(node->condition->type)) {
+        lxr.raise_error("Invalid expression used as while condition.", curr_pos, line);
+        return nullptr;
+    }
+
+
+    node->condition->parent = node;
     state = true;
     return node;
 }

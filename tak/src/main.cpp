@@ -5,6 +5,13 @@
 
 #define CURRENT_TEST "tests/test1.txt"
 
+/*
+   TODO:
+   - make enums a thing too (how tho??)
+   - make pointers within structs callable
+*/
+
+
 int main() {
 
 #if 1

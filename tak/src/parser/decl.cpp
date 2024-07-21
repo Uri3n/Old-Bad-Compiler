@@ -44,7 +44,6 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
     // Parse assignment if it exists, otherwise leave as default initialized.
     //
 
-    lxr.advance(1);
     if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 
         const size_t   curr_pos  = lxr.current().src_pos;
@@ -67,7 +66,6 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
         state = true;
         return node;
     }
-
 
     proc->type.flags |= SYM_DEFAULT_INITIALIZED;
     state = true;
@@ -232,7 +230,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current() == TOKEN_KW_VOID) {
+    if(lxr.current() == TOKEN_KW_VOID && lxr.peek(1) != TOKEN_BITWISE_XOR_OR_PTR) {
         lxr.advance(1);
     } else if(const auto _type_data = parse_type(parser, lxr)) {
         proc->type.return_type  = std::make_shared<type_data>();
@@ -369,9 +367,11 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
 
     if(const auto type = parse_type(parser, lxr)) {
-        const uint16_t temp = _struct->type.flags;
-        _struct->type = *type;
+        const uint16_t temp  = _struct->type.flags;
+        _struct->type        = *type;
         _struct->type.flags |= temp;
+    } else {
+        return nullptr;
     }
 
 
@@ -455,11 +455,6 @@ parse_decl(parser& parser, lexer& lxr) {
     lxr.advance(1);
     if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected type identifier here.");
-        return nullptr;
-    }
-
-    if(lxr.current() == TOKEN_KW_VOID) { // This is technically a type ident, but only used for returns.
-        lxr.raise_error("Type identifier \"void\" can only be used as a return type.");
         return nullptr;
     }
 

@@ -8,7 +8,6 @@
 #include <string_view>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// The fabled and legendary X macro.... truly a wonder to behold
 
 #define TOKEN_LIST           \
     X(NONE)                  \
@@ -65,7 +64,9 @@
     X(BITWISE_XOR_OR_PTR)    \
     X(BITWISE_XOREQ)         \
     X(BITWISE_LSHIFT)        \
+    X(BITWISE_LSHIFTEQ)      \
     X(BITWISE_RSHIFT)        \
+    X(BITWISE_RSHIFTEQ)      \
     X(KW_RET)                \
     X(KW_BRK)                \
     X(KW_CONT)               \
@@ -83,6 +84,8 @@
     X(KW_ELIF)               \
     X(KW_NAMESPACE)          \
     X(KW_PROC)               \
+    X(KW_BLK)                \
+    X(KW_CAST)               \
     X(KW_F32)                \
     X(KW_F64)                \
     X(KW_BOOL)               \

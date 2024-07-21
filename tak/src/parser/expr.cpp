@@ -19,6 +19,7 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
 
     if(curr == TOKEN_END_OF_FILE)       return nullptr;
     if(curr == TOKEN_IDENTIFIER)        expr = parse_identifier(parser, lxr);
+    else if(curr == TOKEN_AT)           expr = parse_compiler_directive(parser, lxr);
     else if(curr == TOKEN_LPAREN)       expr = parse_parenthesized_expression(parser, lxr);
     else if(curr == TOKEN_LBRACE)       expr = parse_braced_expression(parser, lxr);
     else if(curr.kind == KIND_LITERAL)  expr = parse_singleton_literal(parser, lxr);
@@ -66,11 +67,11 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     // If the next token is an operator we can recurse until the subexpression is parsed.
     //
 
-    while(lxr.current() == TOKEN_LSQUARE_BRACKET && !parse_single)
+    while(lxr.current() == TOKEN_LSQUARE_BRACKET)
         expr = parse_subscript(expr, parser, lxr);
 
-    if(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && !parse_single)
-        expr = parse_binary_expression(expr, parser, lxr);
+    while(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && !parse_single)
+        expr = parse_binary_expression(expr,parser,lxr);
 
     if(subexpression) {
         state = true;
@@ -106,6 +107,10 @@ parse_keyword(parser &parser, lexer &lxr) {
     if(lxr.current() == TOKEN_KW_FOR)       return parse_for(parser, lxr);
     if(lxr.current() == TOKEN_KW_STRUCT)    return parse_structdef(parser, lxr);
     if(lxr.current() == TOKEN_KW_NAMESPACE) return parse_namespace(parser, lxr);
+    if(lxr.current() == TOKEN_KW_DO)        return parse_dowhile(parser, lxr);
+    if(lxr.current() == TOKEN_KW_BLK)       return parse_block(parser, lxr);
+    if(lxr.current() == TOKEN_KW_CAST)      return parse_cast(parser, lxr);
+    if(lxr.current() == TOKEN_KW_ENUM)      return parse_enumdef(parser, lxr);
 
 
     lxr.raise_error("This keyword is not allowed here.");
@@ -133,6 +138,80 @@ parse_parenthesized_expression(parser& parser, lexer& lxr) {
     }
 
     return expr;
+}
+
+
+ast_node*
+parse_cast(parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_CAST, "Expected \"cast\" keyword.");
+
+    if(lxr.peek(1) != TOKEN_LPAREN) {
+        lxr.raise_error("Expected '('.");
+        return nullptr;
+    }
+
+    auto* node  = new ast_cast();
+    bool  state = false;
+
+    defer_if(!state, [&] {
+       delete node;
+    });
+
+
+    //
+    // Parse cast target
+    //
+
+    lxr.advance(2);
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+    node->target            = parse_expression(parser, lxr, true);
+
+    if(node->target == nullptr)
+        return nullptr;
+
+    node->target->parent = node;
+    if(!VALID_SUBEXPRESSION(node->target->type)) {
+        lxr.raise_error("Invalid expression used as cast target.", curr_pos, line);
+        return nullptr;
+    }
+
+
+    //
+    // Parse type
+    //
+
+    if(lxr.current() != TOKEN_COMMA && lxr.current() != TOKEN_SEMICOLON) {
+        lxr.raise_error("Expected ',' or ';'.");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    if(lxr.current() != TOKEN_IDENTIFIER && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
+        lxr.raise_error("Expected type identifier.");
+        return nullptr;
+    }
+
+    if(const auto type = parse_type(parser, lxr)) {
+        node->type = *type;
+    } else {
+        return nullptr;
+    }
+
+
+    //
+    // Finish up, should end with ')' always...
+    //
+
+    if(lxr.current() != TOKEN_RPAREN) {
+        lxr.raise_error("Expected ')'.");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    state = true;
+    return node;
 }
 
 
@@ -238,44 +317,6 @@ parse_unary_expression(parser& parser, lexer& lxr) {
 
 
 ast_node*
-parse_assign(ast_node* assigned, parser& parser, lexer& lxr) {
-
-    parser_assert(lxr.current() == TOKEN_VALUE_ASSIGNMENT, "Expected '='.");
-
-    const uint32_t line     = lxr.current().line;
-    const size_t   src_pos  = lxr.current().src_pos;
-
-    auto* node   = new ast_assign();
-    bool  state  = false;
-
-    defer_if(!state, [&] {
-        delete node;
-    });
-
-
-    lxr.advance(1);
-    node->assigned         = assigned;
-    node->assigned->parent = node;
-    node->expression       = parse_expression(parser, lxr, true);
-
-    if(node->expression == nullptr) {
-        return nullptr;
-    }
-
-
-    const auto subexpr_type = node->expression->type;
-    if(!VALID_SUBEXPRESSION(subexpr_type)) {
-        lxr.raise_error("Invalid expression being assigned to variable", src_pos, line);
-        return nullptr;
-    }
-
-
-    state = true;
-    return node;
-}
-
-
-ast_node*
 parse_call(const uint32_t sym_index, parser& parser, lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LPAREN, "Expected '('.");
@@ -369,11 +410,6 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     parser_assert(left_operand != nullptr, "Null left operand passed.");
 
 
-    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
-        return parse_assign(left_operand, parser, lxr);
-    }
-
-
     bool  state    = false;
     auto* binexpr  = new ast_binexpr();
 
@@ -390,7 +426,7 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     const uint32_t line    = lxr.current().line;
 
     lxr.advance(1);
-    binexpr->right_op = parse_expression(parser, lxr, true);
+    binexpr->right_op = parse_expression(parser, lxr, true, true);
     if(binexpr->right_op == nullptr) {
         return nullptr;
     }
@@ -402,6 +438,14 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     if(!VALID_SUBEXPRESSION(right_t)) {
         lxr.raise_error("Unexpected expression following binary operator.", src_pos, line);
         return nullptr;
+    }
+
+
+    while(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && precedence_of(lxr.current().type) <= precedence_of(binexpr->_operator)) {
+        binexpr->right_op = parse_binary_expression(binexpr->right_op, parser, lxr);
+        if(binexpr->right_op == nullptr) {
+            return nullptr;
+        }
     }
 
     state = true;

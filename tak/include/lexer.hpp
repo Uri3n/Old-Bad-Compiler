@@ -85,6 +85,7 @@ void lexer_token_dot(lexer& lxr);
 void lexer_token_pound(lexer& lxr);
 void lexer_token_at(lexer& lxr);
 void lexer_token_backtick(lexer& lxr);
+void lexer_token_null(lexer& lxr);
 void lexer_token_backslash(lexer& lxr);
 void lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& illegals);
 

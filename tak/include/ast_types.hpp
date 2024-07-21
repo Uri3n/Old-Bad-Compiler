@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <sym_types.hpp>
 #include <token.hpp>
 
 
@@ -30,6 +31,7 @@ enum ast_node_t : uint16_t {
     NODE_DEFAULT,
     NODE_WHILE,
     NODE_DOWHILE,
+    NODE_BLOCK,
     NODE_CALL,
     NODE_BRK,
     NODE_CONT,
@@ -39,7 +41,9 @@ enum ast_node_t : uint16_t {
     NODE_STRUCT_DEFINITION,
     NODE_ENUM_DEFINITION,
     NODE_SUBSCRIPT,
-    NODE_NAMESPACEDECL
+    NODE_NAMESPACEDECL,
+    NODE_CAST,
+    NODE_TYPE_ALIAS, // @Autism: storing program data in the AST that does not affect the code at runtime
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,14 +137,6 @@ struct ast_identifier final : ast_node {
     ast_identifier() : ast_node(NODE_IDENT) {}
 };
 
-struct ast_assign final : ast_node {
-    ast_node* assigned   = nullptr;
-    ast_node* expression = nullptr;
-
-    ~ast_assign() override;
-    ast_assign() : ast_node(NODE_ASSIGN) {}
-};
-
 struct ast_vardecl final : ast_node {
     ast_identifier*          identifier = nullptr;
     std::optional<ast_node*> init_value = std::nullopt; // Can be null!
@@ -200,6 +196,13 @@ struct ast_while final : ast_node {
     ast_while() : ast_node(NODE_WHILE) {}
 };
 
+struct ast_block final : ast_node {
+    std::vector<ast_node*> body;
+
+    ~ast_block() override;
+    ast_block() : ast_node(NODE_BLOCK) {}
+};
+
 struct ast_dowhile final : ast_node {
     ast_node*              condition = nullptr;
     std::vector<ast_node*> body;
@@ -222,6 +225,29 @@ struct ast_namespacedecl final : ast_node {
 
     ~ast_namespacedecl() override;
     ast_namespacedecl() : ast_node(NODE_NAMESPACEDECL) {}
+};
+
+struct ast_cast final : ast_node {
+    ast_node* target = nullptr;
+    type_data type;
+
+    ~ast_cast() override;
+    ast_cast() : ast_node(NODE_CAST) {}
+};
+
+struct ast_type_alias final : ast_node {
+    std::string name;
+
+    ~ast_type_alias() override = default;
+    ast_type_alias() : ast_node(NODE_TYPE_ALIAS) {}
+};
+
+struct ast_enumdef final : ast_node {
+    ast_namespacedecl* _namespace = nullptr;
+    ast_type_alias*    alias      = nullptr;
+
+    ~ast_enumdef() override;
+    ast_enumdef() : ast_node(NODE_ENUM_DEFINITION) {}
 };
 
 struct ast_ret final : ast_node {

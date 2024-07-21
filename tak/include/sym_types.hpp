@@ -46,6 +46,7 @@ enum var_t : uint16_t {
     VAR_F32,
     VAR_F64,
     VAR_BOOLEAN,
+    VAR_VOID, // for void^ only.
     VAR_USER_DEFINED_STRUCT,
     VAR_USER_DEFINED_ENUM,
 };
