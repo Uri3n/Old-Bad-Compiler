@@ -59,7 +59,7 @@ ast_call::~ast_call() {
         delete node;
     }
 
-    delete identifier;
+    delete target;
 }
 
 ast_enumdef::~ast_enumdef() {
@@ -151,6 +151,16 @@ ast_namespacedecl::~ast_namespacedecl() {
     for(ast_node const* node : children) {
         delete node;
     }
+}
+
+ast_sizeof::~ast_sizeof() {
+    if(const auto* is_ident = std::get_if<ast_identifier*>(&this->target)) {
+        delete *is_ident;
+    }
+}
+
+ast_defer::~ast_defer() {
+    delete call;
 }
 
 parser::~parser() {

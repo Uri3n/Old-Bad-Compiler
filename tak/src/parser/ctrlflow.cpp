@@ -8,16 +8,24 @@
 ast_node*
 parse_cont(lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
+
+    auto* node = new ast_cont();
+    node->line = lxr.current().line;
+
     lxr.advance(1);
-    return new ast_cont();
+    return node;
 }
 
 
 ast_node*
 parse_brk(lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
+
+    auto* node = new ast_brk();
+    node->line = lxr.current().line;
+
     lxr.advance(1);
-    return new ast_brk();
+    return node;
 }
 
 
@@ -28,6 +36,7 @@ parse_branch(parser &parser, lexer &lxr) {
 
     bool  state = false;
     auto* node  = new ast_branch();
+    node->line  = lxr.current().line;
 
     defer_if(!state, [&] {
         delete node;
@@ -42,6 +51,7 @@ parse_branch(parser &parser, lexer &lxr) {
         const uint32_t line     = lxr.current().line;
 
         auto* if_stmt      = new ast_if();
+        if_stmt->line      = line;
         if_stmt->parent    = node;
         if_stmt->condition = parse_expression(parser, lxr, true);
 
@@ -89,6 +99,7 @@ parse_branch(parser &parser, lexer &lxr) {
     if(lxr.current() == TOKEN_KW_ELSE) {
 
         auto* else_stmt   = new ast_else();
+        else_stmt->line   = lxr.current().line;
         else_stmt->parent = node;
         node->_else       = else_stmt;
 
@@ -128,6 +139,7 @@ parse_case(parser& parser, lexer& lxr) {
     bool  state       = false;
     auto* node        = new ast_case();
     node->fallthrough = lxr.current() == TOKEN_KW_FALLTHROUGH;
+    node->line        = line;
 
     defer([&] {
         if(!state) { delete node; }
@@ -175,6 +187,7 @@ parse_default(parser& parser, lexer& lxr) {
 
     auto* node  = new ast_default();
     bool  state = false;
+    node->line  = lxr.current().line;
 
     defer([&] {
         if(!state) { delete node; }
@@ -216,6 +229,7 @@ parse_switch(parser &parser, lexer &lxr) {
     bool  state  = false;
     auto* node   = new ast_switch();
     node->target = parse_expression(parser, lxr, true);
+    node->line   = lxr.current().line;
 
     defer_if(!state, [&] {
         delete node;
@@ -300,7 +314,9 @@ ast_node*
 parse_ret(parser &parser, lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
+
     auto* node = new ast_ret();
+    node->line = lxr.current().line;
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_SEMICOLON || lxr.current() == TOKEN_COMMA) {
@@ -339,6 +355,7 @@ parse_while(parser& parser, lexer& lxr) {
 
     bool  state = false;
     auto* node  = new ast_while();
+    node->line  = line;
 
     defer([&] {
         if(!state) { delete node; }
@@ -412,6 +429,7 @@ parse_block(parser& parser, lexer& lxr) {
 
     auto* node  = new ast_block();
     bool  state = false;
+    node->line  = lxr.current().line;
 
     defer([&] {
        if(!state) { delete node; }
@@ -436,6 +454,40 @@ parse_block(parser& parser, lexer& lxr) {
 
 
 ast_node*
+parse_defer(parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_DEFER, "Expected \"defer\" keyword.");
+
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    bool  state = false;
+    auto* node  = new ast_defer();
+    node->line  = line;
+
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+
+    lxr.advance(1);
+    node->call = parse_expression(parser, lxr, true);
+    if(node->call == nullptr)
+        return nullptr;
+
+    if(node->call->type != NODE_CALL) {
+        lxr.raise_error("Expression following \"defer\" statement must be a procedure call.", curr_pos, line);
+        return nullptr;
+    }
+
+    node->call->parent = node;
+    state = true;
+    return node;
+}
+
+
+ast_node*
 parse_dowhile(parser& parser, lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DO, "Expected \"do\" keyword.");
@@ -448,6 +500,7 @@ parse_dowhile(parser& parser, lexer& lxr) {
 
     bool  state = false;
     auto* node  = new ast_dowhile();
+    node->line  = lxr.current().line;
 
     defer([&] {
         if(!state) { delete node; }
@@ -501,6 +554,7 @@ parse_for(parser& parser, lexer& lxr) {
 
     auto* node  = new ast_for();
     bool  state = false;
+    node->line  = lxr.current().line;
 
     size_t   curr_pos = 0;
     uint32_t line     = 0;

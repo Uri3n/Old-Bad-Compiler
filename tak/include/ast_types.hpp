@@ -36,6 +36,8 @@ enum ast_node_t : uint16_t {
     NODE_BRK,
     NODE_CONT,
     NODE_RET,
+    NODE_DEFER,
+    NODE_SIZEOF,
     NODE_SINGLETON_LITERAL,
     NODE_BRACED_EXPRESSION,
     NODE_STRUCT_DEFINITION,
@@ -52,8 +54,11 @@ struct ast_node {
     ast_node_t               type   = NODE_NONE;
     std::optional<ast_node*> parent = std::nullopt;
 
+    uint32_t line = 0;
+
     virtual ~ast_node() = default;
     explicit ast_node(const ast_node_t type) : type(type) {}
+    explicit ast_node(const ast_node_t type, const uint32_t line) : type(type), line(line) {}
 };
 
 struct ast_singleton_literal final : ast_node {
@@ -162,7 +167,7 @@ struct ast_structdef final : ast_node {
 };
 
 struct ast_call final : ast_node {
-    ast_identifier*        identifier = nullptr;
+    ast_node*              target = nullptr;
     std::vector<ast_node*> arguments;                   // Can be empty, if the procedure is "paramless".
 
     ~ast_call() override;
@@ -201,6 +206,20 @@ struct ast_block final : ast_node {
 
     ~ast_block() override;
     ast_block() : ast_node(NODE_BLOCK) {}
+};
+
+struct ast_defer final : ast_node {
+    ast_node* call = nullptr;                      // Should always be ast_call under the hood.
+
+    ~ast_defer() override;
+    ast_defer() : ast_node(NODE_DEFER) {}
+};
+
+struct ast_sizeof final : ast_node {
+    std::variant<type_data, ast_identifier*> target = nullptr;
+
+    ~ast_sizeof() override;
+    ast_sizeof() : ast_node(NODE_SIZEOF) {}
 };
 
 struct ast_dowhile final : ast_node {

@@ -94,8 +94,11 @@ void lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func
 void lexer_display_token_data(const token& tok);
 std::string lexer_token_kind_to_string(token_kind kind);
 std::string lexer_token_type_to_string(token_t type);
+std::optional<size_t> lexer_token_lit_to_int(const token& tok);
 
 std::optional<std::string> remove_escaped_chars(const std::string_view& str);
+std::optional<std::string> get_actual_string(const std::string_view& str);
+std::optional<char>        get_actual_char(const std::string_view& str);
 std::optional<char>        get_escaped_char_via_real(char real);
 bool                       is_token_valid_numeric_literal(const std::string_view& token_value);
 token                      token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals);

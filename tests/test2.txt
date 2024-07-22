@@ -1,0 +1,19 @@
+
+namespace foo { 
+  namespace other {
+    struct bar {
+      mem1: i8^;
+    }
+    //stuff2 : i8;     
+    stuff :: bar;  
+  }  
+  
+  myshit : foo\other\bar;
+
+  poopy : bool = 21 * 8888;
+}
+
+
+sizeof(foo\poopy);
+sizeof(foo\other\bar);
+sizeof(foo\other\stuff.mem1);

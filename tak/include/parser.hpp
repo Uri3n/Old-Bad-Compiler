@@ -35,6 +35,7 @@
     || node_type == NODE_CAST                                                   \
     || node_type == NODE_SUBSCRIPT                                              \
     || node_type == NODE_CAST                                                   \
+    || node_type == NODE_SIZEOF                                                 \
 )                                                                               \
 
 #define EXPR_NEVER_NEEDS_TERMINAL(node_type) (node_type == NODE_PROCDECL        \
@@ -47,6 +48,7 @@
     || node_type == NODE_SWITCH                                                 \
     || node_type == NODE_NAMESPACEDECL                                          \
     || node_type == NODE_BLOCK                                                  \
+    || node_type == NODE_STRUCT_DEFINITION                                      \
     || node_type == NODE_ENUM_DEFINITION                                        \
 )                                                                               \
 
@@ -134,10 +136,11 @@ std::optional<std::string> get_namespaced_identifier(lexer& lxr);
 
 ast_node* parse_type_alias(parser& parser, lexer& lxr);
 ast_node* parse_compiler_directive(parser& parser, lexer& lxr);
-
+ast_node* parse_defer(parser& parser, lexer& lxr);
 ast_node* parse_ret(parser& parser, lexer& lxr);
 ast_node* parse_cont(lexer& lxr);
 ast_node* parse_brk(lexer& lxr);
+ast_node* parse_sizeof(parser& parser, lexer& lxr);
 ast_node* parse_for(parser& parser, lexer& lxr);
 ast_node* parse_dowhile(parser& parser, lexer& lxr);
 ast_node* parse_block(parser& parser, lexer& lxr);
@@ -155,7 +158,6 @@ ast_node* parse_decl(parser& parser, lexer& lxr);
 ast_node* parse_vardecl(symbol* var, parser& parser, lexer& lxr);
 ast_node* parse_procdecl(symbol* proc, parser& parser, lexer& lxr);
 ast_node* parse_structdecl(symbol* _struct, parser& parser, lexer& lxr);
-ast_node* parse_call(uint32_t sym_index, parser& parser, lexer& lxr);
 ast_vardecl* parse_parameterized_vardecl(parser& parser, lexer& lxr);
 ast_node* parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr);
 ast_node* parse_keyword(parser& parser, lexer& lxr);
@@ -165,6 +167,7 @@ ast_node* parse_namespace(parser& parser, lexer& lxr);
 ast_node* parse_enumdef(parser& parser, lexer& lxr);
 ast_node* parse_parenthesized_expression(parser& parser, lexer& lxr);
 ast_node* parse_subscript(ast_node* operand, parser& parser, lexer& lxr);
+ast_node* parse_call(ast_node* operand, parser& parser, lexer& lxr);
 ast_node* parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr);
 ast_node* parse_cast(parser& parser, lexer& lxr);
 

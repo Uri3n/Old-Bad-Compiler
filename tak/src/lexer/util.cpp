@@ -113,6 +113,58 @@ remove_escaped_chars(const std::string_view& str) {
     return buffer;
 }
 
+std::optional<std::string>
+get_actual_string(const std::string_view& str) {
+
+    if(auto actual = remove_escaped_chars(str)) {
+        if(actual->size() < 3)
+            return std::nullopt;
+
+        actual->erase(0,1);
+        actual->pop_back();
+        return *actual;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<char>
+get_actual_char(const std::string_view& str) {
+
+    if(const auto actual = remove_escaped_chars(str)) {
+        if(actual->size() < 3)
+            return std::nullopt;
+
+        return (*actual)[1];
+    }
+
+    return std::nullopt;
+}
+
+std::optional<size_t>
+lexer_token_lit_to_int(const token& tok) {
+
+    size_t val = 0;
+
+    if(tok == TOKEN_INTEGER_LITERAL) {
+        try {
+            val = std::stoull(std::string(tok.value));
+        } catch(...) {
+            return std::nullopt;
+        }
+    } else if(tok == TOKEN_CHARACTER_LITERAL) {
+        if(const auto actual = get_actual_char(tok.value)) {
+            val = static_cast<size_t>(*actual);
+        } else {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt; // Cannot be converted to an integer
+    }
+
+    return val;
+}
+
 bool
 lexer::init(const std::string& file_name) {
 

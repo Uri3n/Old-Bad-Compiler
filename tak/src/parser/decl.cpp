@@ -30,10 +30,12 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 
     auto* node       = new ast_vardecl();
     node->identifier = new ast_identifier();
+    node->line       = lxr.current().line;
     bool state       = false;
 
     node->identifier->parent       = node;
     node->identifier->symbol_index = proc->symbol_index;
+    node->identifier->line         = lxr.current().line;
 
     defer_if(!state, [&] {
         delete node;
@@ -100,7 +102,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     }
 
     else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
-        lxr.raise_error("Expected type assignment here. Got this instead.");
+        lxr.raise_error("Expected type assignment.");
         return nullptr;
     }
 
@@ -142,9 +144,11 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
     auto* vardecl        = new ast_vardecl();
     vardecl->identifier  = new ast_identifier();
+    vardecl->line        = line;
 
     vardecl->identifier->parent       = vardecl;
     vardecl->identifier->symbol_index = var_ptr->symbol_index;
+    vardecl->identifier->line         = line;
 
     return vardecl;
 }
@@ -181,9 +185,11 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 
     auto* node         = new ast_procdecl();
     node->identifier   = new ast_identifier();
+    node->line         = lxr.current().line;
 
     node->identifier->symbol_index = proc->symbol_index;
     node->identifier->parent       = node;
+    node->identifier->line         = lxr.current().line;
 
     bool state = false;
     defer([&] {
@@ -322,9 +328,12 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     bool  state       = false;
     auto* node        = new ast_vardecl();
     node->identifier  = new ast_identifier();
+    node->line        = lxr.current().line;
 
     node->identifier->symbol_index = var->symbol_index;
     node->identifier->parent       = node;
+    node->identifier->line         = lxr.current().line;
+
 
     defer_if(!state, [&] {
         delete node;
@@ -377,8 +386,10 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 
     auto* node                     = new ast_vardecl();
     node->identifier               = new ast_identifier();
+    node->line                     = lxr.current().line;
     node->identifier->parent       = node;
     node->identifier->symbol_index = _struct->symbol_index;
+    node->identifier->line         = lxr.current().line;
 
 
     if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {

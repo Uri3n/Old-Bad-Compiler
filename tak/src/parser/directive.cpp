@@ -24,6 +24,7 @@ parse_type_alias(parser& parser, lexer& lxr) {
 
     auto* node   = new ast_type_alias();
     bool  state  = false;
+    node->line   = lxr.current().line;
 
     defer_if(!state, [&] {
        delete node;

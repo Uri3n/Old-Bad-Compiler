@@ -100,6 +100,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
     //
 
     auto* node         = new ast_identifier();
+    node->line         = lxr.current().line;
     node->member_name  = path;
     node->symbol_index = sym->symbol_index;
 
@@ -153,11 +154,12 @@ parse_identifier(parser& parser, lexer& lxr) {
 
 
     lxr.advance(1);
-    if(lxr.current() == TOKEN_LPAREN) return parse_call(sym_index, parser, lxr);
-    if(lxr.current() == TOKEN_DOT)    return parse_member_access(sym_index, parser, lxr);
+    if(lxr.current() == TOKEN_DOT)
+        return parse_member_access(sym_index, parser, lxr);
 
     auto* ident         = new ast_identifier(); // Otherwise just return a raw identifier node
     ident->symbol_index = sym_index;
+    ident->line         = line;
 
     return ident;
 }

@@ -104,6 +104,8 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         {"default", TOKEN_KW_DEFAULT},
         {"blk",     TOKEN_KW_BLK},
         {"cast",    TOKEN_KW_CAST},
+        {"defer",   TOKEN_KW_DEFER},
+        {"sizeof",  TOKEN_KW_SIZEOF},
         {"fallthrough", TOKEN_KW_FALLTHROUGH},
         {"namespace", TOKEN_KW_NAMESPACE},
     };

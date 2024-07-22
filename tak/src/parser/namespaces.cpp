@@ -33,7 +33,7 @@ parser::namespace_exists(const std::string& name) {
 std::string
 parser::get_canonical_name(const std::string& name) {
 
-    std::string full = name;
+    std::string full;
     std::string begin;
 
     if(const size_t pos = name.find('\\'); pos != std::string::npos) {
@@ -46,9 +46,10 @@ parser::get_canonical_name(const std::string& name) {
         if(_namespace == begin)
             break;
 
-        full.insert(0, _namespace + '\\');
+        full += _namespace + '\\';
     }
 
+    full += name;
     return full;
 }
 
@@ -109,6 +110,7 @@ parse_namespace(parser& parser, lexer& lxr) {
 
     bool  state     = false;
     auto* node      = new ast_namespacedecl();
+    node->line      = lxr.current().line;
     node->full_path = parser.namespace_as_string();
 
     defer([&] {

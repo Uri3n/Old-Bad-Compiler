@@ -22,6 +22,10 @@ add_executable(tak src/main.cpp
         src/parser/misc.cpp
         src/parser/typetbl.cpp
         src/parser/namespaces.cpp
+        src/parser/ident.cpp
+        src/parser/directive.cpp
+        src/parser/enumdef.cpp
+        src/parser/structdef.cpp
 
         include/token.hpp
         include/lexer.hpp
@@ -30,8 +34,6 @@ add_executable(tak src/main.cpp
         include/parser.hpp
         include/ast_types.hpp
         include/sym_types.hpp
-        src/parser/ident.cpp
-        src/parser/directive.cpp
 )
 
 target_include_directories(tak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

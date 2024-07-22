@@ -83,9 +83,11 @@
     X(KW_FALLTHROUGH)        \
     X(KW_ELIF)               \
     X(KW_NAMESPACE)          \
+    X(KW_DEFER)              \
     X(KW_PROC)               \
     X(KW_BLK)                \
     X(KW_CAST)               \
+    X(KW_SIZEOF)             \
     X(KW_F32)                \
     X(KW_F64)                \
     X(KW_BOOL)               \

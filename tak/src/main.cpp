@@ -3,18 +3,13 @@
 #include <lexer.hpp>
 #include <parser.hpp>
 
-#define CURRENT_TEST "tests/test1.txt"
-
-/*
-   TODO:
-   - make enums a thing too (how tho??)
-   - make pointers within structs callable
-*/
+#define CURRENT_TEST "tests/test2.txt"
 
 
 int main() {
 
 #if 1
+
     parser parser;
 
     if(!generate_ast_from_source(parser, CURRENT_TEST)) {
