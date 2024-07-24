@@ -4,7 +4,6 @@
 
 #include <parser.hpp>
 
-
 ast_binexpr::~ast_binexpr() {
     delete left_op;
     delete right_op;

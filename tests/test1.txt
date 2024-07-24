@@ -1,24 +1,12 @@
 
-
-
-enum action, i32 {
-  ACTION_ONE,
-  ACTION_TWO,
+struct bar {
+  shit : bool;
 }
 
 struct foo {
-  member1      : i32;
-  do_something : proc^(foo^, action) -> bool; // how do we make these into actual methods tho....
+  mem1 :: bar;
+  mem2: i32^;
 }
 
-do_something :: proc(self : foo^, action : action) -> bool {
-   if(action == action\ACTION_ONE) {
-     ret false;
-   }
-  
-   ret true;
-}
-
-var : foo;
-var.do_something = &do_something;
-var.do_something(action\ACTION_TWO);
+var :: foo;
+var.mem1.shit = 1;

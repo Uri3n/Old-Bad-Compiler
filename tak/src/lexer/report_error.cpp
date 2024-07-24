@@ -26,8 +26,7 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
 
 
     uint32_t offset    = file_position - (line_start + 1);
-    auto    full_line  = std::string(&src_[line_start], line_end - line_start);
-
+    auto     full_line = std::string(&src_[line_start], line_end - line_start);
 
     if(full_line.empty() || offset >= full_line.size()) {
         print("Unexpected end of file!");
@@ -40,14 +39,14 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
 
 
     //
-    // Let's display the error message with a little arrow.
+    // display the error message
     //
 
     std::string whitespace;
     whitespace.resize(offset);
     std::fill(whitespace.begin(), whitespace.end(), ' ');
 
-    print("ERROR at {}:{}", source_file_name_, line);
+    print("in {}{}", source_file_name_, !line ? std::string("") : ':' + std::to_string(line));
     print("{}", full_line);
     print("{}^", whitespace);
     print("{}{}", whitespace, message);
@@ -62,4 +61,9 @@ lexer::raise_error(const std::string& message) {
 void
 lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
     _raise_error_impl(message, file_position, line);
+}
+
+void
+lexer::raise_error(const std::string& message, const size_t file_position) {
+    _raise_error_impl(message, file_position, 0);
 }

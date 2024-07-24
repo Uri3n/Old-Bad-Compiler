@@ -175,7 +175,7 @@ parse_cast(parser& parser, lexer& lxr) {
 
     auto* node  = new ast_cast();
     bool  state = false;
-    node->line  = lxr.current().line;
+    node->pos   = lxr.current().src_pos;
 
     defer_if(!state, [&] {
        delete node;
@@ -245,7 +245,7 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
 
     auto* node         = new ast_singleton_literal();
     node->literal_type = lxr.current().type;
-    node->line         = lxr.current().line;
+    node->pos          = lxr.current().src_pos;
 
 
     if(node->literal_type == TOKEN_STRING_LITERAL || node->literal_type == TOKEN_CHARACTER_LITERAL) {
@@ -279,7 +279,7 @@ parse_sizeof(parser& parser, lexer& lxr) {
 
     bool  state = false;
     auto* node  = new ast_sizeof();
-    node->line  = line;
+    node->pos   = curr_pos;
 
     defer_if(!state, [&] {
        delete node;
@@ -344,7 +344,7 @@ parse_sizeof(parser& parser, lexer& lxr) {
 
             ident->symbol_index = sym->symbol_index;
             ident->parent       = node;
-            ident->line         = line;
+            ident->pos          = curr_pos;
 
             node->target = ident;
         }
@@ -385,7 +385,7 @@ parse_braced_expression(parser& parser, lexer& lxr) {
 
     bool  state = false;
     auto* node  = new ast_braced_expression();
-    node->line  = lxr.current().line;
+    node->pos   = lxr.current().src_pos;
 
     defer_if(!state, [&] {
         delete node;
@@ -427,7 +427,7 @@ parse_unary_expression(parser& parser, lexer& lxr) {
 
     auto* node      = new ast_unaryexpr();
     node->_operator = lxr.current().type;
-    node->line      = lxr.current().line;
+    node->pos       = lxr.current().src_pos;
 
     const size_t   src_pos = lxr.current().src_pos;
     const uint32_t line    = lxr.current().line;
@@ -464,7 +464,7 @@ parse_call(ast_node* operand, parser& parser, lexer& lxr) {
     bool  state           = false;
     auto* node            = new ast_call();
     node->target          = operand;
-    node->line            = lxr.current().line;
+    node->pos             = lxr.current().src_pos;
     node->target->parent  = node;
 
     defer_if(!state, [&] {
@@ -531,7 +531,7 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
 
     bool  state    = false;
     auto* binexpr  = new ast_binexpr();
-    binexpr->line  = lxr.current().line;
+    binexpr->pos   = lxr.current().src_pos;
 
     defer_if(!state, [&] {
         delete binexpr;
@@ -541,9 +541,9 @@ parse_binary_expression(ast_node* left_operand, parser& parser, lexer& lxr) {
     binexpr->left_op         = left_operand;
     binexpr->left_op->parent = binexpr;
 
-
     const size_t   src_pos = lxr.current().src_pos;
     const uint32_t line    = lxr.current().line;
+
 
     lxr.advance(1);
     binexpr->right_op = parse_expression(parser, lxr, true, true);
@@ -586,7 +586,7 @@ parse_subscript(ast_node* operand, parser& parser, lexer& lxr) {
 
     auto* node            = new ast_subscript();
     node->operand         = operand;
-    node->line            = lxr.current().line;
+    node->pos             = lxr.current().src_pos;
     node->operand->parent = node;
     node->value           = parse_expression(parser, lxr, true);
 

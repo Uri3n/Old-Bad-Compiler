@@ -4,7 +4,6 @@
 
 #include <parser.hpp>
 
-
 /////////////////////////////////////////////////////////////////////
 // I need an easy way to view the generated AST...
 //
@@ -149,9 +148,9 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
 
 
     std::string sym_t_str;
-    if(sym_ptr->type.sym_type == SYM_PROCEDURE) {
+    if(sym_ptr->type.sym_type == TYPE_KIND_PROCEDURE) {
         sym_t_str = "Procedure";
-    } else if(sym_ptr->type.sym_type == SYM_VARIABLE) {
+    } else if(sym_ptr->type.sym_type == TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
     } else {
         sym_t_str = "Struct";
@@ -719,19 +718,19 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
 
 
     std::string flags;
-    if(type.flags & SYM_IS_CONSTANT) {
+    if(type.flags & TYPE_IS_CONSTANT) {
         flags += "CONSTANT | ";
-    } if(type.flags & SYM_IS_FOREIGN) {
+    } if(type.flags & TYPE_IS_FOREIGN) {
         flags += "FOREIGN | ";
-    } if(type.flags & SYM_IS_POINTER) {
+    } if(type.flags & TYPE_IS_POINTER) {
         flags += "POINTER | ";
-    }  if(type.flags & SYM_IS_GLOBAL) {
+    }  if(type.flags & TYPE_IS_GLOBAL) {
         flags += "GLOBAL | ";
-    } if(type.flags & SYM_IS_ARRAY) {
+    } if(type.flags & TYPE_IS_ARRAY) {
         flags += "ARRAY | ";
-    } if(type.flags & SYM_IS_PROCARG) {
+    } if(type.flags & TYPE_IS_PROCARG) {
         flags += "PROCEDURE_ARGUMENT | ";
-    } if(type.flags & SYM_DEFAULT_INITIALIZED) {
+    } if(type.flags & TYPE_DEFAULT_INITIALIZED) {
         flags += "DEFAULT INITIALIZED";
     }
 
@@ -741,11 +740,11 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
 
 
     std::string sym_t_str;
-    if(type.sym_type == SYM_PROCEDURE) {
+    if(type.sym_type == TYPE_KIND_PROCEDURE) {
         sym_t_str = "Procedure";
-    } else if(type.sym_type == SYM_VARIABLE) {
+    } else if(type.sym_type == TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
-    } else if(type.sym_type == SYM_STRUCT) {
+    } else if(type.sym_type == TYPE_KIND_STRUCT) {
         sym_t_str = "Struct";
     }
 

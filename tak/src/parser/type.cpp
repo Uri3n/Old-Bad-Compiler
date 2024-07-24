@@ -64,7 +64,7 @@ parse_type(parser& parser, lexer& lxr) {
     //
 
     if(lxr.current() == TOKEN_KW_PROC) {
-        data.sym_type = SYM_PROCEDURE;
+        data.sym_type = TYPE_KIND_PROCEDURE;
         data.name     = std::monostate();
     }
 
@@ -87,7 +87,7 @@ parse_type(parser& parser, lexer& lxr) {
             return std::nullopt;
         }
         else {
-            data.sym_type = SYM_STRUCT;
+            data.sym_type = TYPE_KIND_STRUCT;
             data.name     = canonical_name;
         }
     }
@@ -110,7 +110,7 @@ parse_type(parser& parser, lexer& lxr) {
         }
 
         data.name     = _var_t;
-        data.sym_type = SYM_VARIABLE;
+        data.sym_type = TYPE_KIND_VARIABLE;
     }
 
 
@@ -120,7 +120,7 @@ parse_type(parser& parser, lexer& lxr) {
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
-        data.flags |= SYM_IS_POINTER;
+        data.flags |= TYPE_IS_POINTER;
         while(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
             data.pointer_depth++;
             lxr.advance(1);
@@ -128,7 +128,7 @@ parse_type(parser& parser, lexer& lxr) {
     }
 
     if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        data.flags |= SYM_IS_ARRAY;
+        data.flags |= TYPE_IS_ARRAY;
         if(const auto arr_data = parse_array_data(lxr)) {
             data.array_lengths = *arr_data;
         } else {
@@ -141,7 +141,7 @@ parse_type(parser& parser, lexer& lxr) {
     // If the type isn't a proc, we can simply return here.
     //
 
-    if(data.sym_type != SYM_PROCEDURE) {
+    if(data.sym_type != TYPE_KIND_PROCEDURE) {
         return data;
     }
 
@@ -166,7 +166,7 @@ parse_type(parser& parser, lexer& lxr) {
         }
 
         if(auto param_data = parse_type(parser, lxr)) {
-            param_data->flags |= SYM_IS_PROCARG;
+            param_data->flags |= TYPE_IS_PROCARG;
             data.parameters->emplace_back(*param_data);
         } else {
             return std::nullopt;

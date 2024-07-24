@@ -8,9 +8,8 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <sym_types.hpp>
+#include <var_types.hpp>
 #include <token.hpp>
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -20,7 +19,6 @@ enum ast_node_t : uint16_t {
     NODE_PROCDECL,
     NODE_BINEXPR,
     NODE_UNARYEXPR,
-    NODE_ASSIGN,
     NODE_IDENT,
     NODE_BRANCH,
     NODE_IF,
@@ -53,25 +51,23 @@ enum ast_node_t : uint16_t {
 struct ast_node {
     ast_node_t               type   = NODE_NONE;
     std::optional<ast_node*> parent = std::nullopt;
-
-    uint32_t line = 0;
+    size_t                   pos    = 0;
 
     virtual ~ast_node() = default;
     explicit ast_node(const ast_node_t type) : type(type) {}
-    explicit ast_node(const ast_node_t type, const uint32_t line) : type(type), line(line) {}
 };
 
 struct ast_singleton_literal final : ast_node {
     std::string value;
     token_t     literal_type = TOKEN_NONE;
-
+    
     ~ast_singleton_literal() override = default;
     ast_singleton_literal() : ast_node(NODE_SINGLETON_LITERAL) {}
 };
 
 struct ast_braced_expression final : ast_node {
     std::vector<ast_node*> members;
-
+    
     ~ast_braced_expression() override;
     ast_braced_expression() : ast_node(NODE_BRACED_EXPRESSION) {}
 };
@@ -109,9 +105,8 @@ struct ast_branch final : ast_node {
 };
 
 struct ast_case final : ast_node {
-    ast_singleton_literal* value = nullptr;
-    bool fallthrough             = false;
-
+    ast_singleton_literal* value       = nullptr;
+    bool                   fallthrough = false;
     std::vector<ast_node*> body;
 
     ~ast_case() override;
@@ -175,8 +170,7 @@ struct ast_call final : ast_node {
 };
 
 struct ast_for final : ast_node {
-    std::vector<ast_node*> body;
-
+    std::vector<ast_node*>   body;
     std::optional<ast_node*> init      = std::nullopt;
     std::optional<ast_node*> condition = std::nullopt;
     std::optional<ast_node*> update    = std::nullopt;
@@ -254,6 +248,13 @@ struct ast_cast final : ast_node {
     ast_cast() : ast_node(NODE_CAST) {}
 };
 
+struct ast_ret final : ast_node {
+    std::optional<ast_node*> value = std::nullopt; // can be null!
+
+    ~ast_ret() override;
+    ast_ret() : ast_node(NODE_RET) {}
+};
+
 struct ast_type_alias final : ast_node {
     std::string name;
 
@@ -269,13 +270,6 @@ struct ast_enumdef final : ast_node {
     ast_enumdef() : ast_node(NODE_ENUM_DEFINITION) {}
 };
 
-struct ast_ret final : ast_node {
-    std::optional<ast_node*> value = std::nullopt; // can be null!
-
-    ~ast_ret() override;
-    ast_ret() : ast_node(NODE_RET) {}
-};
-
 struct ast_cont final : ast_node {
     ~ast_cont() override = default;
     ast_cont() : ast_node(NODE_CONT) {}
@@ -285,5 +279,7 @@ struct ast_brk final : ast_node {
     ~ast_brk() override = default;
     ast_brk() : ast_node(NODE_BRK) {}
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #endif //AST_TYPES_HPP

@@ -51,20 +51,18 @@ parser::create_symbol(
         const std::string& name,
         const size_t       src_index,
         const uint32_t     line_number,
-        const sym_t        sym_type,
+        const type_kind_t        sym_type,
         const uint16_t     sym_flags,
         const std::optional<type_data>& data
     ) {
 
 
     if(scope_stack_.empty()) {
-        print("parse-error: call to create_symbol with no symbol stack.");
-        return nullptr;
+        panic("parse-error: call to create_symbol with no symbol stack.");
     }
 
     if(scope_stack_.back().contains(name)) {
-        print("parse-error: could not create symbol {} because it already exists in this scope.", name);
-        return nullptr;
+        panic(fmt("parse-error: could not create symbol {} because it already exists in this scope.", name));
     }
 
 
@@ -84,7 +82,7 @@ parser::create_symbol(
     sym.symbol_index  = curr_sym_index_;
     sym.name          = name;
 
-    if(sym_type == SYM_PROCEDURE) {
+    if(sym_type == TYPE_KIND_PROCEDURE) {
         sym.type.name = std::monostate(); // being lazy and setting this here.
     }
 
@@ -114,8 +112,7 @@ parser::lookup_unique_symbol(const uint32_t symbol_index) {
         return &sym_table_[symbol_index];
     }
 
-    print("Internal parse-error: failed to lookup unique symbol with index {}", symbol_index);
-    return nullptr;
+    panic(fmt("Internal parse-error: failed to lookup unique symbol with index {}", symbol_index));
 }
 
 

@@ -30,12 +30,12 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 
     auto* node       = new ast_vardecl();
     node->identifier = new ast_identifier();
-    node->line       = lxr.current().line;
+    node->pos        = lxr.current().src_pos;
     bool state       = false;
 
     node->identifier->parent       = node;
     node->identifier->symbol_index = proc->symbol_index;
-    node->identifier->line         = lxr.current().line;
+    node->identifier->pos          = lxr.current().src_pos;
 
     defer_if(!state, [&] {
         delete node;
@@ -69,7 +69,7 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
         return node;
     }
 
-    proc->type.flags |= SYM_DEFAULT_INITIALIZED;
+    proc->type.flags |= TYPE_DEFAULT_INITIALIZED;
     state = true;
     return node;
 }
@@ -83,7 +83,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     const auto     name      = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos   = lxr.current().src_pos;
     const uint32_t line      = lxr.current().line;
-    uint16_t       flags     = SYM_IS_PROCARG;
+    uint16_t       flags     = TYPE_IS_PROCARG;
 
 
     if(parser.namespace_exists(std::string(lxr.current().value))) {
@@ -98,7 +98,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
-        flags |= SYM_IS_CONSTANT;
+        flags |= TYPE_IS_CONSTANT;
     }
 
     else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
@@ -122,7 +122,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(_type_data->sym_type == SYM_PROCEDURE && _type_data->pointer_depth < 1) {
+    if(_type_data->sym_type == TYPE_KIND_PROCEDURE && _type_data->pointer_depth < 1) {
         lxr.raise_error("Procedures cannot be procedure parameters. Pass a pointer instead.");
         return nullptr;
     }
@@ -144,11 +144,11 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
     auto* vardecl        = new ast_vardecl();
     vardecl->identifier  = new ast_identifier();
-    vardecl->line        = line;
+    vardecl->pos         = src_pos;
 
     vardecl->identifier->parent       = vardecl;
     vardecl->identifier->symbol_index = var_ptr->symbol_index;
-    vardecl->identifier->line         = line;
+    vardecl->identifier->pos          = src_pos;
 
     return vardecl;
 }
@@ -160,12 +160,12 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
 
 
-    if(!(proc->type.flags & SYM_IS_GLOBAL)) {
+    if(!(proc->type.flags & TYPE_IS_GLOBAL)) {
         lxr.raise_error("Declaration of procedure at non-global scope.");
         return nullptr;
     }
 
-    if(!(proc->type.flags & SYM_IS_CONSTANT)) {
+    if(!(proc->type.flags & TYPE_IS_CONSTANT)) {
         lxr.raise_error("Procedures must be declared as constant. This one was declared using ':'.");
         return nullptr;
     }
@@ -185,11 +185,11 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 
     auto* node         = new ast_procdecl();
     node->identifier   = new ast_identifier();
-    node->line         = lxr.current().line;
+    node->pos          = lxr.current().src_pos;
 
     node->identifier->symbol_index = proc->symbol_index;
     node->identifier->parent       = node;
-    node->identifier->line         = lxr.current().line;
+    node->identifier->pos          = lxr.current().src_pos;
 
     bool state = false;
     defer([&] {
@@ -328,11 +328,11 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     bool  state       = false;
     auto* node        = new ast_vardecl();
     node->identifier  = new ast_identifier();
-    node->line        = lxr.current().line;
+    node->pos         = lxr.current().src_pos;
 
     node->identifier->symbol_index = var->symbol_index;
     node->identifier->parent       = node;
-    node->identifier->line         = lxr.current().line;
+    node->identifier->pos          = lxr.current().src_pos;
 
 
     defer_if(!state, [&] {
@@ -364,7 +364,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     }
 
 
-    var->type.flags |= SYM_DEFAULT_INITIALIZED;
+    var->type.flags |= TYPE_DEFAULT_INITIALIZED;
     state = true;
     return node;
 }
@@ -386,10 +386,10 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 
     auto* node                     = new ast_vardecl();
     node->identifier               = new ast_identifier();
-    node->line                     = lxr.current().line;
+    node->pos                      = lxr.current().src_pos;
     node->identifier->parent       = node;
     node->identifier->symbol_index = _struct->symbol_index;
-    node->identifier->line         = lxr.current().line;
+    node->identifier->pos          = lxr.current().src_pos;
 
 
     if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
@@ -416,7 +416,7 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
         return node;
     }
 
-    _struct->type.flags |= SYM_DEFAULT_INITIALIZED;
+    _struct->type.flags |= TYPE_DEFAULT_INITIALIZED;
     return node;
 }
 
@@ -430,13 +430,13 @@ parse_decl(parser& parser, lexer& lxr) {
     const auto     name     = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos  = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    uint16_t       flags    = SYM_FLAGS_NONE;
-    sym_t          type     = SYM_VARIABLE;
+    uint16_t       flags    = TYPE_FLAGS_NONE;
+    type_kind_t          type     = TYPE_KIND_VARIABLE;
 
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
-        flags |= SYM_IS_CONSTANT;
+        flags |= TYPE_IS_CONSTANT;
     }
 
     else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
@@ -450,7 +450,7 @@ parse_decl(parser& parser, lexer& lxr) {
     }
 
     if(parser.scope_stack_.size() <= 1) {
-        flags |= SYM_IS_GLOBAL;
+        flags |= TYPE_IS_GLOBAL;
     }
 
 
@@ -476,14 +476,14 @@ parse_decl(parser& parser, lexer& lxr) {
 
     if(lxr.current() == TOKEN_KW_PROC) {
 
-        type           = SYM_PROCEDURE;
+        type           = TYPE_KIND_PROCEDURE;
         auto* proc_ptr = parser.create_symbol(name, src_pos, line, type, flags);
         if(proc_ptr == nullptr) {
             return nullptr;
         }
 
         if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) { // function pointer
-            proc_ptr->type.flags |= SYM_IS_POINTER;
+            proc_ptr->type.flags |= TYPE_IS_POINTER;
             return parse_proc_ptr(proc_ptr, parser, lxr);
         }
 
@@ -497,7 +497,7 @@ parse_decl(parser& parser, lexer& lxr) {
 
     if(lxr.current() == TOKEN_IDENTIFIER) {
 
-        type             = SYM_STRUCT;
+        type             = TYPE_KIND_STRUCT;
         auto* struct_ptr = parser.create_symbol(name, src_pos, line, type, flags);
 
         if(struct_ptr == nullptr) {

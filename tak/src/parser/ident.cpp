@@ -3,7 +3,7 @@
 //
 
 #include <parser.hpp>
-
+#include <checker.hpp>
 
 ast_node*
 parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
@@ -21,7 +21,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
     //
 
     const auto* type_name = std::get_if<std::string>(&sym->type.name);
-    if(type_name == nullptr || sym->type.sym_type != SYM_STRUCT) {
+    if(type_name == nullptr || sym->type.sym_type != TYPE_KIND_STRUCT) {
         lxr.raise_error("Attempted member access on non-struct type.");
         return nullptr;
     }
@@ -74,7 +74,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
                 looking = std::string(lxr.current().value);
 
                 auto* substruct_name = std::get_if<std::string>(&member.type.name);
-                if(substruct_name == nullptr || member.type.sym_type != SYM_STRUCT) {
+                if(substruct_name == nullptr || member.type.sym_type != TYPE_KIND_STRUCT) {
                     lxr.raise_error("Attempting to access member from non-struct type.");
                     return false;
                 }
@@ -100,7 +100,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
     //
 
     auto* node         = new ast_identifier();
-    node->line         = lxr.current().line;
+    node->pos          = lxr.current().src_pos;
     node->member_name  = path;
     node->symbol_index = sym->symbol_index;
 
@@ -159,7 +159,7 @@ parse_identifier(parser& parser, lexer& lxr) {
 
     auto* ident         = new ast_identifier(); // Otherwise just return a raw identifier node
     ident->symbol_index = sym_index;
-    ident->line         = line;
+    ident->pos          = curr_pos;
 
     return ident;
 }

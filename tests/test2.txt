@@ -10,7 +10,7 @@ namespace foo {
   
   myshit : foo\other\bar;
 
-  poopy : bool = 21 * 8888;
+  `poopy : bool = 21 * 8888;
 }
 
 

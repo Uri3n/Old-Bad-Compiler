@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <lexer.hpp>
 #include <io.hpp>
+#include <panic.hpp>
 #include <cstdlib>
 
 
@@ -19,14 +20,12 @@
     exit(1);                                                                    \
 }                                                                               \
 
-// Should I actually use this? hides control flow too much...
 #define parser_expect(condition, msg) if((condition)) {                         \
    lxr.raise_error(msg);                                                        \
    return nullptr;                                                              \
 }                                                                               \
 
-#define VALID_SUBEXPRESSION(node_type) (node_type == NODE_ASSIGN                \
-    || node_type == NODE_CALL                                                   \
+#define VALID_SUBEXPRESSION(node_type) (node_type == NODE_CALL                  \
     || node_type == NODE_IDENT                                                  \
     || node_type == NODE_BINEXPR                                                \
     || node_type == NODE_SINGLETON_LITERAL                                      \
@@ -88,7 +87,7 @@ public:
         const std::string& name,
         size_t   src_index,
         uint32_t line_number,
-        sym_t    sym_type,
+        type_kind_t    sym_type,
         uint16_t sym_flags,
         const std::optional<type_data>& data = std::nullopt
     );

@@ -86,7 +86,7 @@ parse_structdef(parser& parser, lexer& lxr) {
         }
 
         if(const auto type = parse_type(parser, lxr)) {
-            if(type->sym_type == SYM_PROCEDURE && type->pointer_depth < 1) {
+            if(type->sym_type == TYPE_KIND_PROCEDURE && type->pointer_depth < 1) {
                 lxr.raise_error("Procedures cannot be used as struct members.", curr_pos, line);
                 return nullptr;
             }
@@ -99,7 +99,7 @@ parse_structdef(parser& parser, lexer& lxr) {
             }
 
             members->emplace_back(member_data(name, *type));
-            members->back().type.flags |= is_const ? SYM_IS_CONSTANT | SYM_DEFAULT_INITIALIZED : SYM_DEFAULT_INITIALIZED;
+            members->back().type.flags |= is_const ? TYPE_IS_CONSTANT | TYPE_DEFAULT_INITIALIZED : TYPE_DEFAULT_INITIALIZED;
 
         } else {
             return nullptr;
@@ -117,7 +117,7 @@ parse_structdef(parser& parser, lexer& lxr) {
     //
 
     auto* node = new ast_structdef();
-    node->line = lxr.current().line;
+    node->pos  = lxr.current().src_pos;
     node->name = type_name;
 
     lxr.advance(1);

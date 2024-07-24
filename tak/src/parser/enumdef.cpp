@@ -18,7 +18,7 @@ type_is_valid_as_enumeration(const type_data& type) {
             || *_var_t == VAR_U64)
             && (type.array_lengths.empty()
             && type.pointer_depth == 0
-            && type.sym_type == SYM_VARIABLE);
+            && type.sym_type == TYPE_KIND_VARIABLE);
     }
 
     return false;
@@ -54,9 +54,9 @@ parse_enumdef(parser& parser, lexer& lxr) {
     node->alias->parent      = node;
     node->alias->name        = parser.namespace_as_string() + std::string(lxr.current().value);
 
-    node->line               = lxr.current().line;
-    node->_namespace->line   = lxr.current().line;
-    node->alias->line        = lxr.current().line;
+    node->pos               = lxr.current().src_pos;
+    node->_namespace->pos   = lxr.current().src_pos;
+    node->alias->pos        = lxr.current().src_pos;
 
 
     //
@@ -152,17 +152,17 @@ parse_enumdef(parser& parser, lexer& lxr) {
         // Create a symbol for the enum member.
         //
 
-        auto* sym        = parser.create_symbol(member_name, lxr.current().src_pos, lxr.current().line, SYM_VARIABLE, SYM_FLAGS_NONE, *type);
+        auto* sym        = parser.create_symbol(member_name, lxr.current().src_pos, lxr.current().line, TYPE_KIND_VARIABLE, TYPE_FLAGS_NONE, *type);
         auto* decl       = new ast_vardecl();
         decl->identifier = new ast_identifier();
-        decl->line       = lxr.current().line;
+        decl->pos        = lxr.current().src_pos;
 
-        sym->type.flags |= SYM_IS_CONSTANT;
-        sym->type.flags |= SYM_IS_GLOBAL;
+        sym->type.flags |= TYPE_IS_CONSTANT;
+        sym->type.flags |= TYPE_IS_GLOBAL;
 
         decl->identifier->symbol_index = sym->symbol_index;
         decl->identifier->parent       = decl;
-        decl->identifier->line         = lxr.current().line;
+        decl->identifier->pos          = lxr.current().src_pos;
 
         node->_namespace->children.emplace_back(decl);
 
@@ -175,7 +175,7 @@ parse_enumdef(parser& parser, lexer& lxr) {
         decl->init_value  = new ast_singleton_literal();
         auto* lit         = dynamic_cast<ast_singleton_literal*>(*decl->init_value);
         lit->parent       = decl;
-        lit->line         = lxr.current().line;
+        lit->pos          = lxr.current().src_pos;
 
         if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 

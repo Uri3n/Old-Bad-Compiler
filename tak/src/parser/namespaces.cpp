@@ -110,7 +110,7 @@ parse_namespace(parser& parser, lexer& lxr) {
 
     bool  state     = false;
     auto* node      = new ast_namespacedecl();
-    node->line      = lxr.current().line;
+    node->pos       = lxr.current().src_pos;
     node->full_path = parser.namespace_as_string();
 
     defer([&] {
