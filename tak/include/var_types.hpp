@@ -19,21 +19,12 @@
     || var_type == VAR_I16                                  \
     || var_type == VAR_I32                                  \
     || var_type == VAR_I64                                  \
-    || var_type == VAR_INTERMEDIATE_SIGNED_INTEGRAL         \
-    || var_type == VAR_INTERMEDIATE_SIGNED_FLOAT            \
+    || var_type == VAR_F32                                  \
+    || var_type == VAR_F64                                  \
 )                                                           \
 
 #define PRIMITIVE_IS_FLOAT(var_type) (var_type == VAR_F32   \
     || var_type == VAR_F64                                  \
-    || var_type == VAR_INTERMEDIATE_UNSIGNED_FLOAT          \
-    || var_type == VAR_INTERMEDIATE_SIGNED_FLOAT            \
-)                                                           \
-
-#define PRIMITIVE_IS_INTERMEDIATE(var_type)                 \
-    (var_type   == VAR_INTERMEDIATE_SIGNED_INTEGRAL         \
-    || var_type == VAR_INTERMEDIATE_UNSIGNED_INTEGRAL       \
-    || var_type == VAR_INTERMEDIATE_SIGNED_FLOAT            \
-    || var_type == VAR_INTERMEDIATE_UNSIGNED_FLOAT          \
 )                                                           \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,6 +38,9 @@ enum type_flags : uint16_t {
     TYPE_IS_ARRAY            = 1UL << 4,
     TYPE_IS_PROCARG          = 1UL << 5,
     TYPE_DEFAULT_INITIALIZED = 1UL << 6,
+    TYPE_IS_DEFERRED         = 1UL << 7,
+    TYPE_NON_CONCRETE        = 1UL << 8,
+    TYPE_RVALUE              = 1UL << 9,
 };
 
 enum type_kind_t : uint8_t {
@@ -70,19 +64,15 @@ enum var_t : uint16_t {
     VAR_F64,
     VAR_BOOLEAN,
     VAR_VOID,
-    VAR_INTERMEDIATE_UNSIGNED_INTEGRAL,
-    VAR_INTERMEDIATE_SIGNED_INTEGRAL,
-    VAR_INTERMEDIATE_UNSIGNED_FLOAT,
-    VAR_INTERMEDIATE_SIGNED_FLOAT,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct type_data {
 
-    uint16_t pointer_depth   = 0;
-    uint16_t flags           = TYPE_FLAGS_NONE;
-    type_kind_t    sym_type  = TYPE_KIND_NONE;
+    uint16_t    pointer_depth  = 0;
+    uint16_t    flags          = TYPE_FLAGS_NONE;
+    type_kind_t kind           = TYPE_KIND_NONE;
 
     std::vector<uint32_t>                   array_lengths;          // Only multiple elements if matrix
     std::shared_ptr<std::vector<type_data>> parameters  = nullptr;  // Can be null, only used for procedures.

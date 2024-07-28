@@ -76,7 +76,7 @@ parser::create_symbol(
 
 
     sym.type.flags   |= sym_flags;
-    sym.type.sym_type = sym_type;
+    sym.type.kind = sym_type;
     sym.line_number   = line_number;
     sym.src_pos       = src_index;
     sym.symbol_index  = curr_sym_index_;

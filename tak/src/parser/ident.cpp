@@ -21,7 +21,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
     //
 
     const auto* type_name = std::get_if<std::string>(&sym->type.name);
-    if(type_name == nullptr || sym->type.sym_type != TYPE_KIND_STRUCT) {
+    if(type_name == nullptr || sym->type.kind != TYPE_KIND_STRUCT) {
         lxr.raise_error("Attempted member access on non-struct type.");
         return nullptr;
     }
@@ -74,7 +74,7 @@ parse_member_access(const uint32_t sym_index, parser& parser, lexer& lxr) {
                 looking = std::string(lxr.current().value);
 
                 auto* substruct_name = std::get_if<std::string>(&member.type.name);
-                if(substruct_name == nullptr || member.type.sym_type != TYPE_KIND_STRUCT) {
+                if(substruct_name == nullptr || member.type.kind != TYPE_KIND_STRUCT) {
                     lxr.raise_error("Attempting to access member from non-struct type.");
                     return false;
                 }

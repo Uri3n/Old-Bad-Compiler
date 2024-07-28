@@ -120,7 +120,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool generate_ast_from_source(parser& parser, const std::string& source_file_name);
 void display_node_data(ast_node* node, uint32_t depth, parser& parser);
 uint16_t precedence_of(token_t _operator);
 var_t token_to_var_t(token_t tok_t);

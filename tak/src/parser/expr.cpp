@@ -24,8 +24,7 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
     else if(curr == TOKEN_LBRACE)       expr = parse_braced_expression(parser, lxr);
     else if(curr.kind == KIND_LITERAL)  expr = parse_singleton_literal(parser, lxr);
     else if(curr.kind == KIND_KEYWORD)  expr = parse_keyword(parser, lxr);
-    else if(VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
-
+    else if(TOKEN_VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
 
     else {
         lxr.raise_error("Illegal token."); // @Cleanup: better error message
@@ -34,23 +33,6 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
 
     if(expr == nullptr)
         return nullptr;
-
-
-    //
-    // Check if we're leaving a parenthesized expression
-    //
-
-    if(lxr.current() == TOKEN_RPAREN) {
-        if(!parser.inside_parenthesized_expression_) {
-            lxr.raise_error("Unexpected token.");
-            return nullptr;
-        }
-
-        --parser.inside_parenthesized_expression_;
-        lxr.advance(1);
-        state = true;
-        return expr;
-    }
 
 
     //
@@ -90,7 +72,24 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
         break;
     }
 
-    if(subexpression) {
+
+    //
+    // Check if we're leaving a parenthesized expression
+    //
+
+    if(lxr.current() == TOKEN_RPAREN) {
+        if(!parser.inside_parenthesized_expression_) {
+            lxr.raise_error("Unexpected token.");
+            return nullptr;
+        }
+
+        if(!parse_single) {
+            --parser.inside_parenthesized_expression_;
+            lxr.advance(1);
+        }
+    }
+
+    if(subexpression || parse_single) {
         state = true;
         return expr;
     }
@@ -248,6 +247,10 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
     node->pos          = lxr.current().src_pos;
 
 
+    //
+    // Resolve escape sequences if they exist
+    //
+
     if(node->literal_type == TOKEN_STRING_LITERAL || node->literal_type == TOKEN_CHARACTER_LITERAL) {
         const auto real = remove_escaped_chars(lxr.current().value);
         if(!real) {
@@ -257,10 +260,32 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
         }
 
         node->value = *real;
+    } else {
+        node->value = std::string(lxr.current().value);
     }
 
-    else {
-        node->value = std::string(lxr.current().value);
+
+    //
+    // Convert hex literal to base 10 repr, perform bounds check on integer and float literals
+    //
+
+    try {
+        if(node->literal_type == TOKEN_HEX_LITERAL) {
+            const int64_t to_int  = std::stoll(node->value, nullptr, 16);
+            node->value           = std::to_string(to_int);
+            node->literal_type    = TOKEN_INTEGER_LITERAL;
+        }
+
+        if(node->literal_type == TOKEN_FLOAT_LITERAL)   std::stod(node->value);
+        if(node->literal_type == TOKEN_INTEGER_LITERAL) std::stoll(node->value);
+    }
+    catch(const std::out_of_range&) {
+        lxr.raise_error("Literal value is too large.");
+        return nullptr;
+    }
+    catch(...) {
+        lxr.raise_error("Invalid literal.");
+        return nullptr;
     }
 
     lxr.advance(1);
@@ -423,14 +448,14 @@ parse_braced_expression(parser& parser, lexer& lxr) {
 ast_node*
 parse_unary_expression(parser& parser, lexer& lxr) {
 
-    parser_assert(VALID_UNARY_OPERATOR(lxr.current()), "Expected unary operator.");
-
-    auto* node      = new ast_unaryexpr();
-    node->_operator = lxr.current().type;
-    node->pos       = lxr.current().src_pos;
+    parser_assert(TOKEN_VALID_UNARY_OPERATOR(lxr.current()), "Expected unary operator.");
 
     const size_t   src_pos = lxr.current().src_pos;
     const uint32_t line    = lxr.current().line;
+
+    auto* node      = new ast_unaryexpr();
+    node->_operator = lxr.current().type;
+    node->pos       = src_pos;
 
 
     lxr.advance(1);

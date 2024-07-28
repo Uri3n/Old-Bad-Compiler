@@ -5,40 +5,41 @@
 #include <lexer.hpp>
 
 
-bool
-is_token_valid_numeric_literal(const std::string_view& token_value) {
+token
+token_hex_literal(lexer& lxr) {
 
-    const char* dot_ptr = nullptr;
+    assert(lxr.current_char() == '0');
+    assert(lxr.peek_char() == 'x');
 
-    for(const char& c : token_value) {
-        if(!isdigit(c) && c != '.') {
-            return false;
-        }
+    auto &[src, index, curr_line, _current, _] = lxr;
+    const size_t start = index;
 
-        if(c == '.') {
-            if(dot_ptr == nullptr) {
-                dot_ptr = &c;
-            } else {
-                return false;
-            }
-        }
+    lxr.advance_char(2);
+    while(true) {
+        if(lxr.current_char() == '\0')    break;
+        if(!isxdigit(lxr.current_char())) break;
+
+        lxr.advance_char(1);
     }
 
-    if(dot_ptr != nullptr) {
-        if(dot_ptr == &token_value[0] || dot_ptr == &token_value[token_value.size() - 1]) {
-            return false;
-        }
+    const std::string_view token_raw = {&src[start], index - start};
+    if(token_raw.back() == '\0' || !isxdigit(token_raw.back())) {
+        return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
-    return true;
+    return token{TOKEN_HEX_LITERAL, KIND_LITERAL, start, token_raw};
 }
 
 
 token
-token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals) {
+token_numeric_literal(lexer& lxr) {
+
+    assert(isdigit(lxr.current_char()));
 
     auto &[src, index, curr_line, _current, _] = lxr;
-    const size_t start = lxr.src_index_;
+    const size_t start   = lxr.src_index_;
+    bool passed_dot      = false;
+    bool within_exponent = false;
 
 
     while(true) {
@@ -46,41 +47,52 @@ token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals
             break;
         }
 
-        if(illegals.contains(lxr.current_char()) && lxr.current_char() != '.') {
+        if(lxr.current_char() == '.') {
+            if(passed_dot || within_exponent) {
+                return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+            }
+
+            passed_dot = true;
+        }
+
+        else if(lxr.current_char() == 'e') {
+            if(!passed_dot || within_exponent) {
+                return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+            }
+
+            within_exponent = true;
+
+            // Parse exponent
+            if(lxr.peek_char() == '-' || lxr.peek_char() == '+') {
+                lxr.advance_char(1);
+                if(!isdigit(lxr.peek_char())) break;
+            }
+        }
+
+        else if(!isdigit(lxr.current_char())) {
             break;
         }
 
         lxr.advance_char(1);
     }
 
+
     const std::string_view token_raw = {&src[start], index - start};
-
-
-    //
-    // in case of EOF or invalid literal
-    //
-
-    if(illegals.contains(token_raw.back()) || !is_token_valid_numeric_literal(token_raw)) {
+    if(!isdigit(token_raw.back())) {
         return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
-
-    //
-    // Check if the token is an integer literal (no dot) or float
-    //
-
-    auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [](char c) { return c == '.'; });
-
-    if(is_float != token_raw.end()) {
-        return token{TOKEN_FLOAT_LITERAL, KIND_LITERAL, start, token_raw};
+    const auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [&](const char c) { return !isdigit(c); });
+    if(is_float == token_raw.end()) {
+        return token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
     }
 
-    return token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
+    return token{TOKEN_FLOAT_LITERAL, KIND_LITERAL, start, token_raw};
 }
 
 
 void
-lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& illegals) {
+lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_func>& illegals) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = index;
@@ -124,7 +136,7 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         {"f64",  TOKEN_KW_F64},
         {"proc", TOKEN_KW_PROC},
         {"bool", TOKEN_KW_BOOL},
-        {"void", TOKEN_KW_VOID}
+        {"void", TOKEN_KW_VOID},
     };
 
 
@@ -133,9 +145,13 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
         return;
     }
 
-
     if(isdigit(lxr.current_char())) {
-        _current = token_numeric_literal(lxr, illegals);
+        if(lxr.current_char() == '0' && lxr.peek_char() == 'x') {
+            _current = token_hex_literal(lxr);
+        } else {
+            _current = token_numeric_literal(lxr);
+        }
+
         return;
     }
 
@@ -179,13 +195,9 @@ lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& il
 
     if(keywords.contains(temp)) {
         _current = token{keywords[temp], KIND_KEYWORD, start, token_raw};
-    }
-
-    else if(type_identifiers.contains(temp)) {
+    } else if(type_identifiers.contains(temp)) {
         _current = token{type_identifiers[temp], KIND_TYPE_IDENTIFIER, start, token_raw};
-    }
-
-    else {
+    }  else {
         _current = token{TOKEN_IDENTIFIER, KIND_UNSPECIFIC, start, token_raw};
     }
 }

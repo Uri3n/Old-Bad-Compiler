@@ -96,7 +96,7 @@ lexer::peek(const uint32_t amnt) {
 
     curr_line_ = line_tmp;
     src_index_ = index_tmp;
-    current_  = tok_tmp;
+    current_   = tok_tmp;
 
     return tok_peeked;
 }

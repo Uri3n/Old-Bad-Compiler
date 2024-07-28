@@ -11,7 +11,6 @@ add_executable(tak src/main.cpp
         src/lexer/ambiguous_token.cpp
         src/lexer/report_error.cpp
 
-        src/parser/begin.cpp
         src/parser/symtbl.cpp
         src/parser/dump.cpp
         src/parser/decl.cpp

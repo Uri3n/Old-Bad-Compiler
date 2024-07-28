@@ -86,7 +86,7 @@ parse_structdef(parser& parser, lexer& lxr) {
         }
 
         if(const auto type = parse_type(parser, lxr)) {
-            if(type->sym_type == TYPE_KIND_PROCEDURE && type->pointer_depth < 1) {
+            if(type->kind == TYPE_KIND_PROCEDURE && type->pointer_depth < 1) {
                 lxr.raise_error("Procedures cannot be used as struct members.", curr_pos, line);
                 return nullptr;
             }

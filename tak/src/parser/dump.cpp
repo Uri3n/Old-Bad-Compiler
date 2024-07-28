@@ -148,9 +148,9 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
 
 
     std::string sym_t_str;
-    if(sym_ptr->type.sym_type == TYPE_KIND_PROCEDURE) {
+    if(sym_ptr->type.kind == TYPE_KIND_PROCEDURE) {
         sym_t_str = "Procedure";
-    } else if(sym_ptr->type.sym_type == TYPE_KIND_VARIABLE) {
+    } else if(sym_ptr->type.kind == TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
     } else {
         sym_t_str = "Struct";
@@ -566,7 +566,7 @@ display_node_defer(ast_node* node, const std::string& node_title, const uint32_t
 }
 
 static void
-display_node_type_alias(ast_node* node, const std::string& node_title) {
+display_node_type_alias(ast_node* node, const std::string& node_title, parser& parser) {
 
     const auto* alias = dynamic_cast<ast_type_alias*>(node);
     if(alias == nullptr) {
@@ -574,7 +574,11 @@ display_node_type_alias(ast_node* node, const std::string& node_title) {
         return;
     }
 
-    print("{}{} (Type Alias Definition)", node_title, alias->name);
+    print("{}{}: Type Alias Definition, Expands To {}",
+        node_title,
+        alias->name,
+        format_type_data_for_string_msg(parser.lookup_type_alias(alias->name))
+    );
 }
 
 static void
@@ -650,7 +654,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_BLOCK:              display_node_block(node, node_title, depth, parser); break;
         case NODE_DOWHILE:            display_node_dowhile(node, node_title, depth,parser); break;
         case NODE_CAST:               display_node_cast(node, node_title, depth, parser); break;
-        case NODE_TYPE_ALIAS:         display_node_type_alias(node, node_title); break;
+        case NODE_TYPE_ALIAS:         display_node_type_alias(node, node_title, parser); break;
         case NODE_ENUM_DEFINITION:    display_node_enumdef(node, node_title, depth, parser); break;
         case NODE_DEFER:              display_node_defer(node, node_title, depth, parser); break;
         case NODE_SIZEOF:             display_node_sizeof(node, node_title, depth, parser); break;
@@ -740,11 +744,11 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
 
 
     std::string sym_t_str;
-    if(type.sym_type == TYPE_KIND_PROCEDURE) {
+    if(type.kind == TYPE_KIND_PROCEDURE) {
         sym_t_str = "Procedure";
-    } else if(type.sym_type == TYPE_KIND_VARIABLE) {
+    } else if(type.kind == TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
-    } else if(type.sym_type == TYPE_KIND_STRUCT) {
+    } else if(type.kind == TYPE_KIND_STRUCT) {
         sym_t_str = "Struct";
     }
 

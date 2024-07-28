@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <utils.hpp>
 #include <string>
+#include <cctype>
+#include <cassert>
 #include <defer.hpp>
 #include <fstream>
 #include <io.hpp>
@@ -89,12 +91,12 @@ void lexer_token_at(lexer& lxr);
 void lexer_token_backtick(lexer& lxr);
 void lexer_token_null(lexer& lxr);
 void lexer_token_backslash(lexer& lxr);
-void lexer_infer_ambiguous_token(lexer& lxr, std::unordered_map<char, token_func>& illegals);
+void lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_func>& illegals);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool  is_token_valid_numeric_literal(const std::string_view& token_value);
-token token_numeric_literal(lexer& lxr, std::unordered_map<char, token_func>& illegals);
+token token_hex_literal(lexer& lxr);
+token token_numeric_literal(lexer& lxr);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

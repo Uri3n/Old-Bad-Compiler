@@ -2,28 +2,120 @@
 // Created by Diago on 2024-07-23.
 //
 
-#include <parser.hpp>
+#include <utils.hpp>
 
 
 std::string
-var_t_to_string(const var_t type) { // TODO: maybe convert this enum to an X macro too?
+lexer_token_to_string(const token_t type) {
+
+#define X(NAME, STR) case TOKEN_##NAME: return STR;
+    switch(type) {
+        TOKEN_LIST;
+        default: return "Unknown."; // failsafe
+    }
+#undef X
+}
+
+std::string
+lexer_token_type_to_string(const token_t type) {
+
+#define X(NAME, UNUSED_STR) case TOKEN_##NAME: return #NAME;
+    switch(type) {
+        TOKEN_LIST
+        default: return "Unknown."; // failsafe
+    }
+#undef X
+}
+
+std::string
+lexer_token_kind_to_string(const token_kind kind) {
+
+#define X(NAME) case KIND_##NAME: return #NAME;
+    switch(kind) {
+        TOKEN_KIND_LIST
+        default: return "Unknown"; // failsafe
+    }
+#undef X
+}
+
+std::string
+var_t_to_string(const var_t type) {
 
     switch(type) {
         case VAR_NONE:     return "None";
-        case VAR_U8:       return "U8";
-        case VAR_I8:       return "I8";
-        case VAR_U16:      return "U16";
-        case VAR_I16:      return "I16";
-        case VAR_U32:      return "U32";
-        case VAR_I32:      return "I32";
-        case VAR_U64:      return "U64";
-        case VAR_I64:      return "I64";
-        case VAR_F32:      return "F32";
-        case VAR_F64:      return "F64";
-        case VAR_BOOLEAN:  return "Boolean";
-        case VAR_VOID:     return "Void";
-        default:           return "Unknown";
+        case VAR_U8:       return "u8";
+        case VAR_I8:       return "i8";
+        case VAR_U16:      return "u16";
+        case VAR_I16:      return "i16";
+        case VAR_U32:      return "u32";
+        case VAR_I32:      return "i32";
+        case VAR_U64:      return "u64";
+        case VAR_I64:      return "i64";
+        case VAR_F32:      return "f32";
+        case VAR_F64:      return "f64";
+        case VAR_BOOLEAN:  return "bool";
+        case VAR_VOID:     return "void";
+        default: break;
     }
+
+    panic("var_t_to_string: default case reached.");
+}
+
+std::string
+format_type_data_for_string_msg(const type_data& type) {
+
+    std::string buffer;
+    bool is_proc = false;
+
+
+    if(type.flags & TYPE_IS_CONSTANT) buffer += "const ";
+    if(type.flags & TYPE_RVALUE)      buffer += "rvalue ";
+
+    if(const auto* is_primitive = std::get_if<var_t>(&type.name)) {
+        buffer += var_t_to_string(*is_primitive);
+    }
+    else if(const auto* is_struct = std::get_if<std::string>(&type.name)) {
+        buffer += *is_struct;
+    }
+    else {
+        is_proc = true;
+        buffer += "proc";
+    }
+
+
+    if(type.flags & TYPE_IS_POINTER) {
+        for(uint16_t i = 0; i < type.pointer_depth; i++) {
+            buffer += '^';
+        }
+    }
+
+    if(type.flags & TYPE_IS_ARRAY) {
+        for(size_t i = 0 ; i < type.array_lengths.size(); i++) {
+            if(!type.array_lengths[i]) buffer += "[]";
+            else buffer += fmt("[{}]", type.array_lengths[i]);
+        }
+    }
+
+
+    if(is_proc) {
+        buffer += '(';
+        if(type.parameters != nullptr) {
+            for(const auto& param : *type.parameters) {
+                buffer += format_type_data_for_string_msg(param) + ',';
+            }
+
+            if(buffer.back() == ',') buffer.pop_back();
+        }
+
+        buffer += ')';
+        buffer += " -> ";
+
+        if(type.return_type != nullptr) buffer += format_type_data_for_string_msg(*type.return_type);
+        else buffer += "void";
+    }
+
+
+    return buffer;
 }
 
 var_t
@@ -88,9 +180,10 @@ precedence_of(const token_t _operator) {
 uint16_t
 var_t_to_size_bytes(const var_t type) {
 
-    // Assumes type is not a pointer.
+    // Assumes type is NOT a pointer.
 
     switch(type) {
+        case VAR_BOOLEAN:
         case VAR_U8:
         case VAR_I8:      return 1;
         case VAR_U16:
@@ -101,7 +194,6 @@ var_t_to_size_bytes(const var_t type) {
         case VAR_I64:     return 8;
         case VAR_F32:     return 4;
         case VAR_F64:     return 8;
-        case VAR_BOOLEAN: return 1;
         default:
             panic("var_t_to_size_bytes: non size-convertible var_t passed as argument.");
     }
@@ -186,7 +278,7 @@ lexer_token_lit_to_int(const token& tok) {
 
     if(tok == TOKEN_INTEGER_LITERAL) {
         try {
-            val = std::stoull(std::string(tok.value));
+            val = static_cast<size_t>(std::stoll(std::string(tok.value)));
         } catch(...) {
             return std::nullopt;
         }
@@ -201,28 +293,6 @@ lexer_token_lit_to_int(const token& tok) {
     }
 
     return val;
-}
-
-std::string
-lexer_token_type_to_string(const token_t type) {
-
-#define X(NAME) case TOKEN_##NAME: return #NAME;
-    switch(type) {
-        TOKEN_LIST
-        default: return "Unknown."; // failsafe
-    }
-#undef X
-}
-
-std::string
-lexer_token_kind_to_string(const token_kind kind) {
-
-#define X(NAME) case KIND_##NAME: return #NAME;
-    switch(kind) {
-        TOKEN_KIND_LIST
-        default: return "Unknown"; // failsafe
-    }
-#undef X
 }
 
 void

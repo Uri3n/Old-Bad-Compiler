@@ -6,7 +6,7 @@
 
 void
 checker_context::raise_error(const std::string& message, const size_t position) {
-    lxr_.raise_error(fmt("ERROR: {}", message), position);
+    lxr_.raise_error(fmt("ERROR: {}\n", message), position);
     ++error_count_;
 
     if(error_count_ >= MAX_ERROR_COUNT) {
@@ -16,6 +16,6 @@ checker_context::raise_error(const std::string& message, const size_t position) 
 
 void
 checker_context::raise_warning(const std::string& message, const size_t position) {
-    lxr_.raise_error(fmt("WARNING: {}", message), position);
+    lxr_.raise_error(fmt("WARNING: {}\n", message), position);
     ++warning_count_;
 }

@@ -18,7 +18,7 @@ type_is_valid_as_enumeration(const type_data& type) {
             || *_var_t == VAR_U64)
             && (type.array_lengths.empty()
             && type.pointer_depth == 0
-            && type.sym_type == TYPE_KIND_VARIABLE);
+            && type.kind == TYPE_KIND_VARIABLE);
     }
 
     return false;

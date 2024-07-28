@@ -64,7 +64,7 @@ parse_type(parser& parser, lexer& lxr) {
     //
 
     if(lxr.current() == TOKEN_KW_PROC) {
-        data.sym_type = TYPE_KIND_PROCEDURE;
+        data.kind = TYPE_KIND_PROCEDURE;
         data.name     = std::monostate();
     }
 
@@ -80,14 +80,11 @@ parse_type(parser& parser, lexer& lxr) {
             data = parser.lookup_type_alias(canonical_name);
         }
         else if(!parser.type_exists(canonical_name)) {
-            //std::cout << canonical_name << std::endl;
-            //std::cout << *name << '\n';
-            //std::cout << parser.namespace_as_string() << '\n';
             lxr.raise_error("Invalid type specifier.");
             return std::nullopt;
         }
         else {
-            data.sym_type = TYPE_KIND_STRUCT;
+            data.kind = TYPE_KIND_STRUCT;
             data.name     = canonical_name;
         }
     }
@@ -101,7 +98,8 @@ parse_type(parser& parser, lexer& lxr) {
                 lxr.raise_error("Use of \"void\" as non pointer type.");
                 return std::nullopt;
             }
-        } else {
+        }
+        else {
             _var_t = token_to_var_t(lxr.current().type);
             if(_var_t == VAR_NONE) {
                 lxr.raise_error("Invalid type specifier.");
@@ -110,7 +108,7 @@ parse_type(parser& parser, lexer& lxr) {
         }
 
         data.name     = _var_t;
-        data.sym_type = TYPE_KIND_VARIABLE;
+        data.kind = TYPE_KIND_VARIABLE;
     }
 
 
@@ -141,7 +139,7 @@ parse_type(parser& parser, lexer& lxr) {
     // If the type isn't a proc, we can simply return here.
     //
 
-    if(data.sym_type != TYPE_KIND_PROCEDURE) {
+    if(data.kind != TYPE_KIND_PROCEDURE) {
         return data;
     }
 

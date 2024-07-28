@@ -7,7 +7,6 @@
 
 #define CURRENT_TEST "tests/test1.txt"
 
-
 void
 handle_uncaught_exception() {
 
@@ -35,33 +34,75 @@ void typecomp_test() {
     type_data type3;
     type_data type4;
 
-    type1.sym_type = TYPE_KIND_STRUCT;
-    type1.name = "mystruct";
-    type1.pointer_depth = 1;
+    type1.kind = TYPE_KIND_VARIABLE;
+    type1.name = VAR_F64;
 
-    type2.sym_type = TYPE_KIND_VARIABLE;
+    type2.kind = TYPE_KIND_VARIABLE;
     type2.name = VAR_I64;
-    type2.pointer_depth = 0;
+    type2.flags |= TYPE_IS_POINTER;
+    type2.pointer_depth = 1;
 
-    type3.sym_type = TYPE_KIND_PROCEDURE;
+    type3.kind = TYPE_KIND_PROCEDURE;
     type3.name = std::monostate();
     type3.return_type = std::make_shared<type_data>(type1);
     type3.parameters = std::make_shared<std::vector<type_data>>();
     type3.parameters->emplace_back(type1);
     type3.parameters->emplace_back(type1);
 
-    type4.sym_type = TYPE_KIND_PROCEDURE;
+    type4.kind = TYPE_KIND_PROCEDURE;
     type4.name = std::monostate();
     type4.return_type = std::make_shared<type_data>(type1);
     type4.parameters = std::make_shared<std::vector<type_data>>();
     type4.parameters->emplace_back(type2);
 
 
-    if(types_are_identical(type3, type4)) {
-        print("Types are identical!");
+    if(is_type_coercion_permissible(type1, type2)) {
+        print("right type is coercible to left type!");
     } else {
-        print("Types are not the same!");
+        print("Type coercion not permitted!");
     }
+}
+
+
+static bool
+generate_check_ast(parser& parser, const std::string& source_file_name) {
+
+    lexer     lxr;
+    ast_node* toplevel_decl = nullptr;
+
+
+    if(!lxr.init(source_file_name)) {
+        return false;
+    }
+
+    if(parser.scope_stack_.empty()) {
+        parser.push_scope(); // push global scope
+    }
+
+    do {
+        toplevel_decl = parse_expression(parser, lxr, false);
+        if(toplevel_decl == nullptr) {
+            break;
+        }
+
+        /*
+        if(!VALID_AT_TOPLEVEL(toplevel_decl->type)) {
+            lxr.raise_error("Invalid toplevel statement or expression.");
+            return false;
+        }*/
+
+        parser.toplevel_decls_.emplace_back(toplevel_decl);
+    } while(true);
+
+    parser.pop_scope();
+    if(lxr.current() != TOKEN_END_OF_FILE) {
+        return false;
+    }
+
+    parser.dump_nodes();
+    //parser.dump_symbols();
+    //parser.dump_types();
+    return check_tree(parser, lxr);
 }
 
 int main() {
@@ -72,14 +113,10 @@ int main() {
 
     parser parser;
 
-    if(!generate_ast_from_source(parser, CURRENT_TEST)) {
+    if(!generate_check_ast(parser, CURRENT_TEST)) {
         print("Failed to parse file.");
         return EXIT_FAILURE;
     }
-
-    parser.dump_nodes();
-    parser.dump_symbols();
-    parser.dump_types();
 
 #else
 

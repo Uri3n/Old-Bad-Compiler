@@ -122,7 +122,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    if(_type_data->sym_type == TYPE_KIND_PROCEDURE && _type_data->pointer_depth < 1) {
+    if(_type_data->kind == TYPE_KIND_PROCEDURE && _type_data->pointer_depth < 1) {
         lxr.raise_error("Procedures cannot be procedure parameters. Pass a pointer instead.");
         return nullptr;
     }
@@ -137,7 +137,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     // Store the parameter as a symbol in the symbol table.
     //
 
-    const auto* var_ptr = parser.create_symbol(name, src_pos, line, _type_data->sym_type, flags, _type_data);
+    const auto* var_ptr = parser.create_symbol(name, src_pos, line, _type_data->kind, flags, _type_data);
     if(var_ptr == nullptr) {
         return nullptr;
     }

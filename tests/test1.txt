@@ -1,12 +1,9 @@
 
-struct bar {
-  shit : bool;
-}
 
 struct foo {
-  mem1 :: bar;
-  mem2: i32^;
+  mem1 : i8;
 }
 
-var :: foo;
-var.mem1.shit = 1;
+myvar :: foo;
+second : bool = myvar + 1;
+
