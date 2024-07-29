@@ -34,6 +34,19 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
     auto  left_t = visit_node(node->left_op, ctx);
     auto right_t = visit_node(node->right_op, ctx);
 
+
+    // edge situation : braced expr being assigned to struct.
+    if(left_t.has_value()
+        && left_t->kind         == TYPE_KIND_STRUCT
+        && node->right_op->type == NODE_BRACED_EXPRESSION
+        && node->_operator      == TOKEN_VALUE_ASSIGNMENT
+        && can_operator_be_applied_to(TOKEN_VALUE_ASSIGNMENT, *left_t)
+    ) {
+        check_structassign_bracedexpr(*left_t, dynamic_cast<ast_braced_expression*>(node->right_op), ctx);
+        left_t->flags |= TYPE_IS_CONSTANT | TYPE_RVALUE;
+        return *left_t;
+    }
+
     if(!left_t || !right_t) {
         ctx.raise_error("Unable to deduce type of one or more operands.", node->pos);
         return std::nullopt;
@@ -41,8 +54,8 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
 
 
     const auto     op_as_str    = lexer_token_to_string(node->_operator);
-    const auto     left_as_str  = format_type_data_for_string_msg(*left_t);
-    const auto     right_as_str = format_type_data_for_string_msg(*right_t);
+    const auto     left_as_str  = typedata_to_str_msg(*left_t);
+    const auto     right_as_str = typedata_to_str_msg(*right_t);
     const uint32_t curr_errs    = ctx.error_count_;
 
 
@@ -64,12 +77,12 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
     }
 
 
-    if(!is_type_coercion_permissible(*left_t, *right_t)) {
-        ctx.raise_error(fmt("Cannot coerce type of righthand expression ({}) to {}", right_as_str, left_as_str), node->pos);
-    }
-
     if(!can_operator_be_applied_to(node->_operator, *left_t)) {
         ctx.raise_error(fmt("Operator '{}' cannot be applied to lefthand type {}.", op_as_str, left_as_str), node->pos);
+    }
+
+    if(!is_type_coercion_permissible(*left_t, *right_t)) {
+        ctx.raise_error(fmt("Cannot coerce type of righthand expression ({}) to {}", right_as_str, left_as_str), node->pos);
     }
 
     if(curr_errs != ctx.error_count_) {
@@ -77,7 +90,7 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
     }
 
     left_t->flags |= TYPE_IS_CONSTANT | TYPE_RVALUE;
-    return *left_t;
+    return left_t;
 }
 
 
@@ -93,7 +106,7 @@ visit_unaryexpr(ast_unaryexpr* node, checker_context& ctx) {
     }
 
     const auto op_as_str   = lexer_token_to_string(node->_operator);
-    const auto type_as_str = format_type_data_for_string_msg(*operand_t);
+    const auto type_as_str = typedata_to_str_msg(*operand_t);
 
 
     if(node->_operator == TOKEN_SUB || node->_operator == TOKEN_PLUS) {
@@ -177,16 +190,11 @@ visit_identifier(const ast_identifier* node, const checker_context& ctx) {
     const auto* sym = ctx.parser_.lookup_unique_symbol(node->symbol_index);
 
     if(sym->type.kind == TYPE_KIND_VARIABLE || sym->type.kind == TYPE_KIND_PROCEDURE) {
-        assert(!node->member_name.has_value()); // Should never be the case if sym != struct
         return sym->type;
     }
 
     const auto* base_type_name = std::get_if<std::string>(&sym->type.name);
     assert(base_type_name != nullptr);
-
-    if(node->member_name.has_value()) {
-        return get_struct_member_type_data(*node->member_name, *base_type_name, ctx.parser_);
-    }
 
     return sym->type;
 }
@@ -236,27 +244,79 @@ visit_vardecl(const ast_vardecl* node, checker_context& ctx) {
 
     assert(node != nullptr);
     assert(node->identifier != nullptr);
-    assert(!node->identifier->member_name);
 
     auto* sym = ctx.parser_.lookup_unique_symbol(node->identifier->symbol_index);
     assert(sym != nullptr);
 
-    if(node->init_value) {
-        const auto init_t = visit_node(*node->init_value, ctx);
-        if(!init_t) {
+    if(!node->init_value) {
+        if(sym->type.flags & TYPE_IS_ARRAY && array_has_inferred_sizes(sym->type)) {
+            ctx.raise_error("Arrays with inferred sizes (e.g. '[]') must be assigned when created.", node->pos);
             return std::nullopt;
         }
 
-        if(!is_type_coercion_permissible(sym->type, *init_t)) {
-            ctx.raise_error(fmt("Cannot assign variable {} of type {} to {}.",
-                sym->name,
-                format_type_data_for_string_msg(sym->type),
-                format_type_data_for_string_msg(*init_t)),
-                node->pos
+        return sym->type;
+    }
+
+
+    //
+    // Array declaration
+    //
+
+    if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.flags & TYPE_IS_ARRAY) {
+        const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(*node->init_value), ctx);
+        if(!array_t) {
+            ctx.raise_error("Could not deduce type of righthand expression.", node->pos);
+            return std::nullopt;
+        }
+
+        if(!are_array_types_equivalent(sym->type, *array_t)) {
+            ctx.raise_error(fmt("Array of type {} is not equivalent to {}.",
+                typedata_to_str_msg(*array_t),
+                typedata_to_str_msg(sym->type)),
+                (*node->init_value)->pos
             );
 
             return std::nullopt;
         }
+
+        assert(array_t->array_lengths.size() == sym->type.array_lengths.size());
+        for(size_t i = 0; i < array_t->array_lengths.size(); i++) {
+            sym->type.array_lengths[i] = array_t->array_lengths[i];
+        }
+
+        return sym->type;
+    }
+
+
+    //
+    // Struct declaration
+    //
+
+    if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.kind == TYPE_KIND_STRUCT) {
+        check_structassign_bracedexpr(sym->type, dynamic_cast<ast_braced_expression*>(*node->init_value), ctx);
+        return sym->type;
+    }
+
+
+    //
+    // Declaration of primitive or other
+    //
+
+    const auto init_t = visit_node(*node->init_value, ctx);
+    if(!init_t) {
+        ctx.raise_error("Righthand expression does not have a type.", node->pos);
+        return std::nullopt;
+    }
+
+    if(!is_type_coercion_permissible(sym->type, *init_t)) {
+        ctx.raise_error(fmt("Cannot assign variable \"{}\" of type {} to {}.",
+            sym->name,
+            typedata_to_str_msg(sym->type),
+            typedata_to_str_msg(*init_t)),
+            node->pos
+        );
+
+        return std::nullopt;
     }
 
     return sym->type;
@@ -274,15 +334,180 @@ visit_cast(const ast_cast* node, checker_context& ctx) {
         return std::nullopt;
     }
 
-    const std::string target_t_str = format_type_data_for_string_msg(*target_t);
-    const std::string cast_t_str   = format_type_data_for_string_msg(cast_t);
+    const std::string target_t_str = typedata_to_str_msg(*target_t);
+    const std::string cast_t_str   = typedata_to_str_msg(cast_t);
 
     if(!is_type_cast_permissible(*target_t, cast_t)) {
         ctx.raise_error(fmt("Cannot cast type {} to {}.", target_t_str, cast_t_str), node->pos);
         return std::nullopt;
     }
 
-    return { cast_t };
+    return cast_t;
+}
+
+
+std::optional<type_data>
+visit_procdecl(const ast_procdecl* node, checker_context& ctx) {
+
+    assert(node != nullptr);
+
+    for(const auto& child : node->body) {
+        if(NODE_NEEDS_VISITING(child->type)) {
+            visit_node(child, ctx);
+        }
+    }
+
+    return std::nullopt;
+}
+
+
+std::optional<type_data>
+visit_call(const ast_call* node, checker_context& ctx) {
+
+    assert(node != nullptr);
+
+    auto target_t = visit_node(node->target, ctx);
+    if(!target_t) {
+        ctx.raise_error("Unable to deduce type of call target", node->pos);
+        return std::nullopt;
+    }
+
+    if(target_t->kind != TYPE_KIND_PROCEDURE) {
+        ctx.raise_error("Attempt to call non-callable type.", node->pos);
+        return std::nullopt;
+    }
+
+
+    const auto     proc_t_str  = typedata_to_str_msg(*target_t);
+    const uint32_t called_with = node->arguments.size();
+    const uint32_t receives    = target_t->parameters == nullptr ? 0 : target_t->parameters->size();
+
+    if(called_with != receives) {
+        ctx.raise_error(fmt("Attempting to call procedure of type {} with {} arguments, but it takes {}.",
+            proc_t_str,
+            called_with,
+            receives),
+            node->pos
+        );
+
+         if(target_t->return_type == nullptr) {
+             return std::nullopt;
+         }
+
+        target_t->return_type->flags |= TYPE_IS_CONSTANT | TYPE_RVALUE;
+        return *target_t->return_type;
+    }
+
+    if(!called_with && !receives) {
+        target_t->return_type->flags |= TYPE_IS_CONSTANT | TYPE_RVALUE;
+        return *target_t->return_type;
+    }
+
+
+    assert(target_t->parameters != nullptr);
+    for(size_t i = 0; i < node->arguments.size(); i++) {
+        if(const auto arg_t = visit_node(node->arguments[i], ctx)) {
+            if(!is_type_coercion_permissible((*target_t->parameters)[i], *arg_t)) {
+
+                const std::string param_t_str = typedata_to_str_msg((*target_t->parameters)[i]);
+                const std::string arg_t_str   = typedata_to_str_msg(*arg_t);
+
+                ctx.raise_error(fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
+                    i + 1, arg_t_str, param_t_str), node->arguments[i]->pos);
+            }
+        } else {
+            ctx.raise_error("Cannot deduce type of argument {} in this call.", i + 1);
+        }
+    }
+
+    if(target_t->return_type == nullptr) {
+        return std::nullopt;
+    }
+
+    target_t->return_type->flags |= TYPE_IS_CONSTANT | TYPE_RVALUE;
+    return target_t;
+}
+
+
+std::optional<type_data>
+visit_ret(const ast_ret* node, checker_context& ctx) {
+
+    assert(node != nullptr);
+
+    const ast_node*     itr  = node;
+    const ast_procdecl* proc = nullptr;
+    const symbol*       sym  = nullptr;
+
+    do {
+        assert(itr->parent.has_value());
+        itr = *itr->parent;
+    } while(itr->type != NODE_PROCDECL);
+
+
+    proc = dynamic_cast<const ast_procdecl*>(itr);
+    assert(proc != nullptr);
+    sym  = ctx.parser_.lookup_unique_symbol(proc->identifier->symbol_index);
+    assert(sym != nullptr);
+
+
+    size_t count = 0;
+    if(node->value.has_value())          ++count;
+    if(sym->type.return_type != nullptr) ++count;
+
+    if(count == 0) {
+        return std::nullopt;
+    }
+
+    if(count != 2) {
+        ctx.raise_error(fmt("Invalid return statement: does not match return type for procedure \"{}\".", sym->name), node->pos);
+        return std::nullopt;
+    }
+
+
+    const auto ret_t = visit_node(*node->value, ctx);
+    if(!ret_t) {
+        ctx.raise_error("Could not deduce type of righthand expression.", node->pos);
+        return std::nullopt;
+    }
+
+    if(!is_type_coercion_permissible(*sym->type.return_type, *ret_t)) {
+        ctx.raise_error(fmt("Cannot coerce type {} to procedure return type {} (compiling procedure \"{}\").",
+            typedata_to_str_msg(*ret_t),
+            typedata_to_str_msg(*sym->type.return_type),
+            sym->name),
+            node->pos
+        );
+    }
+
+    return *ret_t;
+}
+
+
+std::optional<type_data>
+visit_member_access(const ast_member_access* node, checker_context& ctx) {
+
+    assert(node != nullptr);
+    const auto target_t = visit_node(node->target, ctx);
+
+    if(!target_t) {
+        ctx.raise_error("Attempting to access non-existant type as a struct.", node->pos);
+        return std::nullopt;
+    }
+
+    if(target_t->kind != TYPE_KIND_STRUCT || target_t->flags & TYPE_IS_ARRAY || target_t->pointer_depth > 1) {
+        ctx.raise_error(fmt("Cannot perform member access on type {}.", typedata_to_str_msg(*target_t)), node->pos);
+        return std::nullopt;
+    }
+
+    const auto* base_type_name = std::get_if<std::string>(&target_t->name);
+    assert(base_type_name != nullptr);
+
+    if(const auto member_type = get_struct_member_type_data(node->path, *base_type_name, ctx.parser_)) {
+        return *member_type;
+    }
+
+    ctx.raise_error(fmt("Struct member \"{}\" within type \"{}\" does not exist.", node->path, typedata_to_str_msg(*target_t)), node->pos);
+    return std::nullopt;
 }
 
 
@@ -294,7 +519,7 @@ visit_node(ast_node* node, checker_context& ctx) {
 
     switch(node->type) {
         case NODE_VARDECL:           return visit_vardecl(dynamic_cast<ast_vardecl*>(node), ctx);
-        case NODE_PROCDECL:          break;
+        case NODE_PROCDECL:          return visit_procdecl(dynamic_cast<ast_procdecl*>(node), ctx);
         case NODE_BINEXPR:           return visit_binexpr(dynamic_cast<ast_binexpr*>(node), ctx);
         case NODE_UNARYEXPR:         return visit_unaryexpr(dynamic_cast<ast_unaryexpr*>(node), ctx);
         case NODE_SINGLETON_LITERAL: return visit_singleton_literal(dynamic_cast<ast_singleton_literal*>(node), ctx);
@@ -309,14 +534,15 @@ visit_node(ast_node* node, checker_context& ctx) {
         case NODE_DEFAULT:
         case NODE_WHILE:
         case NODE_DOWHILE:
-        case NODE_BLOCK:
-        case NODE_CALL:
-        case NODE_RET:
+        case NODE_BLOCK:             break;
+        case NODE_CALL:              return visit_call(dynamic_cast<ast_call*>(node), ctx);
+        case NODE_RET:               return visit_ret(dynamic_cast<ast_ret*>(node), ctx);
         case NODE_DEFER:
         case NODE_SIZEOF:
-        case NODE_BRACED_EXPRESSION:
         case NODE_SUBSCRIPT:
         case NODE_NAMESPACEDECL:
+        case NODE_MEMBER_ACCESS:     return visit_member_access(dynamic_cast<ast_member_access*>(node), ctx);
+        case NODE_BRACED_EXPRESSION: return std::nullopt;
 
         default: break;
     }

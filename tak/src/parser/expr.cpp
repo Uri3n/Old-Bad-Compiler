@@ -64,6 +64,11 @@ parse_expression(parser& parser, lexer& lxr, const bool subexpression, const boo
             continue;
         }
 
+        if(lxr.current() == TOKEN_DOT) {
+            expr = parse_member_access(expr, lxr);
+            continue;
+        }
+
         if(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && !parse_single) {
             expr = parse_binary_expression(expr, parser, lxr);
             continue;
@@ -294,10 +299,45 @@ parse_singleton_literal(parser& parser, lexer& lxr) {
 
 
 ast_node*
+parse_member_access(ast_node* target, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_DOT, "Expected '.'");
+    parser_assert(target != nullptr, "null target.");
+
+
+    bool           state    = false;
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    auto* node           = new ast_member_access();
+    node->pos            = curr_pos;
+    node->target         = target;
+    node->target->parent = node;
+
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+
+    while(lxr.current() == TOKEN_DOT && lxr.peek(1) == TOKEN_IDENTIFIER) {
+        node->path += '.' + std::string(lxr.peek(1).value);
+        lxr.advance(2);
+    }
+
+    if(node->path.empty()) {
+        lxr.raise_error("Expected member access identifier after '.'", curr_pos, line);
+        return nullptr;
+    }
+
+    state = true;
+    return node;
+}
+
+
+ast_node*
 parse_sizeof(parser& parser, lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_SIZEOF, "Expected \"sizeof\" keyword.");
-
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
@@ -311,93 +351,60 @@ parse_sizeof(parser& parser, lexer& lxr) {
     });
 
 
-    if(lxr.peek(1) != TOKEN_LPAREN) {
-        lxr.raise_error("Expected '('.");
-        return nullptr;
-    }
-
-
-    lxr.advance(2);
+    lxr.advance(1);
     if(lxr.current() == TOKEN_IDENTIFIER) {
 
-        std::string name_if_sym;
         std::string name_if_type;
 
         const token    tmp_token  = lxr.current(); // save.
         const size_t   tmp_pos    = lxr.src_index_;
         const uint32_t tmp_line   = lxr.curr_line_;
 
-
         if(const auto name = get_namespaced_identifier(lxr)) {
-            name_if_sym  = parser.get_canonical_sym_name(*name);
             name_if_type = parser.get_canonical_type_name(*name);
+        } else {
+            return nullptr;
         }
 
-        if(parser.type_exists(name_if_type) || parser.type_alias_exists(name_if_type)) {
-            lxr.current_   = tmp_token; // restore.
-            lxr.src_index_ = tmp_pos;
-            lxr.curr_line_ = tmp_line;
+        lxr.current_   = tmp_token; // restore.
+        lxr.src_index_ = tmp_pos;
+        lxr.curr_line_ = tmp_line;
 
+        if(parser.type_exists(name_if_type) || parser.type_alias_exists(name_if_type)) {
             if(const auto data = parse_type(parser,lxr)) {
                 node->target = *data;
             } else {
                 return nullptr;
             }
-        }
 
-        else if(parser.scoped_symbol_exists(name_if_sym)) {
-            lxr.advance(1);
-
-            uint32_t sym_index = 0;
-            if(sym_index = parser.lookup_scoped_symbol(name_if_sym); sym_index == INVALID_SYMBOL_INDEX) {
-                return nullptr;
-            }
-
-            const auto* sym = parser.lookup_unique_symbol(sym_index);
-            if(sym == nullptr)
-                return nullptr;
-
-            ast_identifier* ident = nullptr;
-            if(lxr.current() == TOKEN_DOT) {
-                ident = dynamic_cast<ast_identifier*>(parse_member_access(sym->symbol_index, parser, lxr));
-            } else {
-                ident = new ast_identifier();
-            }
-
-            if(ident == nullptr)
-                return nullptr;
-
-            ident->symbol_index = sym->symbol_index;
-            ident->parent       = node;
-            ident->pos          = curr_pos;
-
-            node->target = ident;
-        }
-
-        else {
-            lxr.raise_error("Unrecognized identifier following \"sizeof\".", curr_pos, line);
-            return nullptr;
+            state = true;
+            return node;
         }
     }
-    else if(lxr.current().kind == KIND_TYPE_IDENTIFIER){
+
+    if(lxr.current().kind == KIND_TYPE_IDENTIFIER){
         if(const auto data = parse_type(parser,lxr)) {
             node->target = *data;
         } else {
             return nullptr;
         }
     }
+
     else {
-        lxr.raise_error("Unrecognized identifier following \"sizeof\".", curr_pos, line);
-        return nullptr;
+        auto* target = parse_expression(parser, lxr, true);
+        if(target == nullptr) {
+            return nullptr;
+        }
+
+        if(!VALID_SUBEXPRESSION(target->type)) {
+            lxr.raise_error("Invalid subexpression used within sizeof identifier.", curr_pos, line);
+            return nullptr;
+        }
+
+        target->parent = node;
+        node->target   = target;
     }
 
-
-    if(lxr.current() != TOKEN_RPAREN) {
-        lxr.raise_error("Expected ')'.");
-        return nullptr;
-    }
-
-    lxr.advance(1);
     state = true;
     return node;
 }

@@ -54,10 +54,17 @@ bool is_type_arithmetic_eligible(const type_data& type, token_t _operator);
 bool is_type_bwop_eligible(const type_data& type);
 bool is_type_lop_eligible(const type_data& type);
 bool flip_sign(type_data& type);
+bool are_array_types_equivalent(const type_data& first, const type_data& second);
+bool array_has_inferred_sizes(const type_data& type);
+void check_structassign_bracedexpr(const type_data& type, const ast_braced_expression* expr, checker_context& ctx);
 
 std::optional<type_data> visit_node(ast_node* node, checker_context& ctx);
+std::optional<type_data> visit_member_access(const ast_member_access* node, checker_context& ctx);
 std::optional<type_data> visit_vardecl(const ast_vardecl* node, checker_context& ctx);
+std::optional<type_data> visit_procdecl(const ast_procdecl* node, checker_context& ctx);
+std::optional<type_data> visit_call(const ast_call* node, checker_context& ctx);
 std::optional<type_data> visit_cast(const ast_cast* node, checker_context& ctx);
+std::optional<type_data> visit_ret(const ast_ret* node, checker_context& ctx);
 std::optional<type_data> visit_binexpr(const ast_binexpr* node, checker_context& ctx);
 std::optional<type_data> visit_unaryexpr(const ast_unaryexpr* node, checker_context& ctx);
 std::optional<type_data> visit_identifier(const ast_identifier* node, const checker_context& ctx);
@@ -65,6 +72,7 @@ std::optional<type_data> visit_singleton_literal(ast_singleton_literal* node, ch
 std::optional<type_data> get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, parser& parser);
 std::optional<type_data> get_dereferenced_type(const type_data& type);
 std::optional<type_data> get_addressed_type(const type_data& type);
+std::optional<type_data> get_bracedexpr_as_array_t(const ast_braced_expression* node, checker_context& ctx);
 
 type_data convert_int_lit_to_type(const ast_singleton_literal* node);
 type_data convert_float_lit_to_type(const ast_singleton_literal* node);

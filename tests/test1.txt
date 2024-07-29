@@ -1,9 +1,14 @@
 
-
 struct foo {
-  mem1 : i8;
+ otha : i32^^;
 }
 
-myvar :: foo;
-second : bool = myvar + 1;
+struct bar {
+   mem1 : bool;
+   fucker : foo;
+   fuckerton : i8;
+}
 
+someproc :: proc() -> bar {}
+
+myvar : i8 = someproc().fuckerton;

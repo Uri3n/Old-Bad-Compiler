@@ -1,0 +1,14 @@
+
+
+struct foo {
+  mem1 : i8;
+  mem2 : i32;
+}
+
+var : foo;
+
+
+main :: proc() -> i32 {
+  ret 0;
+}
+

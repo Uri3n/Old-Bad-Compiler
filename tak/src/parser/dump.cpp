@@ -164,10 +164,6 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
         sym_ptr->symbol_index
     );
 
-    if(ident->member_name.has_value()) {
-        node_title += fmt(" Accessing Member: {}", *ident->member_name);
-    }
-
     print("{}", node_title);
 }
 
@@ -577,8 +573,21 @@ display_node_type_alias(ast_node* node, const std::string& node_title, parser& p
     print("{}{}: Type Alias Definition, Expands To {}",
         node_title,
         alias->name,
-        format_type_data_for_string_msg(parser.lookup_type_alias(alias->name))
+        typedata_to_str_msg(parser.lookup_type_alias(alias->name))
     );
+}
+
+static void
+display_node_member_access(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+
+    const auto* member = dynamic_cast<ast_member_access*>(node);
+    if(member == nullptr) {
+        print("{} (Member Access) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}Member Access ({})", node_title, member->path);
+    display_node_data(member->target, depth + 1, _);
 }
 
 static void
@@ -594,22 +603,12 @@ display_node_sizeof(ast_node* node, std::string& node_title, uint32_t depth, par
     print("{}SizeOf", node_title);
 
     if(const auto* is_raw_type = std::get_if<type_data>(&_sizeof->target)) {
-
-        std::string type_name;
-        if(const auto* is_var = std::get_if<var_t>(&is_raw_type->name)) {
-            type_name = var_t_to_string(*is_var);
-        } else if(const auto* is_struct = std::get_if<std::string>(&is_raw_type->name)) {
-            type_name = fmt("{} (Structure)", *is_struct);
-        } else {
-            type_name = "Procedure";
-        }
-
-        display_fake_node(fmt("Type: {}", type_name), node_title, depth);
-        std::cout << format_type_data(*is_raw_type) << '\n';
-
-    } else if(const auto* is_ident = std::get_if<ast_identifier*>(&_sizeof->target)) {
-        display_node_data(*is_ident, depth + 1, _);
-    } else {
+        display_fake_node(fmt("Type: {}", typedata_to_str_msg(*is_raw_type)), node_title, depth);
+    }
+    else if(const auto* is_node = std::get_if<ast_node*>(&_sizeof->target)) {
+        display_node_data(*is_node, depth + 1, _);
+    }
+    else {
         display_fake_node("?? Bad variant type", node_title, depth);
     }
 }
@@ -658,6 +657,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_ENUM_DEFINITION:    display_node_enumdef(node, node_title, depth, parser); break;
         case NODE_DEFER:              display_node_defer(node, node_title, depth, parser); break;
         case NODE_SIZEOF:             display_node_sizeof(node, node_title, depth, parser); break;
+        case NODE_MEMBER_ACCESS:      display_node_member_access(node, node_title, depth, parser); break;
 
         case NODE_NONE:
             print("{}None", node_title);                            // Shouldn't ever happen...

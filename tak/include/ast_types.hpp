@@ -43,7 +43,8 @@ enum ast_node_t : uint16_t {
     NODE_SUBSCRIPT,
     NODE_NAMESPACEDECL,
     NODE_CAST,
-    NODE_TYPE_ALIAS, // @Autism: storing program data in the AST that does not affect the code at runtime
+    NODE_TYPE_ALIAS,
+    NODE_MEMBER_ACCESS,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,10 +132,17 @@ struct ast_switch final : ast_node {
 
 struct ast_identifier final : ast_node {
     uint32_t symbol_index = 0;                         // INVALID_SYMBOL_INDEX
-    std::optional<std::string> member_name;            // used if struct member.
 
     ~ast_identifier() override = default;
     ast_identifier() : ast_node(NODE_IDENT) {}
+};
+
+struct ast_member_access final : ast_node {
+    ast_node* target = nullptr;
+    std::string path;
+
+    ~ast_member_access() override;
+    ast_member_access() : ast_node(NODE_MEMBER_ACCESS) {}
 };
 
 struct ast_vardecl final : ast_node {
@@ -210,7 +218,7 @@ struct ast_defer final : ast_node {
 };
 
 struct ast_sizeof final : ast_node {
-    std::variant<type_data, ast_identifier*> target = nullptr;
+    std::variant<type_data, ast_node*> target = nullptr;
 
     ~ast_sizeof() override;
     ast_sizeof() : ast_node(NODE_SIZEOF) {}

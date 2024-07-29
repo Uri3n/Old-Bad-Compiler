@@ -9,6 +9,10 @@ ast_binexpr::~ast_binexpr() {
     delete right_op;
 }
 
+ast_member_access::~ast_member_access() {
+    delete target;
+}
+
 ast_branch::~ast_branch() {
     for(ast_node const* node : conditions) {
         delete node;
@@ -153,7 +157,7 @@ ast_namespacedecl::~ast_namespacedecl() {
 }
 
 ast_sizeof::~ast_sizeof() {
-    if(const auto* is_ident = std::get_if<ast_identifier*>(&this->target)) {
+    if(const auto* is_ident = std::get_if<ast_node*>(&this->target)) {
         delete *is_ident;
     }
 }

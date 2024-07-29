@@ -62,7 +62,7 @@ var_t_to_string(const var_t type) {
 }
 
 std::string
-format_type_data_for_string_msg(const type_data& type) {
+typedata_to_str_msg(const type_data& type) {
 
     std::string buffer;
     bool is_proc = false;
@@ -101,7 +101,7 @@ format_type_data_for_string_msg(const type_data& type) {
         buffer += '(';
         if(type.parameters != nullptr) {
             for(const auto& param : *type.parameters) {
-                buffer += format_type_data_for_string_msg(param) + ',';
+                buffer += typedata_to_str_msg(param) + ',';
             }
 
             if(buffer.back() == ',') buffer.pop_back();
@@ -110,7 +110,7 @@ format_type_data_for_string_msg(const type_data& type) {
         buffer += ')';
         buffer += " -> ";
 
-        if(type.return_type != nullptr) buffer += format_type_data_for_string_msg(*type.return_type);
+        if(type.return_type != nullptr) buffer += typedata_to_str_msg(*type.return_type);
         else buffer += "void";
     }
 

@@ -100,9 +100,10 @@ generate_check_ast(parser& parser, const std::string& source_file_name) {
     }
 
     parser.dump_nodes();
-    //parser.dump_symbols();
-    //parser.dump_types();
+    parser.dump_symbols();
+    parser.dump_types();
     return check_tree(parser, lxr);
+    //return true;
 }
 
 int main() {

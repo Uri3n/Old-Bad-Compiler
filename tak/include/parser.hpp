@@ -34,6 +34,7 @@
     || node_type == NODE_CAST                                                   \
     || node_type == NODE_SUBSCRIPT                                              \
     || node_type == NODE_CAST                                                   \
+    || node_type == NODE_MEMBER_ACCESS                                          \
     || node_type == NODE_SIZEOF                                                 \
 )                                                                               \
 
@@ -148,7 +149,7 @@ ast_case* parse_case(parser& parser, lexer& lxr);
 ast_default* parse_default(parser& parser, lexer& lxr);
 ast_node* parse_switch(parser& parser, lexer& lxr);
 ast_node* parse_structdef(parser& parser, lexer& lxr);
-ast_node* parse_member_access(uint32_t sym_index, parser& parser, lexer& lxr);
+ast_node* parse_member_access(ast_node* target, lexer& lxr);
 ast_node* parse_expression(parser& parser, lexer& lxr, bool subexpression, bool parse_single = false);
 ast_node* parse_identifier(parser& parser, lexer& lxr);
 ast_node* parse_unary_expression(parser& parser, lexer& lxr);

@@ -69,6 +69,159 @@ convert_float_lit_to_type(const ast_singleton_literal* node) {
 }
 
 
+bool
+are_array_types_equivalent(const type_data& first, const type_data& second) {
+
+    assert(first.flags & TYPE_IS_ARRAY);
+    assert(second.flags & TYPE_IS_ARRAY);
+
+    if(first.array_lengths.size() != second.array_lengths.size()) {
+        return false;
+    }
+
+    for(size_t i = 0; i < first.array_lengths.size(); i++) {
+        if(first.array_lengths[i]) if(first.array_lengths[i] != second.array_lengths[i]) return false;
+    }
+
+
+    type_data first_contained;
+    type_data second_contained;
+
+    first_contained.name           = first.name;
+    first_contained.kind           = first.kind;
+    first_contained.flags          = first.flags;
+    first_contained.pointer_depth  = first.pointer_depth;
+    first_contained.return_type    = first.return_type;
+    first_contained.parameters     = first.parameters;
+
+    second_contained.name          = second.name;
+    second_contained.kind          = second.kind;
+    second_contained.flags         = second.flags;
+    second_contained.pointer_depth = second.pointer_depth;
+    second_contained.return_type   = second.return_type;
+    second_contained.parameters    = second.parameters;
+
+    first_contained.flags  &= ~TYPE_IS_ARRAY;
+    second_contained.flags &= ~TYPE_IS_ARRAY;
+
+    return is_type_coercion_permissible(first_contained, second_contained);
+}
+
+
+bool
+array_has_inferred_sizes(const type_data& type) {
+    assert(type.flags & TYPE_IS_ARRAY);
+    for(const auto length : type.array_lengths) {
+        if(length == 0) return true;
+    }
+
+    return false;
+}
+
+
+std::optional<type_data>
+get_bracedexpr_as_array_t(const ast_braced_expression* node, checker_context& ctx) {
+
+    assert(node != nullptr);
+    if(node->members.empty()) {
+        return std::nullopt;
+    }
+
+    std::optional<type_data> contained_t;
+    if(node->members[0]->type == NODE_BRACED_EXPRESSION) {
+        contained_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(node->members[0]), ctx);
+    } else {
+        contained_t = visit_node(node->members[0], ctx);
+    } if(!contained_t) {
+        return std::nullopt;
+    }
+
+
+    for(size_t i = 1; i < node->members.size(); i++) {
+        if(node->members[i]->type == NODE_BRACED_EXPRESSION) {
+            const auto subarray_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(node->members[i]), ctx);
+            if(!subarray_t) {
+                return std::nullopt;
+            }
+
+            if(!(contained_t->flags & TYPE_IS_ARRAY) || !are_array_types_equivalent(*contained_t, *subarray_t)) {
+                return std::nullopt;
+            }
+        } else {
+            const auto element_t = visit_node(node->members[i], ctx);
+            if(!element_t || !is_type_coercion_permissible(*contained_t, *element_t)) {
+                return std::nullopt;
+            }
+        }
+    }
+
+    contained_t->flags |= TYPE_IS_ARRAY;
+    contained_t->array_lengths.insert(contained_t->array_lengths.begin(), node->members.size());
+    return contained_t;
+}
+
+
+void
+check_structassign_bracedexpr(const type_data& type, const ast_braced_expression* expr, checker_context& ctx) {
+
+    assert(expr != nullptr);
+    assert(type.kind == TYPE_KIND_STRUCT);
+
+    if(type.flags & TYPE_RVALUE) {
+        ctx.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", typedata_to_str_msg(type)), expr->pos);
+        return;
+    }
+
+    const std::string* name = std::get_if<std::string>(&type.name);
+    assert(name != nullptr);
+    std::vector<member_data>* members = ctx.parser_.lookup_type(*name);
+    assert(members != nullptr);
+
+
+    //
+    // Validate that sizes are correct
+    //
+
+    if(members->size() != expr->members.size()) {
+        ctx.raise_error(fmt("Number of elements within braced expression ({}) does not match the struct type {} ({} members).",
+            expr->members.size(),
+            typedata_to_str_msg(type),
+            members->size()),
+            expr->pos
+        );
+
+        return;
+    }
+
+
+    //
+    // Match all members
+    //
+
+    for(size_t i = 0; i < members->size(); i++) {
+        if((*members)[i].type.kind == TYPE_KIND_STRUCT && expr->members[i]->type == NODE_BRACED_EXPRESSION) {
+            check_structassign_bracedexpr((*members)[i].type, dynamic_cast<ast_braced_expression*>(expr->members[i]), ctx);
+            continue;
+        }
+
+        const auto element_t = visit_node(expr->members[i], ctx);
+        if(!element_t) {
+            ctx.raise_error(fmt("Could not deduce type of element {} in braced expression.", i + 1), expr->members[i]->pos);
+            continue;
+        }
+
+        if(!is_type_coercion_permissible((*members)[i].type, *element_t)) {
+            ctx.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
+                i + 1,
+                typedata_to_str_msg((*members)[i].type),
+                typedata_to_str_msg(*element_t)),
+                expr->members[i]->pos
+            );
+        }
+    }
+}
+
+
 std::optional<type_data>
 get_dereferenced_type(const type_data& type) {
 
@@ -133,12 +286,13 @@ get_struct_member_type_data(const std::string& member_path, const std::string& b
     const auto*  member_data   = parser.lookup_type(base_type_name);
     size_t       index         = 0;
 
-    if(member_chunks.empty() || member_data == nullptr)
+    if(member_chunks.empty() || member_data == nullptr) {
         return std::nullopt;
+    }
 
 
-    std::function<type_data(decltype(member_data))> recurse;
-    recurse = [&](const decltype(member_data) members) {
+    std::function<std::optional<type_data>(decltype(member_data))> recurse;
+    recurse = [&](const decltype(member_data) members) -> std::optional<type_data> {
 
         assert(member_data != nullptr);
         for(const auto& member : *members) {
@@ -150,15 +304,14 @@ get_struct_member_type_data(const std::string& member_path, const std::string& b
 
                 if(const auto* struct_name = std::get_if<std::string>(&member.type.name)) {
                     ++index;
-                    return recurse(parser.lookup_type(*struct_name));
+                    if(parser.type_exists(*struct_name)) return recurse(parser.lookup_type(*struct_name));
                 }
 
                 break;
             }
         }
 
-        // Should never occur. This gets validated by the parser.
-        panic("get_struct_member_type_data: accessing invalid struct member with '.' operator.");
+        return std::nullopt;
     };
 
     return recurse(member_data);
@@ -434,8 +587,12 @@ is_type_arithmetic_eligible(const type_data& type, const token_t _operator) {
 bool
 can_operator_be_applied_to(const token_t _operator, const type_data& type) {
 
+    if(type.flags & TYPE_IS_ARRAY) {
+        return false;
+    }
+
     if(_operator == TOKEN_VALUE_ASSIGNMENT) {
-        return !(type.flags & TYPE_IS_CONSTANT);
+        return !(type.flags & TYPE_IS_CONSTANT) && !(type.flags & TYPE_RVALUE);
     }
 
     if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) {
