@@ -69,40 +69,40 @@ enum var_t : uint16_t {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct type_data {
+struct TypeData {
     uint16_t    pointer_depth  = 0;
     uint64_t    flags          = TYPE_FLAGS_NONE;
     type_kind_t kind           = TYPE_KIND_NONE;
 
-    std::vector<uint32_t>                   array_lengths;          // Only multiple elements if matrix
-    std::shared_ptr<std::vector<type_data>> parameters  = nullptr;  // Can be null, only used for procedures.
-    std::shared_ptr<type_data>              return_type = nullptr;  // Can be null, only used for procedures.
+    std::vector<uint32_t>                   array_lengths;         // Only multiple elements if matrix
+    std::shared_ptr<std::vector<TypeData>> parameters  = nullptr;  // Can be null, only used for procedures.
+    std::shared_ptr<TypeData>              return_type = nullptr;  // Can be null, only used for procedures.
 
-    std::variant<var_t, std::string, std::monostate> name;          // name of the TYPE. not whatever is using it.
+    std::variant<var_t, std::string, std::monostate> name;         // name of the TYPE. not whatever is using it.
 
-    type_data()  = default;
-    ~type_data() = default;
+    TypeData()  = default;
+    ~TypeData() = default;
 };
 
-struct symbol {
+struct Symbol {
     uint32_t symbol_index  = INVALID_SYMBOL_INDEX;
     uint32_t line_number   = 0;
     size_t   src_pos       = 0;
 
     std::string name;
-    type_data   type;
+    TypeData   type;
 
-    ~symbol() = default;
-    symbol()  = default;
+    ~Symbol() = default;
+    Symbol()  = default;
 };
 
-struct member_data {
+struct MemberData {
     std::string name;
-    type_data   type;
+    TypeData   type;
 
-    ~member_data() = default;
-    member_data()  = default;
-    member_data(const std::string &name, const type_data &type)
+    ~MemberData() = default;
+    MemberData()  = default;
+    MemberData(const std::string &name, const TypeData &type)
         : name(name),
           type(type) {
     }

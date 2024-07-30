@@ -7,6 +7,11 @@
 
 #define CURRENT_TEST "tests/test2.txt"
 
+/*
+    TODO before codegen:
+    - methods
+    - defer_if
+*/
 
 void
 handle_uncaught_exception() {
@@ -29,10 +34,10 @@ handle_uncaught_exception() {
 
 
 static bool
-generate_check_ast(parser& parser, const std::string& source_file_name) {
+generate_check_ast(Parser& parser, const std::string& source_file_name) {
 
-    lexer     lxr;
-    ast_node* toplevel_decl = nullptr;
+    Lexer     lxr;
+    AstNode* toplevel_decl = nullptr;
 
 
     if(!lxr.init(source_file_name)) {
@@ -65,7 +70,7 @@ generate_check_ast(parser& parser, const std::string& source_file_name) {
 
     parser.dump_nodes();
     parser.dump_types();
-    if(!check_tree(parser, lxr) ) {
+    if(!visit_tree(parser, lxr) ) {
         return false;
     }
 
@@ -79,7 +84,7 @@ int main() {
 
 #if 1
 
-    parser parser;
+    Parser parser;
 
     if(!generate_check_ast(parser, CURRENT_TEST)) {
         print("Failed to parse file.");

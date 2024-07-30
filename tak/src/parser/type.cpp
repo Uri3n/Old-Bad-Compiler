@@ -6,7 +6,7 @@
 
 
 std::optional<std::vector<uint32_t>>
-parse_array_data(lexer& lxr) {
+parse_array_data(Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['");
     std::vector<uint32_t> lengths;
@@ -52,11 +52,11 @@ parse_array_data(lexer& lxr) {
 }
 
 
-std::optional<type_data>
-parse_type(parser& parser, lexer& lxr) {
+std::optional<TypeData>
+parse_type(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || lxr.current() == TOKEN_IDENTIFIER, "Expected type.");
-    type_data data;
+    TypeData data;
 
 
     //
@@ -154,7 +154,7 @@ parse_type(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(1);
-    data.parameters = std::make_shared<std::vector<type_data>>();
+    data.parameters = std::make_shared<std::vector<TypeData>>();
 
     while(lxr.current() != TOKEN_RPAREN) {
 
@@ -192,7 +192,7 @@ parse_type(parser& parser, lexer& lxr) {
     }
 
 
-    data.return_type = std::make_shared<type_data>();
+    data.return_type = std::make_shared<TypeData>();
     if(const auto ret_type = parse_type(parser, lxr)) {
         *data.return_type = *ret_type; // expensive copy
     } else {

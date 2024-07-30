@@ -6,12 +6,12 @@
 
 
 bool
-parser::type_exists(const std::string& name) {
+Parser::type_exists(const std::string& name) {
     return type_table_.contains(name);
 }
 
 bool
-parser::create_type(const std::string& name, std::vector<member_data>&& type_data) {
+Parser::create_type(const std::string& name, std::vector<MemberData>&& type_data) {
     if(type_exists(name)) {
         panic(fmt("Internal parse-error: attempt to create type \"{}\" when it already exists.", name));
     }
@@ -20,8 +20,8 @@ parser::create_type(const std::string& name, std::vector<member_data>&& type_dat
     return true;
 }
 
-std::vector<member_data>*
-parser::lookup_type(const std::string& name) {
+std::vector<MemberData>*
+Parser::lookup_type(const std::string& name) {
     if(!type_exists(name)) {
         panic(fmt("Internal parse-error: looking up nonexistent type \"{}\".", name));
     }
@@ -30,7 +30,7 @@ parser::lookup_type(const std::string& name) {
 }
 
 bool
-parser::create_type_alias(const std::string& name, const type_data& data) {
+Parser::create_type_alias(const std::string& name, const TypeData& data) {
     if(type_aliases_.contains(name)) {
         panic(fmt("Internal parse-error: attempt to create type alias \"{}\" when it already exists.", name));
     }
@@ -40,12 +40,12 @@ parser::create_type_alias(const std::string& name, const type_data& data) {
 }
 
 bool
-parser::type_alias_exists(const std::string& name) {
+Parser::type_alias_exists(const std::string& name) {
     return type_aliases_.contains(name);
 }
 
-type_data
-parser::lookup_type_alias(const std::string& name) {
+TypeData
+Parser::lookup_type_alias(const std::string& name) {
     if(!type_aliases_.contains(name)) {
         panic(fmt("Internal parse-error: attempted lookup for non-existent type alias \"{}\".", name));
     }

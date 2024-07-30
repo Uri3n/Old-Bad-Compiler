@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-ast_node*
-parse_structdef(parser& parser, lexer& lxr) {
+AstNode*
+parse_structdef(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_STRUCT, "Expected \"struct\" keyword.");
 
@@ -44,7 +44,7 @@ parse_structdef(parser& parser, lexer& lxr) {
     // foo^, where foo is the struct.
     //
 
-    if(!parser.create_type(type_name, std::vector<member_data>())) {
+    if(!parser.create_type(type_name, std::vector<MemberData>())) {
         return nullptr;
     }
 
@@ -54,7 +54,7 @@ parse_structdef(parser& parser, lexer& lxr) {
     //
 
     lxr.advance(2);
-    std::vector<member_data>* members = parser.lookup_type(type_name);
+    std::vector<MemberData>* members = parser.lookup_type(type_name);
 
     while(lxr.current() != TOKEN_RBRACE) {
 
@@ -105,7 +105,7 @@ parse_structdef(parser& parser, lexer& lxr) {
                 }
             }
 
-            members->emplace_back(member_data(name, *type));
+            members->emplace_back(MemberData(name, *type));
             members->back().type.flags |= is_const ? TYPE_CONSTANT | TYPE_DEFAULT_INIT : TYPE_DEFAULT_INIT;
 
         } else {
@@ -123,7 +123,7 @@ parse_structdef(parser& parser, lexer& lxr) {
     // create AST node.
     //
 
-    auto* node = new ast_structdef();
+    auto* node = new AstStructdef();
     node->pos  = lxr.current().src_pos;
     node->name = type_name;
 

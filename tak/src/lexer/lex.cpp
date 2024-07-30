@@ -7,7 +7,7 @@
 
 
 void
-lexer::advance(const uint32_t amnt) {
+Lexer::advance(const uint32_t amnt) {
 
     if(current_ == TOKEN_END_OF_FILE || current_ == TOKEN_ILLEGAL) {
         return;
@@ -69,8 +69,8 @@ lexer::advance(const uint32_t amnt) {
 }
 
 
-token&
-lexer::current() {
+Token&
+Lexer::current() {
     if(current_ == TOKEN_NONE) { // if the lexer was just created current will be TOKEN_NONE initially
         advance(1);
     }
@@ -79,8 +79,8 @@ lexer::current() {
 }
 
 
-token
-lexer::peek(const uint32_t amnt) {
+Token
+Lexer::peek(const uint32_t amnt) {
 
     if(current_ == TOKEN_NONE) {
         advance(1);
@@ -89,10 +89,10 @@ lexer::peek(const uint32_t amnt) {
 
     const uint32_t line_tmp   = this->curr_line_;
     const size_t   index_tmp  = this->src_index_;
-    const token    tok_tmp    = this->current_;
+    const Token    tok_tmp    = this->current_;
 
     advance(amnt);
-    const token    tok_peeked = this->current_;
+    const Token    tok_peeked = this->current_;
 
     curr_line_ = line_tmp;
     src_index_ = index_tmp;

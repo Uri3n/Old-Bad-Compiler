@@ -6,7 +6,7 @@
 
 
 std::string
-lexer_token_to_string(const token_t type) {
+token_to_string(const token_t type) {
 
 #define X(NAME, STR) case TOKEN_##NAME: return STR;
     switch(type) {
@@ -17,7 +17,7 @@ lexer_token_to_string(const token_t type) {
 }
 
 std::string
-lexer_token_type_to_string(const token_t type) {
+token_type_to_string(const token_t type) {
 
 #define X(NAME, UNUSED_STR) case TOKEN_##NAME: return #NAME;
     switch(type) {
@@ -28,7 +28,7 @@ lexer_token_type_to_string(const token_t type) {
 }
 
 std::string
-lexer_token_kind_to_string(const token_kind kind) {
+token_kind_to_string(const token_kind kind) {
 
 #define X(NAME) case KIND_##NAME: return #NAME;
     switch(kind) {
@@ -62,7 +62,7 @@ var_t_to_string(const var_t type) {
 }
 
 std::string
-typedata_to_str_msg(const type_data& type) {
+typedata_to_str_msg(const TypeData& type) {
 
     std::string buffer;
     bool is_proc = false;
@@ -272,7 +272,7 @@ get_actual_char(const std::string_view& str) {
 }
 
 std::optional<size_t>
-lexer_token_lit_to_int(const token& tok) {
+lexer_token_lit_to_int(const Token& tok) {
 
     size_t val = 0;
 
@@ -296,12 +296,12 @@ lexer_token_lit_to_int(const token& tok) {
 }
 
 void
-lexer_display_token_data(const token& tok) {
+lexer_display_token_data(const Token& tok) {
     print(
         "Value: {}\nType: {}\nKind: {}\nFile Pos Index: {}\nLine Number: {}\n",
         tok.value,
-        lexer_token_type_to_string(tok.type),
-        lexer_token_kind_to_string(tok.kind),
+        token_type_to_string(tok.type),
+        token_kind_to_string(tok.kind),
         tok.src_pos,
         tok.line
     );

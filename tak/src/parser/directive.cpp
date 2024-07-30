@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-ast_node*
-parse_type_alias(parser& parser, lexer& lxr) {
+AstNode*
+parse_type_alias(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().value == "alias", "Expected \"@alias\" directive.");
 
@@ -22,7 +22,7 @@ parse_type_alias(parser& parser, lexer& lxr) {
     }
 
 
-    auto* node   = new ast_type_alias();
+    auto* node   = new AstTypeAlias();
     bool  state  = false;
     node->pos    = lxr.current().src_pos;
 
@@ -59,8 +59,8 @@ parse_type_alias(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_compiler_directive(parser& parser, lexer& lxr) {
+AstNode*
+parse_compiler_directive(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_AT, "Expected '@'.");
     lxr.advance(1);

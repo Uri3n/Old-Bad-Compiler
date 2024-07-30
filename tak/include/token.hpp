@@ -85,6 +85,7 @@
     X(KW_ELIF, "elif")               \
     X(KW_NAMESPACE, "namespace")     \
     X(KW_DEFER, "defer")             \
+    X(KW_DEFER_IF, "defer_if")       \
     X(KW_PROC, "proc")               \
     X(KW_BLK, "block")               \
     X(KW_CAST, "cast")               \
@@ -101,6 +102,7 @@
     X(KW_U64, "u64")                 \
     X(KW_I64, "i64")                 \
     X(KW_VOID,"void")                \
+    X(KW_NULLPTR, "nullptr")         \
     X(ARROW,  "->")                  \
 
 #define TOKEN_KIND_LIST              \
@@ -195,7 +197,7 @@ enum token_kind : uint8_t {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct token {
+struct Token {
     token_t    type    = TOKEN_NONE;
     token_kind kind    = KIND_UNSPECIFIC;
     size_t     src_pos = 0;
@@ -204,10 +206,10 @@ struct token {
     uint32_t         line = 0;
 
     bool operator==(const token_t other) const  {return other == type;}
-    bool operator==(const token& other)  const  {return other.type == this->type;}
+    bool operator==(const Token& other)  const  {return other.type == this->type;}
 
     bool operator!=(const token_t other) const  {return other != type;}
-    bool operator!=(const token& other)  const  {return other.type != this->type;}
+    bool operator!=(const Token& other)  const  {return other.type != this->type;}
 };
 
 #endif //TOKEN_HPP

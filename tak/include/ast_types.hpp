@@ -35,6 +35,7 @@ enum ast_node_t : uint16_t {
     NODE_CONT,
     NODE_RET,
     NODE_DEFER,
+    NODE_DEFER_IF,
     NODE_SIZEOF,
     NODE_SINGLETON_LITERAL,
     NODE_BRACED_EXPRESSION,
@@ -49,243 +50,251 @@ enum ast_node_t : uint16_t {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct ast_node {
+struct AstNode {
     ast_node_t               type   = NODE_NONE;
-    std::optional<ast_node*> parent = std::nullopt;
+    std::optional<AstNode*>  parent = std::nullopt;
     size_t                   pos    = 0;
 
-    virtual ~ast_node() = default;
-    explicit ast_node(const ast_node_t type) : type(type) {}
+    virtual ~AstNode() = default;
+    explicit AstNode(const ast_node_t type) : type(type) {}
 };
 
-struct ast_singleton_literal final : ast_node {
+struct AstSingletonLiteral final : AstNode {
     std::string value;
     token_t     literal_type = TOKEN_NONE;
-    
-    ~ast_singleton_literal() override = default;
-    ast_singleton_literal() : ast_node(NODE_SINGLETON_LITERAL) {}
+
+    ~AstSingletonLiteral() override = default;
+    AstSingletonLiteral() : AstNode(NODE_SINGLETON_LITERAL) {}
 };
 
-struct ast_braced_expression final : ast_node {
-    std::vector<ast_node*> members;
-    
-    ~ast_braced_expression() override;
-    ast_braced_expression() : ast_node(NODE_BRACED_EXPRESSION) {}
+struct AstBracedExpression final : AstNode {
+    std::vector<AstNode*> members;
+
+    ~AstBracedExpression() override;
+    AstBracedExpression() : AstNode(NODE_BRACED_EXPRESSION) {}
 };
 
-struct ast_binexpr final : ast_node {
+struct AstBinexpr final : AstNode {
     token_t _operator  = TOKEN_NONE;
-    ast_node* left_op  = nullptr;
-    ast_node* right_op = nullptr;
+    AstNode* left_op   = nullptr;
+    AstNode* right_op  = nullptr;
 
-    ~ast_binexpr() override;
-    ast_binexpr() : ast_node(NODE_BINEXPR) {}
+    ~AstBinexpr() override;
+    AstBinexpr() : AstNode(NODE_BINEXPR) {}
 };
 
-struct ast_if final : ast_node {
-    std::vector<ast_node*> body;
-    ast_node*              condition = nullptr;
+struct AstIf final : AstNode {
+    std::vector<AstNode*> body;
+    AstNode*              condition = nullptr;
 
-    ~ast_if() override;
-    ast_if() : ast_node(NODE_IF) {}
+    ~AstIf() override;
+    AstIf() : AstNode(NODE_IF) {}
 };
 
-struct ast_else final : ast_node {
-    std::vector<ast_node*> body;
+struct AstElse final : AstNode {
+    std::vector<AstNode*> body;
 
-    ~ast_else() override;
-    ast_else() : ast_node(NODE_ELSE) {}
+    ~AstElse() override;
+    AstElse() : AstNode(NODE_ELSE) {}
 };
 
-struct ast_branch final : ast_node {
-    std::vector<ast_if*>     conditions;               // consecutive if/else statements
-    std::optional<ast_else*> _else = std::nullopt;     // can be null!
+struct AstBranch final : AstNode {
+    std::vector<AstIf*>     conditions;               // consecutive if/else statements
+    std::optional<AstElse*> _else = std::nullopt;     // can be null!
 
-    ~ast_branch() override;
-    ast_branch() : ast_node(NODE_BRANCH) {}
+    ~AstBranch() override;
+    AstBranch() : AstNode(NODE_BRANCH) {}
 };
 
-struct ast_case final : ast_node {
-    ast_singleton_literal* value       = nullptr;
-    bool                   fallthrough = false;
-    std::vector<ast_node*> body;
+struct AstCase final : AstNode {
+    AstSingletonLiteral*  value       = nullptr;
+    bool                  fallthrough = false;
+    std::vector<AstNode*> body;
 
-    ~ast_case() override;
-    ast_case() : ast_node(NODE_CASE) {}
+    ~AstCase() override;
+    AstCase() : AstNode(NODE_CASE) {}
 };
 
-struct ast_default final : ast_node {                  // default case in switches.
-    std::vector<ast_node*> body;
+struct AstDefault final : AstNode {                  // default case in switches.
+    std::vector<AstNode*> body;
 
-    ~ast_default() override;
-    ast_default() : ast_node(NODE_DEFAULT) {}
+    ~AstDefault() override;
+    AstDefault() : AstNode(NODE_DEFAULT) {}
 };
 
-struct ast_switch final : ast_node {
-    ast_node*                   target   = nullptr;
-    ast_default*                _default = nullptr;
-    std::vector<ast_case*>      cases;
+struct AstSwitch final : AstNode {
+    AstNode*              target   = nullptr;
+    AstDefault*           _default = nullptr;
+    std::vector<AstCase*> cases;
 
-    ~ast_switch() override;
-    ast_switch() : ast_node(NODE_SWITCH) {}
+    ~AstSwitch() override;
+    AstSwitch() : AstNode(NODE_SWITCH) {}
 };
 
-struct ast_identifier final : ast_node {
+struct AstIdentifier final : AstNode {
     uint32_t symbol_index = 0;                         // INVALID_SYMBOL_INDEX
 
-    ~ast_identifier() override = default;
-    ast_identifier() : ast_node(NODE_IDENT) {}
+    ~AstIdentifier() override = default;
+    AstIdentifier() : AstNode(NODE_IDENT) {}
 };
 
-struct ast_member_access final : ast_node {
-    ast_node* target = nullptr;
+struct AstMemberAccess final : AstNode {
+    AstNode* target = nullptr;
     std::string path;
 
-    ~ast_member_access() override;
-    ast_member_access() : ast_node(NODE_MEMBER_ACCESS) {}
+    ~AstMemberAccess() override;
+    AstMemberAccess() : AstNode(NODE_MEMBER_ACCESS) {}
 };
 
-struct ast_vardecl final : ast_node {
-    ast_identifier*          identifier = nullptr;
-    std::optional<ast_node*> init_value = std::nullopt; // Can be null!
+struct AstVardecl final : AstNode {
+    AstIdentifier*          identifier = nullptr;
+    std::optional<AstNode*> init_value = std::nullopt; // Can be null!
 
-    ~ast_vardecl() override;
-    ast_vardecl() : ast_node(NODE_VARDECL) {}
+    ~AstVardecl() override;
+    AstVardecl() : AstNode(NODE_VARDECL) {}
 };
 
-struct ast_procdecl final : ast_node {
-    ast_identifier*           identifier = nullptr;
-    std::vector<ast_vardecl*> parameters;
-    std::vector<ast_node*>    body;
+struct AstProcdecl final : AstNode {
+    AstIdentifier*           identifier = nullptr;
+    std::vector<AstVardecl*> parameters;
+    std::vector<AstNode*>    body;
 
-    ~ast_procdecl() override;
-    ast_procdecl() : ast_node(NODE_PROCDECL) {}
+    ~AstProcdecl() override;
+    AstProcdecl() : AstNode(NODE_PROCDECL) {}
 };
 
-struct ast_structdef final : ast_node {
+struct AstStructdef final : AstNode {
     std::string name;
 
-    ~ast_structdef() override = default;
-    ast_structdef() : ast_node(NODE_STRUCT_DEFINITION) {}
+    ~AstStructdef() override = default;
+    AstStructdef() : AstNode(NODE_STRUCT_DEFINITION) {}
 };
 
-struct ast_call final : ast_node {
-    ast_node*              target = nullptr;
-    std::vector<ast_node*> arguments;                   // Can be empty, if the procedure is "paramless".
+struct AstCall final : AstNode {
+    AstNode*              target = nullptr;
+    std::vector<AstNode*> arguments;                   // Can be empty, if the procedure is "paramless".
 
-    ~ast_call() override;
-    ast_call() : ast_node(NODE_CALL) {}
+    ~AstCall() override;
+    AstCall() : AstNode(NODE_CALL) {}
 };
 
-struct ast_for final : ast_node {
-    std::vector<ast_node*>   body;
-    std::optional<ast_node*> init      = std::nullopt;
-    std::optional<ast_node*> condition = std::nullopt;
-    std::optional<ast_node*> update    = std::nullopt;
+struct AstFor final : AstNode {
+    std::vector<AstNode*>   body;
+    std::optional<AstNode*> init      = std::nullopt;
+    std::optional<AstNode*> condition = std::nullopt;
+    std::optional<AstNode*> update    = std::nullopt;
 
-    ~ast_for() override;
-    ast_for() : ast_node(NODE_FOR) {}
+    ~AstFor() override;
+    AstFor() : AstNode(NODE_FOR) {}
 };
 
-struct ast_unaryexpr final : ast_node {
+struct AstUnaryexpr final : AstNode {
     token_t   _operator = TOKEN_NONE;
-    ast_node* operand   = nullptr;
+    AstNode* operand    = nullptr;
 
-    ~ast_unaryexpr() override;
-    ast_unaryexpr() : ast_node(NODE_UNARYEXPR) {}
+    ~AstUnaryexpr() override;
+    AstUnaryexpr() : AstNode(NODE_UNARYEXPR) {}
 };
 
-struct ast_while final : ast_node {
-    ast_node*              condition = nullptr;
-    std::vector<ast_node*> body;
+struct AstWhile final : AstNode {
+    AstNode*              condition = nullptr;
+    std::vector<AstNode*> body;
 
-    ~ast_while() override;
-    ast_while() : ast_node(NODE_WHILE) {}
+    ~AstWhile() override;
+    AstWhile() : AstNode(NODE_WHILE) {}
 };
 
-struct ast_block final : ast_node {
-    std::vector<ast_node*> body;
+struct AstBlock final : AstNode {
+    std::vector<AstNode*> body;
 
-    ~ast_block() override;
-    ast_block() : ast_node(NODE_BLOCK) {}
+    ~AstBlock() override;
+    AstBlock() : AstNode(NODE_BLOCK) {}
 };
 
-struct ast_defer final : ast_node {
-    ast_node* call = nullptr;                      // Should always be ast_call under the hood.
+struct AstDefer final : AstNode {
+    AstNode* call = nullptr;                      // Should always be AstCall under the hood.
 
-    ~ast_defer() override;
-    ast_defer() : ast_node(NODE_DEFER) {}
+    ~AstDefer() override;
+    AstDefer() : AstNode(NODE_DEFER) {}
 };
 
-struct ast_sizeof final : ast_node {
-    std::variant<type_data, ast_node*> target = nullptr;
+struct AstDeferIf final : AstNode {
+    AstNode* call      = nullptr;                // Should always be AstCall under the hood.
+    AstNode* condition = nullptr;
 
-    ~ast_sizeof() override;
-    ast_sizeof() : ast_node(NODE_SIZEOF) {}
+    ~AstDeferIf() override;
+    AstDeferIf() : AstNode(NODE_DEFER_IF) {}
 };
 
-struct ast_dowhile final : ast_node {
-    ast_node*              condition = nullptr;
-    std::vector<ast_node*> body;
+struct AstSizeof final : AstNode {
+    std::variant<TypeData, AstNode*> target = nullptr;
 
-    ~ast_dowhile() override;
-    ast_dowhile() : ast_node(NODE_DOWHILE) {}
+    ~AstSizeof() override;
+    AstSizeof() : AstNode(NODE_SIZEOF) {}
 };
 
-struct ast_subscript final : ast_node {
-    ast_node* operand = nullptr;                   // The thing being subscripted.
-    ast_node* value   = nullptr;                   // The index value.
+struct AstDoWhile final : AstNode {
+    AstNode*              condition = nullptr;
+    std::vector<AstNode*> body;
 
-    ~ast_subscript() override;
-    ast_subscript() : ast_node(NODE_SUBSCRIPT) {}
+    ~AstDoWhile() override;
+    AstDoWhile() : AstNode(NODE_DOWHILE) {}
 };
 
-struct ast_namespacedecl final : ast_node {
+struct AstSubscript final : AstNode {
+    AstNode* operand = nullptr;                   // The thing being subscripted.
+    AstNode* value   = nullptr;                   // The index value.
+
+    ~AstSubscript() override;
+    AstSubscript() : AstNode(NODE_SUBSCRIPT) {}
+};
+
+struct AstNamespaceDecl final : AstNode {
     std::string            full_path;
-    std::vector<ast_node*> children;
+    std::vector<AstNode*>  children;
 
-    ~ast_namespacedecl() override;
-    ast_namespacedecl() : ast_node(NODE_NAMESPACEDECL) {}
+    ~AstNamespaceDecl() override;
+    AstNamespaceDecl() : AstNode(NODE_NAMESPACEDECL) {}
 };
 
-struct ast_cast final : ast_node {
-    ast_node* target = nullptr;
-    type_data type;
+struct AstCast final : AstNode {
+    AstNode* target = nullptr;
+    TypeData type;
 
-    ~ast_cast() override;
-    ast_cast() : ast_node(NODE_CAST) {}
+    ~AstCast() override;
+    AstCast() : AstNode(NODE_CAST) {}
 };
 
-struct ast_ret final : ast_node {
-    std::optional<ast_node*> value = std::nullopt; // can be null!
+struct AstRet final : AstNode {
+    std::optional<AstNode*> value = std::nullopt; // can be null!
 
-    ~ast_ret() override;
-    ast_ret() : ast_node(NODE_RET) {}
+    ~AstRet() override;
+    AstRet() : AstNode(NODE_RET) {}
 };
 
-struct ast_type_alias final : ast_node {
+struct AstTypeAlias final : AstNode {
     std::string name;
 
-    ~ast_type_alias() override = default;
-    ast_type_alias() : ast_node(NODE_TYPE_ALIAS) {}
+    ~AstTypeAlias() override = default;
+    AstTypeAlias() : AstNode(NODE_TYPE_ALIAS) {}
 };
 
-struct ast_enumdef final : ast_node {
-    ast_namespacedecl* _namespace = nullptr;
-    ast_type_alias*    alias      = nullptr;
+struct AstEnumdef final : AstNode {
+    AstNamespaceDecl* _namespace = nullptr;
+    AstTypeAlias*     alias      = nullptr;
 
-    ~ast_enumdef() override;
-    ast_enumdef() : ast_node(NODE_ENUM_DEFINITION) {}
+    ~AstEnumdef() override;
+    AstEnumdef() : AstNode(NODE_ENUM_DEFINITION) {}
 };
 
-struct ast_cont final : ast_node {
-    ~ast_cont() override = default;
-    ast_cont() : ast_node(NODE_CONT) {}
+struct AstCont final : AstNode {
+    ~AstCont() override = default;
+    AstCont() : AstNode(NODE_CONT) {}
 };
 
-struct ast_brk final : ast_node {
-    ~ast_brk() override = default;
-    ast_brk() : ast_node(NODE_BRK) {}
+struct AstBrk final : AstNode {
+    ~AstBrk() override = default;
+    AstBrk() : AstNode(NODE_BRK) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

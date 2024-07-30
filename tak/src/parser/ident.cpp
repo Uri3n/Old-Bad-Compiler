@@ -6,7 +6,7 @@
 
 
 std::optional<std::string>
-get_namespaced_identifier(lexer& lxr) {
+get_namespaced_identifier(Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
     auto full_name = std::string(lxr.current().value);
@@ -25,8 +25,8 @@ get_namespaced_identifier(lexer& lxr) {
 }
 
 
-ast_node*
-parse_identifier(parser& parser, lexer& lxr) {
+AstNode*
+parse_identifier(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
@@ -50,7 +50,7 @@ parse_identifier(parser& parser, lexer& lxr) {
     }
 
 
-    auto* ident         = new ast_identifier(); // Otherwise just return a raw identifier node
+    auto* ident         = new AstIdentifier(); // Otherwise just return a raw identifier node
     ident->symbol_index = sym_index;
     ident->pos          = curr_pos;
 

@@ -5,11 +5,11 @@
 #include <parser.hpp>
 
 
-ast_node*
-parse_cont(lexer& lxr) {
+AstNode*
+parse_cont(Lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
 
-    auto* node = new ast_cont();
+    auto* node = new AstCont();
     node->pos = lxr.current().src_pos;
 
     lxr.advance(1);
@@ -17,11 +17,11 @@ parse_cont(lexer& lxr) {
 }
 
 
-ast_node*
-parse_brk(lexer& lxr) {
+AstNode*
+parse_brk(Lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
 
-    auto* node = new ast_brk();
+    auto* node = new AstBrk();
     node->pos = lxr.current().src_pos;
 
     lxr.advance(1);
@@ -29,13 +29,13 @@ parse_brk(lexer& lxr) {
 }
 
 
-ast_node*
-parse_branch(parser &parser, lexer &lxr) {
+AstNode*
+parse_branch(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
 
     bool  state = false;
-    auto* node  = new ast_branch();
+    auto* node  = new AstBranch();
     node->pos = lxr.current().src_pos;
 
     defer_if(!state, [&] {
@@ -50,7 +50,7 @@ parse_branch(parser &parser, lexer &lxr) {
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
 
-        auto* if_stmt      = new ast_if();
+        auto* if_stmt      = new AstIf();
         if_stmt->pos       = lxr.current().src_pos;
         if_stmt->parent    = node;
         if_stmt->condition = parse_expression(parser, lxr, true);
@@ -94,7 +94,7 @@ parse_branch(parser &parser, lexer &lxr) {
 
     if(lxr.current() == TOKEN_KW_ELSE) {
 
-        auto* else_stmt   = new ast_else();
+        auto* else_stmt   = new AstElse();
         else_stmt->pos    = lxr.current().src_pos;
         else_stmt->parent = node;
         node->_else       = else_stmt;
@@ -124,8 +124,8 @@ parse_branch(parser &parser, lexer &lxr) {
 }
 
 
-ast_case*
-parse_case(parser& parser, lexer& lxr) {
+AstCase*
+parse_case(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
     parser.push_scope();
@@ -135,7 +135,7 @@ parse_case(parser& parser, lexer& lxr) {
     const uint32_t line     = lxr.current().line;
 
     bool  state       = false;
-    auto* node        = new ast_case();
+    auto* node        = new AstCase();
     node->fallthrough = lxr.current() == TOKEN_KW_FALLTHROUGH;
     node->pos         = curr_pos;
 
@@ -146,7 +146,7 @@ parse_case(parser& parser, lexer& lxr) {
 
 
     lxr.advance(1);
-    node->value = dynamic_cast<ast_singleton_literal*>(parse_expression(parser, lxr, true));
+    node->value = dynamic_cast<AstSingletonLiteral*>(parse_expression(parser, lxr, true));
 
     if(node->value == nullptr
         || node->value->literal_type == TOKEN_STRING_LITERAL
@@ -176,14 +176,14 @@ parse_case(parser& parser, lexer& lxr) {
 }
 
 
-ast_default*
-parse_default(parser& parser, lexer& lxr) {
+AstDefault*
+parse_default(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
     parser.push_scope();
 
 
-    auto* node  = new ast_default();
+    auto* node  = new AstDefault();
     bool  state = false;
     node->pos   = lxr.current().src_pos;
 
@@ -214,8 +214,8 @@ parse_default(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_switch(parser &parser, lexer &lxr) {
+AstNode*
+parse_switch(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
     lxr.advance(1);
@@ -225,7 +225,7 @@ parse_switch(parser &parser, lexer &lxr) {
     const uint32_t line     = lxr.current().line;
 
     bool  state  = false;
-    auto* node   = new ast_switch();
+    auto* node   = new AstSwitch();
     node->target = parse_expression(parser, lxr, true);
     node->pos    = curr_pos;
 
@@ -311,12 +311,12 @@ parse_switch(parser &parser, lexer &lxr) {
 }
 
 
-ast_node*
-parse_ret(parser &parser, lexer &lxr) {
+AstNode*
+parse_ret(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
 
-    auto* node = new ast_ret();
+    auto* node = new AstRet();
     node->pos  = lxr.current().src_pos;
 
     lxr.advance(1);
@@ -342,8 +342,8 @@ parse_ret(parser &parser, lexer &lxr) {
 }
 
 
-ast_node*
-parse_while(parser& parser, lexer& lxr) {
+AstNode*
+parse_while(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
 
@@ -355,7 +355,7 @@ parse_while(parser& parser, lexer& lxr) {
     const uint32_t line     = lxr.current().line;
 
     bool  state = false;
-    auto* node  = new ast_while();
+    auto* node  = new AstWhile();
     node->pos   = curr_pos;
 
     defer([&] {
@@ -419,8 +419,8 @@ parse_while(parser& parser, lexer& lxr) {
     return node;
 }
 
-ast_node*
-parse_block(parser& parser, lexer& lxr) {
+AstNode*
+parse_block(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_BLK, "Expected \"blk\" keyword.");
 
@@ -430,7 +430,7 @@ parse_block(parser& parser, lexer& lxr) {
     }
 
 
-    auto* node  = new ast_block();
+    auto* node  = new AstBlock();
     bool  state = false;
     node->pos   = lxr.current().src_pos;
 
@@ -456,17 +456,69 @@ parse_block(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_defer(parser& parser, lexer& lxr) {
+AstNode*
+parse_defer_if(Parser& parser, Lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_KW_DEFER_IF, "Expected \"defer_if\" keyword.");
+    lxr.advance(1);
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    bool  state     = false;
+    auto* node      = new AstDeferIf();
+    node->pos       = curr_pos;
+    node->condition = parse_expression(parser, lxr, true);
+
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+
+    if(node->condition == nullptr) {
+        return nullptr;
+    }
+
+    if(!VALID_SUBEXPRESSION(node->condition->type)) {
+        lxr.raise_error("Invalid subexpression used as defer_if condition.", curr_pos, line);
+        return nullptr;
+    }
+
+    if(lxr.current() != TOKEN_COMMA && lxr.current() != TOKEN_SEMICOLON) {
+        lxr.raise_error("Expected end of expression.");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    node->call = parse_expression(parser, lxr, true);
+    if(node->call == nullptr) {
+        return nullptr;
+    }
+
+    if(node->call->type != NODE_CALL) {
+        lxr.raise_error("defer_if statement does not have a valid procedure call following its condition.", curr_pos, line);
+        return nullptr;
+    }
+
+
+    node->condition->parent = node;
+    node->call->parent      = node;
+
+    state = true;
+    return node;
+}
+
+
+AstNode*
+parse_defer(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DEFER, "Expected \"defer\" keyword.");
-
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
 
     bool  state = false;
-    auto* node  = new ast_defer();
+    auto* node  = new AstDefer();
     node->pos   = curr_pos;
 
     defer_if(!state, [&] {
@@ -490,8 +542,8 @@ parse_defer(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_dowhile(parser& parser, lexer& lxr) {
+AstNode*
+parse_dowhile(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DO, "Expected \"do\" keyword.");
 
@@ -502,7 +554,7 @@ parse_dowhile(parser& parser, lexer& lxr) {
 
 
     bool  state = false;
-    auto* node  = new ast_dowhile();
+    auto* node  = new AstDoWhile();
     node->pos   = lxr.current().src_pos;
 
     defer([&] {
@@ -546,8 +598,8 @@ parse_dowhile(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_for(parser& parser, lexer& lxr) {
+AstNode*
+parse_for(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
 
@@ -555,7 +607,7 @@ parse_for(parser& parser, lexer& lxr) {
     parser.push_scope();
 
 
-    auto* node  = new ast_for();
+    auto* node  = new AstFor();
     bool  state = false;
     node->pos   = lxr.current().src_pos;
 

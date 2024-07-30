@@ -6,7 +6,7 @@
 
 
 void
-lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
+Lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
 
     size_t line_start = file_position;
     size_t line_end   = file_position;
@@ -54,16 +54,16 @@ lexer::_raise_error_impl(const std::string& message, size_t file_position, const
 
 
 void
-lexer::raise_error(const std::string& message) {
+Lexer::raise_error(const std::string& message) {
     _raise_error_impl(message, current_.src_pos, current_.line);
 }
 
 void
-lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
+Lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
     _raise_error_impl(message, file_position, line);
 }
 
 void
-lexer::raise_error(const std::string& message, const size_t file_position) {
+Lexer::raise_error(const std::string& message, const size_t file_position) {
     _raise_error_impl(message, file_position, 0);
 }

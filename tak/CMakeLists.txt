@@ -10,35 +10,35 @@ add_executable(tak src/main.cpp
         src/lexer/tokens.cpp
         src/lexer/ambiguous_token.cpp
         src/lexer/report_error.cpp
-
         src/parser/symtbl.cpp
         src/parser/dump.cpp
         src/parser/decl.cpp
         src/parser/expr.cpp
         src/parser/ctrlflow.cpp
         src/parser/type.cpp
-        src/parser/misc.cpp
         src/parser/typetbl.cpp
         src/parser/namespaces.cpp
         src/parser/ident.cpp
         src/parser/directive.cpp
         src/parser/enumdef.cpp
         src/parser/structdef.cpp
-
+        src/utils/basic_utility.cpp
+        src/utils/destructors.cpp
+        src/checker/report_error.cpp
+        src/checker/get.cpp
+        src/checker/convert.cpp
+        src/checker/verify.cpp
         src/checker/visit.cpp
-        src/checker/typecheck.cpp
 
         include/token.hpp
-        include/lexer.hpp
+        include/Lexer.hpp
         include/io.hpp
         include/defer.hpp
         include/parser.hpp
         include/ast_types.hpp
         include/var_types.hpp
         include/checker.hpp
-        src/checker/report_error.cpp
         include/panic.hpp
-        src/utils/basic_utility.cpp
         include/utils.hpp
 )
 

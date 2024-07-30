@@ -6,9 +6,9 @@
 
 
 bool
-check_tree(parser& parser, lexer& lxr) {
+visit_tree(Parser& parser, Lexer& lxr) {
 
-    checker_context ctx(lxr, parser);
+    CheckerContext ctx(lxr, parser);
 
     for(const auto& decl : parser.toplevel_decls_) {
         if(NODE_NEEDS_VISITING(decl->type)) {
@@ -26,8 +26,8 @@ check_tree(parser& parser, lexer& lxr) {
 }
 
 
-std::optional<type_data>
-visit_binexpr(ast_binexpr* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -40,7 +40,7 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
         && node->_operator      == TOKEN_VALUE_ASSIGNMENT
         && can_operator_be_applied_to(TOKEN_VALUE_ASSIGNMENT, *left_t)
     ) {
-        check_structassign_bracedexpr(*left_t, dynamic_cast<ast_braced_expression*>(node->right_op), ctx);
+        assign_bracedexpr_to_struct(*left_t, dynamic_cast<AstBracedExpression*>(node->right_op), ctx);
         left_t->flags |=  TYPE_RVALUE;
         return *left_t;
     }
@@ -51,7 +51,7 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
     }
 
 
-    const auto op_as_str    = lexer_token_to_string(node->_operator);
+    const auto op_as_str    = token_to_string(node->_operator);
     const auto left_as_str  = typedata_to_str_msg(*left_t);
     const auto right_as_str = typedata_to_str_msg(*right_t);
 
@@ -73,7 +73,7 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
 
 
     if(TOKEN_OP_IS_LOGICAL(node->_operator)) {
-        type_data constbool;
+        TypeData constbool;
         constbool.name   = VAR_BOOLEAN;
         constbool.kind   = TYPE_KIND_VARIABLE;
         constbool.flags  = TYPE_CONSTANT | TYPE_RVALUE;
@@ -86,8 +86,8 @@ visit_binexpr(ast_binexpr* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_unaryexpr(ast_unaryexpr* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->operand != nullptr);
@@ -97,7 +97,7 @@ visit_unaryexpr(ast_unaryexpr* node, checker_context& ctx) {
         return std::nullopt;
     }
 
-    const auto op_as_str   = lexer_token_to_string(node->_operator);
+    const auto op_as_str   = token_to_string(node->_operator);
     const auto type_as_str = typedata_to_str_msg(*operand_t);
 
 
@@ -144,7 +144,7 @@ visit_unaryexpr(ast_unaryexpr* node, checker_context& ctx) {
             return std::nullopt;
         }
 
-        type_data constbool;
+        TypeData constbool;
         constbool.name   = VAR_BOOLEAN;
         constbool.kind   = TYPE_KIND_VARIABLE;
         constbool.flags  = TYPE_CONSTANT | TYPE_RVALUE;
@@ -175,8 +175,8 @@ visit_unaryexpr(ast_unaryexpr* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_identifier(const ast_identifier* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_identifier(const AstIdentifier* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto* sym = ctx.parser_.lookup_unique_symbol(node->symbol_index);
@@ -190,17 +190,23 @@ visit_identifier(const ast_identifier* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_singleton_literal(ast_singleton_literal* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-    type_data data;
+    TypeData data;
 
     switch(node->literal_type) {
         case TOKEN_STRING_LITERAL:
             data.name          = VAR_I8;
             data.pointer_depth = 1;
             data.flags        |= TYPE_POINTER;
+            break;
+
+        case TOKEN_KW_NULLPTR:
+            data.name          = VAR_VOID;
+            data.pointer_depth = 1;
+            data.flags        |= TYPE_POINTER | TYPE_NON_CONCRETE;
             break;
 
         case TOKEN_FLOAT_LITERAL:
@@ -231,20 +237,20 @@ visit_singleton_literal(ast_singleton_literal* node, checker_context& ctx) {
 
 
 static void
-initialize_symbol(symbol* sym) {
+initialize_symbol(Symbol* sym) {
     if(sym->type.flags & TYPE_UNINITIALIZED) {
         sym->type.flags &= ~TYPE_UNINITIALIZED;
     }
 }
 
 
-std::optional<type_data>
-checker_handle_arraydecl(symbol* sym, const ast_vardecl* decl, checker_context& ctx) {
+std::optional<TypeData>
+checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
 
     assert(sym != nullptr && decl != nullptr);
     assert(decl->init_value);
 
-    const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(*decl->init_value), ctx);
+    const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx);
     if(!array_t) {
         ctx.raise_error("Could not deduce type of righthand expression.", decl->pos);
         return std::nullopt;
@@ -270,18 +276,18 @@ checker_handle_arraydecl(symbol* sym, const ast_vardecl* decl, checker_context& 
 }
 
 
-std::optional<type_data>
-checker_handle_inferred_decl(symbol* sym, const ast_vardecl* decl, checker_context& ctx) {
+std::optional<TypeData>
+checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
 
     assert(sym != nullptr && decl != nullptr);
     assert(sym->type.flags & TYPE_INFERRED);
     assert(decl->init_value.has_value());
 
-    std::optional<type_data> assigned_t;
+    std::optional<TypeData> assigned_t;
 
 
     if((*decl->init_value)->type == NODE_BRACED_EXPRESSION) {
-        assigned_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(*decl->init_value), ctx);
+        assigned_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx);
     } else {
         assigned_t = visit_node(*decl->init_value, ctx);
     }
@@ -309,8 +315,8 @@ checker_handle_inferred_decl(symbol* sym, const ast_vardecl* decl, checker_conte
 }
 
 
-std::optional<type_data>
-visit_vardecl(const ast_vardecl* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->identifier != nullptr);
@@ -339,7 +345,7 @@ visit_vardecl(const ast_vardecl* node, checker_context& ctx) {
     }
 
     if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.kind == TYPE_KIND_STRUCT) {
-        check_structassign_bracedexpr(sym->type, dynamic_cast<ast_braced_expression*>(*node->init_value), ctx);
+        assign_bracedexpr_to_struct(sym->type, dynamic_cast<AstBracedExpression*>(*node->init_value), ctx);
         initialize_symbol(sym);
         return sym->type;
     }
@@ -367,8 +373,8 @@ visit_vardecl(const ast_vardecl* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_cast(const ast_cast* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_cast(const AstCast* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto  target_t = visit_node(node->target, ctx);
@@ -390,8 +396,8 @@ visit_cast(const ast_cast* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_procdecl(const ast_procdecl* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_procdecl(const AstProcdecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -405,8 +411,8 @@ visit_procdecl(const ast_procdecl* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_call(const ast_call* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_call(const AstCall* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -473,14 +479,14 @@ visit_call(const ast_call* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_ret(const ast_ret* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_ret(const AstRet* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
-    const ast_node*     itr  = node;
-    const ast_procdecl* proc = nullptr;
-    const symbol*       sym  = nullptr;
+    const AstNode*     itr  = node;
+    const AstProcdecl* proc = nullptr;
+    const Symbol*       sym  = nullptr;
 
     do {
         assert(itr->parent.has_value());
@@ -488,7 +494,7 @@ visit_ret(const ast_ret* node, checker_context& ctx) {
     } while(itr->type != NODE_PROCDECL);
 
 
-    proc = dynamic_cast<const ast_procdecl*>(itr);
+    proc = dynamic_cast<const AstProcdecl*>(itr);
     assert(proc != nullptr);
     sym  = ctx.parser_.lookup_unique_symbol(proc->identifier->symbol_index);
     assert(sym != nullptr);
@@ -527,8 +533,8 @@ visit_ret(const ast_ret* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_member_access(const ast_member_access* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto target_t = visit_node(node->target, ctx);
@@ -550,31 +556,52 @@ visit_member_access(const ast_member_access* node, checker_context& ctx) {
         return *member_type;
     }
 
-    ctx.raise_error(fmt("Struct member \"{}\" within type \"{}\" does not exist.", node->path, typedata_to_str_msg(*target_t)), node->pos);
+    ctx.raise_error(fmt("Cannot access \"{}\" within type \"{}\".", node->path, typedata_to_str_msg(*target_t)), node->pos);
     return std::nullopt;
 }
 
 
-std::optional<type_data>
-visit_defer(const ast_defer* node,  checker_context& ctx) {
+std::optional<TypeData>
+visit_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
+
+    assert(node != nullptr);
+
+    const auto condition_t = visit_node(node->condition, ctx);
+    const auto call_t      = visit_node(node->call, ctx);
+
+    if(!condition_t) {
+        ctx.raise_error("defer_if condition does not produce a type.", node->condition->pos);
+        return std::nullopt;
+    }
+
+    if(!is_type_lop_eligible(*condition_t)) {
+        ctx.raise_error(fmt("Type {} cannot be used as a logical expression.", typedata_to_str_msg(*condition_t)), node->condition->pos);
+    }
+
+    return call_t;
+}
+
+
+std::optional<TypeData>
+visit_defer(const AstDefer* node,  CheckerContext& ctx) {
 
     assert(node != nullptr);
     return visit_node(node->call, ctx); // Not much to do here. We just need to typecheck the wrapped call node
 }
 
 
-std::optional<type_data>
-visit_sizeof(const ast_sizeof* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_sizeof(const AstSizeof* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-    if(const auto* is_child_node = std::get_if<ast_node*>(&node->target)) {
+    if(const auto* is_child_node = std::get_if<AstNode*>(&node->target)) {
         if(!visit_node(*is_child_node, ctx)) {
             ctx.raise_error("Expression does not evaluate to a type.", (*is_child_node)->pos);
             return std::nullopt;
         }
     }
 
-    type_data const_int;
+    TypeData const_int;
     const_int.kind   = TYPE_KIND_VARIABLE;
     const_int.name   = VAR_U8;
     const_int.flags |= TYPE_RVALUE | TYPE_CONSTANT | TYPE_NON_CONCRETE;
@@ -583,11 +610,11 @@ visit_sizeof(const ast_sizeof* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_namespacedecl(const ast_namespacedecl* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-    for(ast_node* child : node->children) {
+    for(AstNode* child : node->children) {
         if(NODE_NEEDS_VISITING(child->type)) {
             visit_node(child, ctx);
         }
@@ -597,11 +624,11 @@ visit_namespacedecl(const ast_namespacedecl* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_block(const ast_block* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_block(const AstBlock* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-    for(ast_node* child : node->body) {
+    for(AstNode* child : node->body) {
         if(NODE_NEEDS_VISITING(child->type)) {
             visit_node(child, ctx);
         }
@@ -611,11 +638,11 @@ visit_block(const ast_block* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_branch(const ast_branch* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_branch(const AstBranch* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-    for(const ast_if* _if : node->conditions) {
+    for(const AstIf* _if : node->conditions) {
         const auto condition_t = visit_node(_if->condition, ctx);
         if(!condition_t) {
             ctx.raise_error("Invalid branch condition: contained expression does not produce a type.", _if->pos);
@@ -627,13 +654,13 @@ visit_branch(const ast_branch* node, checker_context& ctx) {
             ctx.raise_error(fmt("Type {} cannot be used as a logical expression.", cond_str), _if->condition->pos);
         }
 
-        for(ast_node* branch_child : _if->body) {
+        for(AstNode* branch_child : _if->body) {
             if(NODE_NEEDS_VISITING(branch_child->type)) visit_node(branch_child, ctx);
         }
     }
 
     if(node->_else) {
-        for(ast_node* branch_child : (*node->_else)->body) {
+        for(AstNode* branch_child : (*node->_else)->body) {
             if(NODE_NEEDS_VISITING(branch_child->type)) visit_node(branch_child, ctx);
         }
     }
@@ -642,8 +669,8 @@ visit_branch(const ast_branch* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_for(const ast_for* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_for(const AstFor* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     if(node->init) {
@@ -670,8 +697,8 @@ visit_for(const ast_for* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_switch(const ast_switch* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_switch(const AstSwitch* node, CheckerContext& ctx) {
 
     assert(node != nullptr && node->target != nullptr);
     auto target_t = visit_node(node->target, ctx);
@@ -689,7 +716,7 @@ visit_switch(const ast_switch* node, checker_context& ctx) {
     }
 
 
-    for(ast_case* _case : node->cases) {
+    for(AstCase* _case : node->cases) {
         const auto case_t = visit_node(_case->value, ctx);
         if(!case_t) {
             ctx.raise_error("Case value does not produce a type.", _case->pos);
@@ -700,12 +727,12 @@ visit_switch(const ast_switch* node, checker_context& ctx) {
             ctx.raise_error(fmt("Cannot coerce type of case value ({}) to {}.", typedata_to_str_msg(*case_t), target_t_str), _case->pos);
         }
 
-        for(ast_node* child : _case->body) {
+        for(AstNode* child : _case->body) {
             if(NODE_NEEDS_VISITING(child->type)) visit_node(child, ctx);
         }
     }
 
-    for(ast_node* child : node->_default->body) {
+    for(AstNode* child : node->_default->body) {
         if(NODE_NEEDS_VISITING(child->type)) visit_node(child, ctx);
     }
 
@@ -713,21 +740,21 @@ visit_switch(const ast_switch* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_while(ast_node* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_while(AstNode* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->type == NODE_WHILE || node->type == NODE_DOWHILE);
 
 
-    const std::vector<ast_node*>* branch_body = nullptr;
-    ast_node* condition                       = nullptr;
+    const std::vector<AstNode*>* branch_body = nullptr;
+    AstNode* condition                       = nullptr;
 
-    if(const auto* _while = dynamic_cast<ast_while*>(node)) { // Could also just use templates but... eh.
+    if(const auto* _while = dynamic_cast<AstWhile*>(node)) { // Could also just use templates but... eh.
         condition   = _while->condition;
         branch_body = &_while->body;
     }
-    else if(const auto* _dowhile = dynamic_cast<ast_dowhile*>(node)) {
+    else if(const auto* _dowhile = dynamic_cast<AstDoWhile*>(node)) {
         condition   = _dowhile->condition;
         branch_body = &_dowhile->body;
     }
@@ -747,7 +774,7 @@ visit_while(ast_node* node, checker_context& ctx) {
         ctx.raise_error(fmt("Type {} cannot be used as a condition for a while-loop.", typedata_to_str_msg(*condition_t)), condition->pos);
     }
 
-    for(ast_node* child : *branch_body) {
+    for(AstNode* child : *branch_body) {
         if(NODE_NEEDS_VISITING(child->type)) visit_node(child, ctx);
     }
 
@@ -755,8 +782,8 @@ visit_while(ast_node* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_subscript(const ast_subscript* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_subscript(const AstSubscript* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -788,31 +815,32 @@ visit_subscript(const ast_subscript* node, checker_context& ctx) {
 }
 
 
-std::optional<type_data>
-visit_node(ast_node* node, checker_context& ctx) {
+std::optional<TypeData>
+visit_node(AstNode* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->type != NODE_NONE);
 
     switch(node->type) {
-        case NODE_VARDECL:           return visit_vardecl(dynamic_cast<ast_vardecl*>(node), ctx);
-        case NODE_PROCDECL:          return visit_procdecl(dynamic_cast<ast_procdecl*>(node), ctx);
-        case NODE_BINEXPR:           return visit_binexpr(dynamic_cast<ast_binexpr*>(node), ctx);
-        case NODE_UNARYEXPR:         return visit_unaryexpr(dynamic_cast<ast_unaryexpr*>(node), ctx);
-        case NODE_SINGLETON_LITERAL: return visit_singleton_literal(dynamic_cast<ast_singleton_literal*>(node), ctx);
-        case NODE_IDENT:             return visit_identifier(dynamic_cast<ast_identifier*>(node), ctx);
-        case NODE_CAST:              return visit_cast(dynamic_cast<ast_cast*>(node), ctx);
-        case NODE_BRANCH:            return visit_branch(dynamic_cast<ast_branch*>(node), ctx);
-        case NODE_FOR:               return visit_for(dynamic_cast<ast_for*>(node), ctx);
-        case NODE_SWITCH:            return visit_switch(dynamic_cast<ast_switch*>(node), ctx);
-        case NODE_BLOCK:             return visit_block(dynamic_cast<ast_block*>(node), ctx);
-        case NODE_CALL:              return visit_call(dynamic_cast<ast_call*>(node), ctx);
-        case NODE_RET:               return visit_ret(dynamic_cast<ast_ret*>(node), ctx);
-        case NODE_DEFER:             return visit_defer(dynamic_cast<ast_defer*>(node), ctx);
-        case NODE_SIZEOF:            return visit_sizeof(dynamic_cast<ast_sizeof*>(node), ctx);
-        case NODE_SUBSCRIPT:         return visit_subscript(dynamic_cast<ast_subscript*>(node), ctx);
-        case NODE_NAMESPACEDECL:     return visit_namespacedecl(dynamic_cast<ast_namespacedecl*>(node), ctx);
-        case NODE_MEMBER_ACCESS:     return visit_member_access(dynamic_cast<ast_member_access*>(node), ctx);
+        case NODE_VARDECL:           return visit_vardecl(dynamic_cast<AstVardecl*>(node), ctx);
+        case NODE_PROCDECL:          return visit_procdecl(dynamic_cast<AstProcdecl*>(node), ctx);
+        case NODE_BINEXPR:           return visit_binexpr(dynamic_cast<AstBinexpr*>(node), ctx);
+        case NODE_UNARYEXPR:         return visit_unaryexpr(dynamic_cast<AstUnaryexpr*>(node), ctx);
+        case NODE_SINGLETON_LITERAL: return visit_singleton_literal(dynamic_cast<AstSingletonLiteral*>(node), ctx);
+        case NODE_IDENT:             return visit_identifier(dynamic_cast<AstIdentifier*>(node), ctx);
+        case NODE_CAST:              return visit_cast(dynamic_cast<AstCast*>(node), ctx);
+        case NODE_BRANCH:            return visit_branch(dynamic_cast<AstBranch*>(node), ctx);
+        case NODE_FOR:               return visit_for(dynamic_cast<AstFor*>(node), ctx);
+        case NODE_SWITCH:            return visit_switch(dynamic_cast<AstSwitch*>(node), ctx);
+        case NODE_BLOCK:             return visit_block(dynamic_cast<AstBlock*>(node), ctx);
+        case NODE_CALL:              return visit_call(dynamic_cast<AstCall*>(node), ctx);
+        case NODE_RET:               return visit_ret(dynamic_cast<AstRet*>(node), ctx);
+        case NODE_DEFER:             return visit_defer(dynamic_cast<AstDefer*>(node), ctx);
+        case NODE_DEFER_IF:          return visit_defer_if(dynamic_cast<AstDeferIf*>(node), ctx);
+        case NODE_SIZEOF:            return visit_sizeof(dynamic_cast<AstSizeof*>(node), ctx);
+        case NODE_SUBSCRIPT:         return visit_subscript(dynamic_cast<AstSubscript*>(node), ctx);
+        case NODE_NAMESPACEDECL:     return visit_namespacedecl(dynamic_cast<AstNamespaceDecl*>(node), ctx);
+        case NODE_MEMBER_ACCESS:     return visit_member_access(dynamic_cast<AstMemberAccess*>(node), ctx);
         case NODE_WHILE:             return visit_while(node, ctx);
         case NODE_DOWHILE:           return visit_while(node, ctx);
         case NODE_BRACED_EXPRESSION: return std::nullopt;

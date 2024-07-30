@@ -33,10 +33,10 @@ display_fake_node(const std::string& name, std::string& node_title, uint32_t& de
 }
 
 static void
-display_node_vardecl(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
+display_node_vardecl(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
 
     node_title += "Variable Declaration";
-    const auto* vardecl = dynamic_cast<ast_vardecl*>(node);
+    const auto* vardecl = dynamic_cast<AstVardecl*>(node);
 
     if(vardecl == nullptr) {
         node_title += " !! INVALID NODE TYPE";
@@ -53,9 +53,9 @@ display_node_vardecl(ast_node* node, std::string& node_title, const uint32_t dep
 }
 
 static void
-display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_procdecl(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* procdecl = dynamic_cast<ast_procdecl*>(node);
+    const auto* procdecl = dynamic_cast<AstProcdecl*>(node);
 
     if(procdecl == nullptr) {
         node_title += " !! INVALID NODE TYPE";
@@ -79,14 +79,14 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
 
     if(!procdecl->parameters.empty()) {
         print("{}Parameters", node_title);
-        for(ast_node* param : procdecl->parameters) {
+        for(AstNode* param : procdecl->parameters) {
             display_node_data(param, depth + 1, _);
         }
     }
 
     if(!procdecl->body.empty()) {
         print("{}Procedure Body", node_title);
-        for(ast_node* child : procdecl->body) {
+        for(AstNode* child : procdecl->body) {
             display_node_data(child, depth + 1, _);
         }
     }
@@ -94,9 +94,9 @@ display_node_procdecl(ast_node* node, std::string& node_title, uint32_t depth, p
 
 
 static void
-display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
+display_node_binexpr(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* binexpr = dynamic_cast<ast_binexpr*>(node);
+    const auto* binexpr = dynamic_cast<AstBinexpr*>(node);
 
     if(binexpr == nullptr) {
         node_title += "(Binary Expression) !! INVALID NODE TYPE";
@@ -104,7 +104,7 @@ display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t dep
         return;
     }
 
-    node_title += lexer_token_type_to_string(binexpr->_operator);
+    node_title += token_type_to_string(binexpr->_operator);
     print("{} (Binary Expression)", node_title);
 
     display_node_data(binexpr->left_op, depth + 1, _);
@@ -112,9 +112,9 @@ display_node_binexpr(ast_node* node, std::string& node_title, const uint32_t dep
 }
 
 static void
-display_node_unaryexpr(ast_node* node, std::string& node_title, const uint32_t depth, parser& _) {
+display_node_unaryexpr(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* unaryexpr = dynamic_cast<ast_unaryexpr*>(node);
+    const auto* unaryexpr = dynamic_cast<AstUnaryexpr*>(node);
 
     if(unaryexpr == nullptr) {
         node_title += "(Unary Expression) !! INVALID NODE TYPE";
@@ -122,16 +122,16 @@ display_node_unaryexpr(ast_node* node, std::string& node_title, const uint32_t d
         return;
     }
 
-    node_title += lexer_token_type_to_string(unaryexpr->_operator);
+    node_title += token_type_to_string(unaryexpr->_operator);
     print("{} (Unary Expression)", node_title);
 
     display_node_data(unaryexpr->operand, depth + 1, _);
 }
 
 static void
-display_node_identifier(ast_node* node, std::string& node_title, parser& parser) {
+display_node_identifier(AstNode* node, std::string& node_title, Parser& parser) {
 
-    const auto* ident = dynamic_cast<ast_identifier*>(node);
+    const auto* ident = dynamic_cast<AstIdentifier*>(node);
 
     if(ident == nullptr) {
         node_title += "(Ident) !! INVALID NODE TYPE";
@@ -139,7 +139,7 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
         return;
     }
 
-    const symbol* sym_ptr = parser.lookup_unique_symbol(ident->symbol_index);
+    const Symbol* sym_ptr = parser.lookup_unique_symbol(ident->symbol_index);
     if(sym_ptr == nullptr) {
         node_title += fmt("(Ident) (Sym Index {}) !! NOT IN SYMBOL TABLE", ident->symbol_index);
         print("{}", node_title);
@@ -170,9 +170,9 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
 }
 
 static void
-display_node_literal(ast_node* node, std::string& node_title) {
+display_node_literal(AstNode* node, std::string& node_title) {
 
-    const auto* lit = dynamic_cast<ast_singleton_literal*>(node);
+    const auto* lit = dynamic_cast<AstSingletonLiteral*>(node);
 
     if(lit == nullptr) {
         node_title += "(Literal) !! INVALID NODE TYPE";
@@ -180,14 +180,14 @@ display_node_literal(ast_node* node, std::string& node_title) {
         return;
     }
 
-    node_title += fmt("{} ({})", lit->value, lexer_token_type_to_string(lit->literal_type));
+    node_title += fmt("{} ({})", lit->value, token_type_to_string(lit->literal_type));
     print("{}", node_title);
 }
 
 static void
-display_node_call(ast_node* node, std::string& node_title, uint32_t depth, parser& parser) {
+display_node_call(AstNode* node, std::string& node_title, uint32_t depth, Parser& parser) {
 
-    const auto* call = dynamic_cast<ast_call*>(node);
+    const auto* call = dynamic_cast<AstCall*>(node);
     if(call == nullptr) {
         print("{} (Call) !! INVALID NODE TYPE", node_title);
         return;
@@ -201,15 +201,15 @@ display_node_call(ast_node* node, std::string& node_title, uint32_t depth, parse
         display_fake_node("Arguments", node_title, depth);
     }
 
-    for(ast_node* arg : call->arguments) {
+    for(AstNode* arg : call->arguments) {
         display_node_data(arg, depth + 1, parser);
     }
 }
 
 static void
-display_node_brk(ast_node* node, const std::string& node_title) {
+display_node_brk(AstNode* node, const std::string& node_title) {
 
-    const auto* brk = dynamic_cast<ast_brk*>(node);
+    const auto* brk = dynamic_cast<AstBrk*>(node);
     if(brk == nullptr) {
         print("{} (Break) !! INVALID NODE TYPE", node_title);
         return;
@@ -219,9 +219,9 @@ display_node_brk(ast_node* node, const std::string& node_title) {
 }
 
 static void
-display_node_cont(ast_node* node, const std::string& node_title) {
+display_node_cont(AstNode* node, const std::string& node_title) {
 
-    const auto* cont = dynamic_cast<ast_cont*>(node);
+    const auto* cont = dynamic_cast<AstCont*>(node);
     if(cont == nullptr) {
         print("{} (Continue) !! INVALID NODE TYPE", node_title);
         return;
@@ -231,9 +231,9 @@ display_node_cont(ast_node* node, const std::string& node_title) {
 }
 
 static void
-display_node_ret(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_ret(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* ret = dynamic_cast<ast_ret*>(node);
+    const auto* ret = dynamic_cast<AstRet*>(node);
     if(ret == nullptr) {
         print("{} (Return) !! INVALID NODE TYPE", node_title);
         return;
@@ -246,9 +246,9 @@ display_node_ret(ast_node* node, const std::string& node_title, const uint32_t d
 }
 
 static void
-display_node_structdef(ast_node* node, const std::string& node_title) {
+display_node_structdef(AstNode* node, const std::string& node_title) {
 
-    const auto* _struct = dynamic_cast<ast_structdef*>(node);
+    const auto* _struct = dynamic_cast<AstStructdef*>(node);
     if(_struct == nullptr) {
         print("{} (Struct Definition) !! INVALID NODE TYPE", node_title);
         return;
@@ -258,31 +258,31 @@ display_node_structdef(ast_node* node, const std::string& node_title) {
 }
 
 static void
-display_node_braced_expression(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_braced_expression(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* expr = dynamic_cast<ast_braced_expression*>(node);
+    const auto* expr = dynamic_cast<AstBracedExpression*>(node);
     if(expr == nullptr) {
         print("{} (Braced Expression) !! INVALID NODE TYPE", node_title);
         return;
     }
 
     print("{}Braced Expression", node_title);
-    for(ast_node* member : expr->members) {
+    for(AstNode* member : expr->members) {
         display_node_data(member, depth + 1, _);
     }
 }
 
 static void
-display_node_branch(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_branch(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* branch = dynamic_cast<ast_branch*>(node);
+    const auto* branch = dynamic_cast<AstBranch*>(node);
     if(branch == nullptr) {
         print("{} (Branch) !! INVALID NODE TYPE", node_title);
         return;
     }
 
     print("{}Branch", node_title);
-    for(ast_node* if_stmt : branch->conditions) {
+    for(AstNode* if_stmt : branch->conditions) {
         display_node_data(if_stmt, depth + 1, _);
     }
 
@@ -292,9 +292,9 @@ display_node_branch(ast_node* node, const std::string& node_title, const uint32_
 }
 
 static void
-display_node_if(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_if(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* if_stmt = dynamic_cast<ast_if*>(node);
+    const auto* if_stmt = dynamic_cast<AstIf*>(node);
     if(if_stmt == nullptr) {
         print("{} (If) !! INVALID NODE TYPE", node_title);
         return;
@@ -304,15 +304,15 @@ display_node_if(ast_node* node, std::string& node_title, uint32_t depth, parser&
     display_node_data(if_stmt->condition, depth + 1, _);
     display_fake_node("Body", node_title, depth);
 
-    for(ast_node* expr :  if_stmt->body) {
+    for(AstNode* expr :  if_stmt->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_while(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_while(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* _while = dynamic_cast<ast_while*>(node);
+    const auto* _while = dynamic_cast<AstWhile*>(node);
     if(_while == nullptr) {
         print("{} (While) !! INVALID NODE TYPE", node_title);
         return;
@@ -322,15 +322,15 @@ display_node_while(ast_node* node, std::string& node_title, uint32_t depth, pars
     display_node_data(_while->condition, depth + 1, _);
     display_fake_node("Body", node_title, depth);
 
-    for(ast_node* expr : _while->body) {
+    for(AstNode* expr : _while->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_else(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_else(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* else_stmt = dynamic_cast<ast_else*>(node);
+    const auto* else_stmt = dynamic_cast<AstElse*>(node);
     if(else_stmt == nullptr) {
         print("{} (Else) !! INVALID NODE TYPE", node_title);
         return;
@@ -339,15 +339,15 @@ display_node_else(ast_node* node, std::string& node_title, uint32_t depth, parse
     print("{}Else", node_title);
     display_fake_node("Body", node_title, depth);
 
-    for(ast_node* expr :  else_stmt->body) {
+    for(AstNode* expr :  else_stmt->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_case(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_case(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* _case = dynamic_cast<ast_case*>(node);
+    const auto* _case = dynamic_cast<AstCase*>(node);
     if(_case == nullptr) {
         print("{} (Default) !! INVALID NODE TYPE", node_title);
         return;
@@ -356,15 +356,15 @@ display_node_case(ast_node* node, std::string& node_title, uint32_t depth, parse
     print("{}Case {} (Fallthrough={})", node_title, _case->value->value, _case->fallthrough ? "True" : "False");
     display_fake_node("Body", node_title, depth);
 
-    for(ast_node* expr : _case->body) {
+    for(AstNode* expr : _case->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_default(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_default(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* _default = dynamic_cast<ast_default*>(node);
+    const auto* _default = dynamic_cast<AstDefault*>(node);
     if(_default == nullptr) {
         print("{} (Default) !! INVALID NODE TYPE", node_title);
         return;
@@ -373,15 +373,15 @@ display_node_default(ast_node* node, std::string& node_title, uint32_t depth, pa
     print("{}Default", node_title);
     display_fake_node("Body", node_title, depth);
 
-    for(ast_node* expr : _default->body) {
+    for(AstNode* expr : _default->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_switch(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_switch(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* _switch = dynamic_cast<ast_switch*>(node);
+    const auto* _switch = dynamic_cast<AstSwitch*>(node);
     if(_switch == nullptr) {
         print("{} (Switch) !! INVALID NODE TYPE", node_title);
         return;
@@ -390,7 +390,7 @@ display_node_switch(ast_node* node, const std::string& node_title, const uint32_
     print("{}Switch", node_title);
 
     display_node_data(_switch->target, depth + 1, _);
-    for(ast_node* _case : _switch->cases) {
+    for(AstNode* _case : _switch->cases) {
         display_node_data(_case, depth + 1, _);
     }
 
@@ -398,9 +398,9 @@ display_node_switch(ast_node* node, const std::string& node_title, const uint32_
 }
 
 static void
-display_node_for(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_for(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* _for = dynamic_cast<ast_for*>(node);
+    const auto* _for = dynamic_cast<AstFor*>(node);
     if(_for == nullptr) {
         print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
@@ -433,15 +433,15 @@ display_node_for(ast_node* node, std::string& node_title, uint32_t depth, parser
 
 
     display_fake_node("Body", node_title, depth);
-    for(ast_node* expr : _for->body) {
+    for(AstNode* expr : _for->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_subscript(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_subscript(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* subscript = dynamic_cast<ast_subscript*>(node);
+    const auto* subscript = dynamic_cast<AstSubscript*>(node);
     if(subscript == nullptr) {
         print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
@@ -453,39 +453,39 @@ display_node_subscript(ast_node* node, const std::string& node_title, const uint
 }
 
 static void
-display_node_block(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_block(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* block = dynamic_cast<ast_block*>(node);
+    const auto* block = dynamic_cast<AstBlock*>(node);
     if(block == nullptr) {
         print("{} (Block) !! INVALID NODE TYPE", node_title);
         return;
     }
 
     print("{}Scope Block", node_title);
-    for(ast_node* child : block->body) {
+    for(AstNode* child : block->body) {
         display_node_data(child, depth + 1, _);
     }
 }
 
 static void
-display_node_namespacedecl(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_namespacedecl(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* _namespace = dynamic_cast<ast_namespacedecl*>(node);
+    const auto* _namespace = dynamic_cast<AstNamespaceDecl*>(node);
     if(_namespace == nullptr) {
         print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
     }
 
     print("{}{} (Namespace Decl)", node_title, _namespace->full_path);
-    for(ast_node* expr : _namespace->children) {
+    for(AstNode* expr : _namespace->children) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_dowhile(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_dowhile(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* dowhile = dynamic_cast<ast_dowhile*>(node);
+    const auto* dowhile = dynamic_cast<AstDoWhile*>(node);
     if(dowhile == nullptr) {
         print("{} (Do-While) !! INVALID NODE TYPE", node_title);
         return;
@@ -496,7 +496,7 @@ display_node_dowhile(ast_node* node, const std::string& node_title, const uint32
     std::string tmp_title = node_title;
 
     display_fake_node("Body", tmp_title, tmp_depth);
-    for(ast_node* expr : dowhile->body) {
+    for(AstNode* expr : dowhile->body) {
         display_node_data(expr, tmp_depth + 1, _);
     }
 
@@ -508,9 +508,9 @@ display_node_dowhile(ast_node* node, const std::string& node_title, const uint32
 }
 
 static void
-display_node_cast(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_cast(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* cast = dynamic_cast<ast_cast*>(node);
+    const auto* cast = dynamic_cast<AstCast*>(node);
     if(cast == nullptr) {
         print("{} (Type Cast) !! INVALID NODE TYPE", node_title);
         return;
@@ -537,9 +537,9 @@ display_node_cast(ast_node* node, std::string& node_title, uint32_t depth, parse
 }
 
 static void
-display_node_enumdef(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_enumdef(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* _enum = dynamic_cast<ast_enumdef*>(node);
+    const auto* _enum = dynamic_cast<AstEnumdef*>(node);
     if(_enum == nullptr) {
         print("{} (Enum Definition) !! INVALID NODE TYPE", node_title);
         return;
@@ -551,22 +551,36 @@ display_node_enumdef(ast_node* node, const std::string& node_title, const uint32
 }
 
 static void
-display_node_defer(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_defer(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* defer_stmt = dynamic_cast<ast_defer*>(node);
+    const auto* defer_stmt = dynamic_cast<AstDefer*>(node);
     if(defer_stmt == nullptr) {
         print("{} (Defer Statement) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Defer Statement", node_title);
+    print("{}defer", node_title);
     display_node_data(defer_stmt->call, depth + 1, _);
 }
 
 static void
-display_node_type_alias(ast_node* node, const std::string& node_title, parser& parser) {
+display_node_defer_if(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* alias = dynamic_cast<ast_type_alias*>(node);
+    const auto* defer_stmt = dynamic_cast<AstDeferIf*>(node);
+    if(defer_stmt == nullptr) {
+        print("{} (defer_if Statement) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    print("{}defer_if", node_title);
+    display_node_data(defer_stmt->condition, depth + 1, _);
+    display_node_data(defer_stmt->call, depth + 1, _);
+}
+
+static void
+display_node_type_alias(AstNode* node, const std::string& node_title, Parser& parser) {
+
+    const auto* alias = dynamic_cast<AstTypeAlias*>(node);
     if(alias == nullptr) {
         print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
         return;
@@ -580,9 +594,9 @@ display_node_type_alias(ast_node* node, const std::string& node_title, parser& p
 }
 
 static void
-display_node_member_access(ast_node* node, const std::string& node_title, const uint32_t depth, parser& _) {
+display_node_member_access(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
 
-    const auto* member = dynamic_cast<ast_member_access*>(node);
+    const auto* member = dynamic_cast<AstMemberAccess*>(node);
     if(member == nullptr) {
         print("{} (Member Access) !! INVALID NODE TYPE", node_title);
         return;
@@ -593,9 +607,9 @@ display_node_member_access(ast_node* node, const std::string& node_title, const 
 }
 
 static void
-display_node_sizeof(ast_node* node, std::string& node_title, uint32_t depth, parser& _) {
+display_node_sizeof(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
 
-    const auto* _sizeof = dynamic_cast<ast_sizeof*>(node);
+    const auto* _sizeof = dynamic_cast<AstSizeof*>(node);
     if(_sizeof == nullptr) {
         print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
         return;
@@ -604,10 +618,10 @@ display_node_sizeof(ast_node* node, std::string& node_title, uint32_t depth, par
 
     print("{}SizeOf", node_title);
 
-    if(const auto* is_raw_type = std::get_if<type_data>(&_sizeof->target)) {
+    if(const auto* is_raw_type = std::get_if<TypeData>(&_sizeof->target)) {
         display_fake_node(fmt("Type: {}", typedata_to_str_msg(*is_raw_type)), node_title, depth);
     }
-    else if(const auto* is_node = std::get_if<ast_node*>(&_sizeof->target)) {
+    else if(const auto* is_node = std::get_if<AstNode*>(&_sizeof->target)) {
         display_node_data(*is_node, depth + 1, _);
     }
     else {
@@ -616,7 +630,7 @@ display_node_sizeof(ast_node* node, std::string& node_title, uint32_t depth, par
 }
 
 void
-display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
+display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 
     const uint32_t num_spaces = (depth * 2) + (depth * 3);
     std::string    node_title;
@@ -658,6 +672,7 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
         case NODE_TYPE_ALIAS:         display_node_type_alias(node, node_title, parser); break;
         case NODE_ENUM_DEFINITION:    display_node_enumdef(node, node_title, depth, parser); break;
         case NODE_DEFER:              display_node_defer(node, node_title, depth, parser); break;
+        case NODE_DEFER_IF:           display_node_defer_if(node, node_title, depth, parser); break;
         case NODE_SIZEOF:             display_node_sizeof(node, node_title, depth, parser); break;
         case NODE_MEMBER_ACCESS:      display_node_member_access(node, node_title, depth, parser); break;
 
@@ -671,9 +686,8 @@ display_node_data(ast_node* node, const uint32_t depth, parser& parser) {
     }
 }
 
-
 void
-parser::dump_nodes() {
+Parser::dump_nodes() {
 
     print("-- ABSTRACT SYNTAX TREE -- ");
     for(const auto node : toplevel_decls_)
@@ -682,9 +696,8 @@ parser::dump_nodes() {
     print("");
 }
 
-
 void
-parser::dump_types() {
+Parser::dump_types() {
 
     if(type_table_.empty()) {
         print("No user-defined types exist.");
@@ -703,9 +716,8 @@ parser::dump_types() {
     print("");
 }
 
-
 std::string
-format_type_data(const type_data& type, const uint16_t num_tabs) {
+format_type_data(const TypeData& type, const uint16_t num_tabs) {
 
     static constexpr std::string_view fmt_type =
         "{} - Symbol Type:   {}"
@@ -730,7 +742,7 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
     if(type.flags & TYPE_GLOBAL)           flags += "GLOBAL | ";
     if(type.flags & TYPE_ARRAY)            flags += "ARRAY | ";
     if(type.flags & TYPE_PROCARG)          flags += "PROCEDURE_ARGUMENT | ";
-    if(type.flags * TYPE_UNINITIALIZED)    flags += "UNINITIALIZED |";
+    if(type.flags * TYPE_UNINITIALIZED)    flags += "UNINITIALIZED | ";
     if(type.flags & TYPE_DEFAULT_INIT)     flags += "DEFAULT INITIALIZED | ";
     if(type.flags & TYPE_INFERRED)         flags += "INFERRED";
 
@@ -804,9 +816,8 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
     );
 }
 
-
 void
-parser::dump_symbols() {
+Parser::dump_symbols() {
 
     static constexpr std::string_view fmt_sym =
         "~ {} ~"

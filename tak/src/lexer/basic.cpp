@@ -5,19 +5,19 @@
 #include <lexer.hpp>
 
 void
-lexer::advance_char(const uint32_t amnt) {
+Lexer::advance_char(const uint32_t amnt) {
     if(current_.type != TOKEN_END_OF_FILE && src_index_ < src_.size()) {
         src_index_ += amnt;
     }
 }
 
 void
-lexer::advance_line() {
+Lexer::advance_line() {
     ++curr_line_;
 }
 
 char
-lexer::peek_char() {
+Lexer::peek_char() {
     if(src_index_ + 1 >= src_.size()) {
         return '\0';
     }
@@ -26,7 +26,7 @@ lexer::peek_char() {
 }
 
 char
-lexer::current_char() {
+Lexer::current_char() {
     if(src_index_ >= src_.size()) {
         return '\0';
     }
@@ -35,7 +35,7 @@ lexer::current_char() {
 }
 
 bool
-lexer::init(const std::string& file_name) {
+Lexer::init(const std::string& file_name) {
 
     std::ifstream input(file_name, std::ios::binary);
     source_file_name_ = file_name;
@@ -68,7 +68,7 @@ lexer::init(const std::string& file_name) {
 }
 
 bool
-lexer::init(const std::vector<char>& src) {
+Lexer::init(const std::vector<char>& src) {
     this->src_ = src;
     return true;
 }

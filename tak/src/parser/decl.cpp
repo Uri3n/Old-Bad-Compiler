@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-ast_node*
-parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
+AstNode*
+parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected \"proc\" keyword.");
     parser_assert(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
@@ -28,8 +28,8 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
     // Create AST node, check for additional assignment
     //
 
-    auto* node       = new ast_vardecl();
-    node->identifier = new ast_identifier();
+    auto* node       = new AstVardecl();
+    node->identifier = new AstIdentifier();
     node->pos        = lxr.current().src_pos;
     bool state       = false;
 
@@ -75,8 +75,8 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
 }
 
 
-ast_vardecl*
-parse_parameterized_vardecl(parser& parser, lexer& lxr) {
+AstVardecl*
+parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected variable identifier.");
 
@@ -142,8 +142,8 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    auto* vardecl        = new ast_vardecl();
-    vardecl->identifier  = new ast_identifier();
+    auto* vardecl        = new AstVardecl();
+    vardecl->identifier  = new AstIdentifier();
     vardecl->pos         = src_pos;
 
     vardecl->identifier->parent       = vardecl;
@@ -154,8 +154,8 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
+AstNode*
+parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
 
@@ -183,8 +183,8 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 
     parser.push_scope();
 
-    auto* node         = new ast_procdecl();
-    node->identifier   = new ast_identifier();
+    auto* node         = new AstProcdecl();
+    node->identifier   = new AstIdentifier();
     node->pos          = lxr.current().src_pos;
 
     node->identifier->symbol_index = proc->symbol_index;
@@ -239,7 +239,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     if(lxr.current() == TOKEN_KW_VOID && lxr.peek(1) != TOKEN_BITWISE_XOR_OR_PTR) {
         lxr.advance(1);
     } else if(const auto _type_data = parse_type(parser, lxr)) {
-        proc->type.return_type  = std::make_shared<type_data>();
+        proc->type.return_type  = std::make_shared<TypeData>();
         *proc->type.return_type = *_type_data;
     } else {
         return nullptr;
@@ -251,7 +251,7 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     //
 
     if(!node->parameters.empty()) {
-        proc->type.parameters = std::make_shared<std::vector<type_data>>();
+        proc->type.parameters = std::make_shared<std::vector<TypeData>>();
     }
 
     for(const auto& param : node->parameters) {
@@ -306,8 +306,8 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
+AstNode*
+parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER, "Expected type identifier.");
 
@@ -326,8 +326,8 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     //
 
     bool  state       = false;
-    auto* node        = new ast_vardecl();
-    node->identifier  = new ast_identifier();
+    auto* node        = new AstVardecl();
+    node->identifier  = new AstIdentifier();
     node->pos         = lxr.current().src_pos;
 
     node->identifier->symbol_index = var->symbol_index;
@@ -370,8 +370,8 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
+AstNode*
+parse_structdecl(Symbol* _struct, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
 
@@ -384,8 +384,8 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
     }
 
 
-    auto* node                     = new ast_vardecl();
-    node->identifier               = new ast_identifier();
+    auto* node                     = new AstVardecl();
+    node->identifier               = new AstIdentifier();
     node->pos                      = lxr.current().src_pos;
     node->identifier->parent       = node;
     node->identifier->symbol_index = _struct->symbol_index;
@@ -421,8 +421,8 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_inferred_decl(symbol* var, parser& parser, lexer& lxr) {
+AstNode*
+parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_VALUE_ASSIGNMENT, "Expected '='.");
     parser_assert(var->type.flags & TYPE_INFERRED, "Passed symbol does not have inferred flag set.");
@@ -431,8 +431,8 @@ parse_inferred_decl(symbol* var, parser& parser, lexer& lxr) {
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
 
-    auto* node       = new ast_vardecl();
-    node->identifier = new ast_identifier();
+    auto* node       = new AstVardecl();
+    node->identifier = new AstIdentifier();
     node->pos        = var->src_pos;
 
     node->identifier->pos          = var->src_pos;
@@ -465,8 +465,8 @@ parse_inferred_decl(symbol* var, parser& parser, lexer& lxr) {
 }
 
 
-ast_node*
-parse_decl(parser& parser, lexer& lxr) {
+AstNode*
+parse_decl(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 

@@ -6,7 +6,7 @@
 
 
 static bool
-type_is_valid_as_enumeration(const type_data& type) {
+type_is_valid_as_enumeration(const TypeData& type) {
     if(auto* _var_t = std::get_if<var_t>(&type.name)) {
         return (*_var_t == VAR_I8
             || *_var_t == VAR_U8
@@ -25,8 +25,8 @@ type_is_valid_as_enumeration(const type_data& type) {
 }
 
 
-ast_node*
-parse_enumdef(parser& parser, lexer& lxr) {
+AstNode*
+parse_enumdef(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_ENUM, "Expected \"enum\" keyword.");
 
@@ -46,9 +46,9 @@ parse_enumdef(parser& parser, lexer& lxr) {
     //
 
     bool state       = false;
-    auto* node       = new ast_enumdef();
-    node->_namespace = new ast_namespacedecl();
-    node->alias      = new ast_type_alias();
+    auto* node       = new AstEnumdef();
+    node->_namespace = new AstNamespaceDecl();
+    node->alias      = new AstTypeAlias();
 
     node->_namespace->parent = node;
     node->alias->parent      = node;
@@ -153,8 +153,8 @@ parse_enumdef(parser& parser, lexer& lxr) {
         //
 
         auto* sym        = parser.create_symbol(member_name, lxr.current().src_pos, lxr.current().line, TYPE_KIND_VARIABLE, TYPE_FLAGS_NONE, *type);
-        auto* decl       = new ast_vardecl();
-        decl->identifier = new ast_identifier();
+        auto* decl       = new AstVardecl();
+        decl->identifier = new AstIdentifier();
         decl->pos        = lxr.current().src_pos;
 
         sym->type.flags |= TYPE_CONSTANT;
@@ -172,8 +172,8 @@ parse_enumdef(parser& parser, lexer& lxr) {
         //
 
         lxr.advance(1);
-        decl->init_value  = new ast_singleton_literal();
-        auto* lit         = dynamic_cast<ast_singleton_literal*>(*decl->init_value);
+        decl->init_value  = new AstSingletonLiteral();
+        auto* lit         = dynamic_cast<AstSingletonLiteral*>(*decl->init_value);
         lit->parent       = decl;
         lit->pos          = lxr.current().src_pos;
 

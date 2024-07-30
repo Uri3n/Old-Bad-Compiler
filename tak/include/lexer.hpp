@@ -22,19 +22,18 @@
 
 std::optional<std::vector<char>> read_file(const std::string& file_name);
 
-
-class lexer {
+class Lexer {
 public:
 
     std::vector<char>   src_;
     size_t              src_index_ = 0;
     uint32_t            curr_line_ = 1;
-    token               current_;
+    Token               current_;
     std::string         source_file_name_;
 
     void   advance(uint32_t amnt);
-    token& current();
-    token  peek(uint32_t amnt);
+    Token& current();
+    Token  peek(uint32_t amnt);
 
     char   peek_char();
     char   current_char();
@@ -49,54 +48,53 @@ public:
     bool init(const std::string& source_file_name);
     bool init(const std::vector<char>& source);
 
-    ~lexer() = default;
-    lexer()  = default;
+    ~Lexer() = default;
+    Lexer()  = default;
 };
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef void (*token_func)(Lexer& lxr);
+
+void lexer_token_skip(Lexer& lxr);
+void lexer_token_newline(Lexer& lxr);
+void lexer_token_semicolon(Lexer& lxr);
+void lexer_token_lparen(Lexer& lxr);
+void lexer_token_rparen(Lexer& lxr);
+void lexer_token_lbrace(Lexer& lxr);
+void lexer_token_rbrace(Lexer& lxr);
+void lexer_token_comma(Lexer& lxr);
+void lexer_token_hyphen(Lexer& lxr);
+void lexer_token_plus(Lexer& lxr);
+void lexer_token_asterisk(Lexer& lxr);
+void lexer_token_fwdslash(Lexer& lxr);
+void lexer_token_percent(Lexer& lxr);
+void lexer_token_equals(Lexer& lxr);
+void lexer_token_lessthan(Lexer& lxr);
+void lexer_token_greaterthan(Lexer& lxr);
+void lexer_token_ampersand(Lexer& lxr);
+void lexer_token_verticalline(Lexer& lxr);
+void lexer_token_exclamation(Lexer& lxr);
+void lexer_token_tilde(Lexer& lxr);
+void lexer_token_uparrow(Lexer& lxr);
+void lexer_token_quote(Lexer& lxr);
+void lexer_token_singlequote(Lexer& lxr);
+void lexer_token_lsquarebracket(Lexer& lxr);
+void lexer_token_rsquarebracket(Lexer& lxr);
+void lexer_token_questionmark(Lexer& lxr);
+void lexer_token_colon(Lexer& lxr);
+void lexer_token_dot(Lexer& lxr);
+void lexer_token_pound(Lexer& lxr);
+void lexer_token_at(Lexer& lxr);
+void lexer_token_backtick(Lexer& lxr);
+void lexer_token_null(Lexer& lxr);
+void lexer_token_backslash(Lexer& lxr);
+void lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef void (*token_func)(lexer& lxr);
-
-void lexer_token_skip(lexer& lxr);
-void lexer_token_newline(lexer& lxr);
-void lexer_token_semicolon(lexer& lxr);
-void lexer_token_lparen(lexer& lxr);
-void lexer_token_rparen(lexer& lxr);
-void lexer_token_lbrace(lexer& lxr);
-void lexer_token_rbrace(lexer& lxr);
-void lexer_token_comma(lexer& lxr);
-void lexer_token_hyphen(lexer& lxr);
-void lexer_token_plus(lexer& lxr);
-void lexer_token_asterisk(lexer& lxr);
-void lexer_token_fwdslash(lexer& lxr);
-void lexer_token_percent(lexer& lxr);
-void lexer_token_equals(lexer& lxr);
-void lexer_token_lessthan(lexer& lxr);
-void lexer_token_greaterthan(lexer& lxr);
-void lexer_token_ampersand(lexer& lxr);
-void lexer_token_verticalline(lexer& lxr);
-void lexer_token_exclamation(lexer& lxr);
-void lexer_token_tilde(lexer& lxr);
-void lexer_token_uparrow(lexer& lxr);
-void lexer_token_quote(lexer& lxr);
-void lexer_token_singlequote(lexer& lxr);
-void lexer_token_lsquarebracket(lexer& lxr);
-void lexer_token_rsquarebracket(lexer& lxr);
-void lexer_token_questionmark(lexer& lxr);
-void lexer_token_colon(lexer& lxr);
-void lexer_token_dot(lexer& lxr);
-void lexer_token_pound(lexer& lxr);
-void lexer_token_at(lexer& lxr);
-void lexer_token_backtick(lexer& lxr);
-void lexer_token_null(lexer& lxr);
-void lexer_token_backslash(lexer& lxr);
-void lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_func>& illegals);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-token token_hex_literal(lexer& lxr);
-token token_numeric_literal(lexer& lxr);
+Token token_hex_literal(Lexer& lxr);
+Token token_numeric_literal(Lexer& lxr);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

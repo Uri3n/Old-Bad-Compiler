@@ -5,8 +5,8 @@
 #include <lexer.hpp>
 
 
-token
-token_hex_literal(lexer& lxr) {
+Token
+token_hex_literal(Lexer& lxr) {
 
     assert(lxr.current_char() == '0');
     assert(lxr.peek_char() == 'x');
@@ -24,15 +24,15 @@ token_hex_literal(lexer& lxr) {
 
     const std::string_view token_raw = {&src[start], index - start};
     if(token_raw.back() == '\0' || !isxdigit(token_raw.back())) {
-        return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
+        return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
-    return token{TOKEN_HEX_LITERAL, KIND_LITERAL, start, token_raw};
+    return Token{TOKEN_HEX_LITERAL, KIND_LITERAL, start, token_raw};
 }
 
 
-token
-token_numeric_literal(lexer& lxr) {
+Token
+token_numeric_literal(Lexer& lxr) {
 
     assert(isdigit(lxr.current_char()));
 
@@ -49,7 +49,7 @@ token_numeric_literal(lexer& lxr) {
 
         if(lxr.current_char() == '.') {
             if(passed_dot || within_exponent) {
-                return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+                return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
             }
 
             passed_dot = true;
@@ -57,7 +57,7 @@ token_numeric_literal(lexer& lxr) {
 
         else if(lxr.current_char() == 'e') {
             if(!passed_dot || within_exponent) {
-                return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+                return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
             }
 
             within_exponent = true;
@@ -79,20 +79,20 @@ token_numeric_literal(lexer& lxr) {
 
     const std::string_view token_raw = {&src[start], index - start};
     if(!isdigit(token_raw.back())) {
-        return token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
+        return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
     const auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [&](const char c) { return !isdigit(c); });
     if(is_float == token_raw.end()) {
-        return token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
+        return Token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
     }
 
-    return token{TOKEN_FLOAT_LITERAL, KIND_LITERAL, start, token_raw};
+    return Token{TOKEN_FLOAT_LITERAL, KIND_LITERAL, start, token_raw};
 }
 
 
 void
-lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_func>& illegals) {
+lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = index;
@@ -100,24 +100,26 @@ lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_fun
 
     static std::unordered_map<std::string, token_t> keywords =
     {
-        {"ret",     TOKEN_KW_RET},
-        {"brk",     TOKEN_KW_BRK},
-        {"for",     TOKEN_KW_FOR},
-        {"while",   TOKEN_KW_WHILE},
-        {"do",      TOKEN_KW_DO},
-        {"if",      TOKEN_KW_IF},
-        {"elif",    TOKEN_KW_ELIF},
-        {"else",    TOKEN_KW_ELSE},
-        {"cont",    TOKEN_KW_CONT},
-        {"struct",  TOKEN_KW_STRUCT},
-        {"enum",    TOKEN_KW_ENUM},
-        {"switch",  TOKEN_KW_SWITCH},
-        {"case",    TOKEN_KW_CASE},
-        {"default", TOKEN_KW_DEFAULT},
-        {"blk",     TOKEN_KW_BLK},
-        {"cast",    TOKEN_KW_CAST},
-        {"defer",   TOKEN_KW_DEFER},
-        {"sizeof",  TOKEN_KW_SIZEOF},
+        {"ret",      TOKEN_KW_RET},
+        {"brk",      TOKEN_KW_BRK},
+        {"for",      TOKEN_KW_FOR},
+        {"while",    TOKEN_KW_WHILE},
+        {"do",       TOKEN_KW_DO},
+        {"if",       TOKEN_KW_IF},
+        {"elif",     TOKEN_KW_ELIF},
+        {"else",     TOKEN_KW_ELSE},
+        {"cont",     TOKEN_KW_CONT},
+        {"struct",   TOKEN_KW_STRUCT},
+        {"enum",     TOKEN_KW_ENUM},
+        {"switch",   TOKEN_KW_SWITCH},
+        {"case",     TOKEN_KW_CASE},
+        {"default",  TOKEN_KW_DEFAULT},
+        {"blk",      TOKEN_KW_BLK},
+        {"cast",     TOKEN_KW_CAST},
+        {"defer",    TOKEN_KW_DEFER},
+        {"defer_if", TOKEN_KW_DEFER_IF},
+        {"sizeof",   TOKEN_KW_SIZEOF},
+        {"nullptr",  TOKEN_KW_NULLPTR},
         {"fallthrough", TOKEN_KW_FALLTHROUGH},
         {"namespace", TOKEN_KW_NAMESPACE},
     };
@@ -141,7 +143,7 @@ lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_fun
 
 
     if(index >= src.size()) {
-        _current = token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
+        _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
     }
 
@@ -172,7 +174,7 @@ lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_fun
     //
 
     if(illegals.contains(token_raw.back())) {
-        _current = token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
+        _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
         return;
     }
 
@@ -182,7 +184,7 @@ lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_fun
     //
 
     if(token_raw == "true" || token_raw == "false") {
-        _current = token{TOKEN_BOOLEAN_LITERAL, KIND_LITERAL, start, token_raw};
+        _current = Token{TOKEN_BOOLEAN_LITERAL, KIND_LITERAL, start, token_raw};
         return;
     }
 
@@ -194,10 +196,10 @@ lexer_infer_ambiguous_token(lexer& lxr, const std::unordered_map<char, token_fun
     const auto temp = std::string(token_raw.begin(), token_raw.end());
 
     if(keywords.contains(temp)) {
-        _current = token{keywords[temp], KIND_KEYWORD, start, token_raw};
+        _current = Token{keywords[temp], KIND_KEYWORD, start, token_raw};
     } else if(type_identifiers.contains(temp)) {
-        _current = token{type_identifiers[temp], KIND_TYPE_IDENTIFIER, start, token_raw};
+        _current = Token{type_identifiers[temp], KIND_TYPE_IDENTIFIER, start, token_raw};
     }  else {
-        _current = token{TOKEN_IDENTIFIER, KIND_UNSPECIFIC, start, token_raw};
+        _current = Token{TOKEN_IDENTIFIER, KIND_UNSPECIFIC, start, token_raw};
     }
 }

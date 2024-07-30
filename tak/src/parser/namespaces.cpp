@@ -6,7 +6,7 @@
 
 
 bool
-parser::enter_namespace(const std::string& name) {
+Parser::enter_namespace(const std::string& name) {
     for(const auto& _namespace : namespace_stack_)
         if(_namespace == name) return false;
 
@@ -15,7 +15,7 @@ parser::enter_namespace(const std::string& name) {
 }
 
 void
-parser::leave_namespace() {
+Parser::leave_namespace() {
     if(namespace_stack_.empty())
         return;
 
@@ -23,7 +23,7 @@ parser::leave_namespace() {
 }
 
 bool
-parser::namespace_exists(const std::string& name) {
+Parser::namespace_exists(const std::string& name) {
     for(const auto& _namespace : namespace_stack_)
         if(_namespace == name) return true;
 
@@ -31,7 +31,7 @@ parser::namespace_exists(const std::string& name) {
 }
 
 std::string
-parser::get_canonical_name(const std::string& name) {
+Parser::get_canonical_name(const std::string& name) {
 
     std::string full;
     std::string begin;
@@ -54,7 +54,7 @@ parser::get_canonical_name(const std::string& name) {
 }
 
 std::string
-parser::get_canonical_type_name(const std::string& name) {
+Parser::get_canonical_type_name(const std::string& name) {
     if(type_exists(name) || type_alias_exists(name))
         return name;
 
@@ -62,7 +62,7 @@ parser::get_canonical_type_name(const std::string& name) {
 }
 
 std::string
-parser::get_canonical_sym_name(const std::string& name) {
+Parser::get_canonical_sym_name(const std::string& name) {
     if(scoped_symbol_exists(name))
         return name;
 
@@ -70,7 +70,7 @@ parser::get_canonical_sym_name(const std::string& name) {
 }
 
 std::string
-parser::namespace_as_string() {
+Parser::namespace_as_string() {
     std::string as_str;
 
     for(const auto& _namespace : namespace_stack_)
@@ -80,8 +80,8 @@ parser::namespace_as_string() {
 }
 
 
-ast_node*
-parse_namespace(parser& parser, lexer& lxr) {
+AstNode*
+parse_namespace(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_NAMESPACE, "Expected \"namespace\" keyword.");
     lxr.advance(1);
@@ -109,7 +109,7 @@ parse_namespace(parser& parser, lexer& lxr) {
 
 
     bool  state     = false;
-    auto* node      = new ast_namespacedecl();
+    auto* node      = new AstNamespaceDecl();
     node->pos       = lxr.current().src_pos;
     node->full_path = parser.namespace_as_string();
 

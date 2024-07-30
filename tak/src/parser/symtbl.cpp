@@ -5,7 +5,7 @@
 #include <parser.hpp>
 
 void
-parser::pop_scope() {
+Parser::pop_scope() {
     if(scope_stack_.empty()) {
         return;
     }
@@ -15,7 +15,7 @@ parser::pop_scope() {
 
 
 bool
-parser::scoped_symbol_exists(const std::string &name) {
+Parser::scoped_symbol_exists(const std::string &name) {
     if(scope_stack_.empty()) {
         return false;
     }
@@ -31,7 +31,7 @@ parser::scoped_symbol_exists(const std::string &name) {
 
 
 bool
-parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
+Parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
     if(scope_stack_.empty()) {
         return false;
     }
@@ -41,19 +41,19 @@ parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
 
 
 void
-parser::push_scope() {
+Parser::push_scope() {
     scope_stack_.emplace_back(std::unordered_map<std::string, uint32_t>());
 }
 
 
-symbol*
-parser::create_symbol(
+Symbol*
+Parser::create_symbol(
         const std::string& name,
         const size_t src_index,
         const uint32_t line_number,
         const type_kind_t sym_type,
         const uint64_t sym_flags,
-        const std::optional<type_data>& data
+        const std::optional<TypeData>& data
     ) {
 
 
@@ -91,7 +91,7 @@ parser::create_symbol(
 
 
 uint32_t
-parser::lookup_scoped_symbol(const std::string& name) {
+Parser::lookup_scoped_symbol(const std::string& name) {
     if(scope_stack_.empty()) {
         return INVALID_SYMBOL_INDEX;
     }
@@ -106,8 +106,8 @@ parser::lookup_scoped_symbol(const std::string& name) {
 }
 
 
-symbol*
-parser::lookup_unique_symbol(const uint32_t symbol_index) {
+Symbol*
+Parser::lookup_unique_symbol(const uint32_t symbol_index) {
     if(sym_table_.contains(symbol_index)) {
         return &sym_table_[symbol_index];
     }
