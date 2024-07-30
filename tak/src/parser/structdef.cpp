@@ -98,8 +98,15 @@ parse_structdef(parser& parser, lexer& lxr) {
                 }
             }
 
+            for(const uint32_t length : type->array_lengths) {
+                if(length == 0) {
+                    lxr.raise_error("A struct cannot contain an array with an inferred size (e.g. '[]').", curr_pos, line);
+                    return nullptr;
+                }
+            }
+
             members->emplace_back(member_data(name, *type));
-            members->back().type.flags |= is_const ? TYPE_IS_CONSTANT | TYPE_DEFAULT_INITIALIZED : TYPE_DEFAULT_INITIALIZED;
+            members->back().type.flags |= is_const ? TYPE_CONSTANT | TYPE_DEFAULT_INIT : TYPE_DEFAULT_INIT;
 
         } else {
             return nullptr;

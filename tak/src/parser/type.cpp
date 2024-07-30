@@ -118,7 +118,7 @@ parse_type(parser& parser, lexer& lxr) {
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
-        data.flags |= TYPE_IS_POINTER;
+        data.flags |= TYPE_POINTER;
         while(lxr.current() == TOKEN_BITWISE_XOR_OR_PTR) {
             data.pointer_depth++;
             lxr.advance(1);
@@ -126,7 +126,7 @@ parse_type(parser& parser, lexer& lxr) {
     }
 
     if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        data.flags |= TYPE_IS_ARRAY;
+        data.flags |= TYPE_ARRAY;
         if(const auto arr_data = parse_array_data(lxr)) {
             data.array_lengths = *arr_data;
         } else {
@@ -164,7 +164,7 @@ parse_type(parser& parser, lexer& lxr) {
         }
 
         if(auto param_data = parse_type(parser, lxr)) {
-            param_data->flags |= TYPE_IS_PROCARG;
+            param_data->flags |= TYPE_PROCARG;
             data.parameters->emplace_back(*param_data);
         } else {
             return std::nullopt;

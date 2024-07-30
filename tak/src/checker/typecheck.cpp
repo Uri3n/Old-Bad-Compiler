@@ -24,7 +24,7 @@ convert_int_lit_to_type(const ast_singleton_literal* node) {
     uint64_t  actual = 0;
     type_data type;
 
-    type.flags = TYPE_IS_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
+    type.flags = TYPE_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
     type.kind  = TYPE_KIND_VARIABLE;
     type.name  = VAR_U64;
 
@@ -52,7 +52,7 @@ convert_float_lit_to_type(const ast_singleton_literal* node) {
     double    actual = 0.0;
     type_data type;
 
-    type.flags = TYPE_IS_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
+    type.flags = TYPE_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
     type.kind  = TYPE_KIND_VARIABLE;
     type.name  = VAR_F64;
 
@@ -72,8 +72,8 @@ convert_float_lit_to_type(const ast_singleton_literal* node) {
 bool
 are_array_types_equivalent(const type_data& first, const type_data& second) {
 
-    assert(first.flags & TYPE_IS_ARRAY);
-    assert(second.flags & TYPE_IS_ARRAY);
+    assert(first.flags & TYPE_ARRAY);
+    assert(second.flags & TYPE_ARRAY);
 
     if(first.array_lengths.size() != second.array_lengths.size()) {
         return false;
@@ -101,8 +101,8 @@ are_array_types_equivalent(const type_data& first, const type_data& second) {
     second_contained.return_type   = second.return_type;
     second_contained.parameters    = second.parameters;
 
-    first_contained.flags  &= ~TYPE_IS_ARRAY;
-    second_contained.flags &= ~TYPE_IS_ARRAY;
+    first_contained.flags  &= ~TYPE_ARRAY;
+    second_contained.flags &= ~TYPE_ARRAY;
 
     return is_type_coercion_permissible(first_contained, second_contained);
 }
@@ -110,7 +110,7 @@ are_array_types_equivalent(const type_data& first, const type_data& second) {
 
 bool
 array_has_inferred_sizes(const type_data& type) {
-    assert(type.flags & TYPE_IS_ARRAY);
+    assert(type.flags & TYPE_ARRAY);
     for(const auto length : type.array_lengths) {
         if(length == 0) return true;
     }
@@ -132,7 +132,9 @@ get_bracedexpr_as_array_t(const ast_braced_expression* node, checker_context& ct
         contained_t = get_bracedexpr_as_array_t(dynamic_cast<ast_braced_expression*>(node->members[0]), ctx);
     } else {
         contained_t = visit_node(node->members[0], ctx);
-    } if(!contained_t) {
+    }
+
+    if(!contained_t || is_type_invalid_in_inferred_context(*contained_t)) {
         return std::nullopt;
     }
 
@@ -144,7 +146,7 @@ get_bracedexpr_as_array_t(const ast_braced_expression* node, checker_context& ct
                 return std::nullopt;
             }
 
-            if(!(contained_t->flags & TYPE_IS_ARRAY) || !are_array_types_equivalent(*contained_t, *subarray_t)) {
+            if(!(contained_t->flags & TYPE_ARRAY) || !are_array_types_equivalent(*contained_t, *subarray_t)) {
                 return std::nullopt;
             }
         } else {
@@ -155,7 +157,7 @@ get_bracedexpr_as_array_t(const ast_braced_expression* node, checker_context& ct
         }
     }
 
-    contained_t->flags |= TYPE_IS_ARRAY;
+    contained_t->flags |= TYPE_ARRAY;
     contained_t->array_lengths.insert(contained_t->array_lengths.begin(), node->members.size());
     return contained_t;
 }
@@ -227,20 +229,20 @@ get_dereferenced_type(const type_data& type) {
 
     type_data deref_t = type;
 
-    if(deref_t.flags & TYPE_IS_ARRAY) {
+    if(deref_t.flags & TYPE_ARRAY) {
         assert(!deref_t.array_lengths.empty());
         deref_t.array_lengths.pop_back();
 
         if(deref_t.array_lengths.empty()) {
-            deref_t.flags &= ~TYPE_IS_ARRAY;
+            deref_t.flags &= ~TYPE_ARRAY;
         }
     }
-    else if(deref_t.flags & TYPE_IS_POINTER) {
+    else if(deref_t.flags & TYPE_POINTER) {
         assert(deref_t.pointer_depth > 0);
         --deref_t.pointer_depth;
 
         if(!deref_t.pointer_depth) {
-            deref_t.flags &= ~TYPE_IS_POINTER;
+            deref_t.flags &= ~TYPE_POINTER;
         }
     }
     else {
@@ -248,11 +250,11 @@ get_dereferenced_type(const type_data& type) {
     }
 
 
-    if(deref_t.kind == TYPE_KIND_PROCEDURE && !(deref_t.flags & TYPE_IS_POINTER)) {
+    if(deref_t.kind == TYPE_KIND_PROCEDURE && !(deref_t.flags & TYPE_POINTER)) {
         return std::nullopt;
     }
     if(const auto* is_primitive = std::get_if<var_t>(&deref_t.name)) {
-        if(*is_primitive == VAR_VOID && !(deref_t.flags & TYPE_IS_POINTER)) {
+        if(*is_primitive == VAR_VOID && !(deref_t.flags & TYPE_POINTER)) {
             return std::nullopt;
         }
     }
@@ -267,14 +269,14 @@ get_dereferenced_type(const type_data& type) {
 std::optional<type_data>
 get_addressed_type(const type_data& type) {
 
-    if(type.flags & TYPE_IS_ARRAY || type.flags & TYPE_RVALUE) {
+    if(type.flags & TYPE_ARRAY || type.flags & TYPE_RVALUE) {
         return std::nullopt;
     }
 
     type_data addressed_t = type;
 
     ++addressed_t.pointer_depth;
-    addressed_t.flags |= TYPE_IS_POINTER | TYPE_IS_CONSTANT | TYPE_RVALUE;
+    addressed_t.flags |= TYPE_POINTER | TYPE_RVALUE;
     return addressed_t;
 }
 
@@ -297,7 +299,6 @@ get_struct_member_type_data(const std::string& member_path, const std::string& b
         assert(member_data != nullptr);
         for(const auto& member : *members) {
             if(member.name == member_chunks[index]) {
-
                 if(index + 1 >= member_chunks.size()) {
                     return member.type;
                 }
@@ -462,19 +463,19 @@ is_type_cast_permissible(const type_data& from, const type_data& to) {
     const auto* primto_t   = std::get_if<var_t>(&to.name);
     size_t      ptr_count  = 0;
 
-    if(from.flags & TYPE_IS_POINTER) ++ptr_count;
-    if(to.flags & TYPE_IS_POINTER)   ++ptr_count;
+    if(from.flags & TYPE_POINTER) ++ptr_count;
+    if(to.flags & TYPE_POINTER)   ++ptr_count;
 
 
     if(ptr_count == 2 || ptr_count == 0) {
         return true;
     }
 
-    if(from.flags & TYPE_IS_POINTER && !(to.flags & TYPE_IS_POINTER)) {
+    if(from.flags & TYPE_POINTER && !(to.flags & TYPE_POINTER)) {
         return primto_t != nullptr && *primto_t == VAR_U64;
     }
 
-    if(to.flags & TYPE_IS_POINTER && !(from.flags & TYPE_IS_POINTER)) {
+    if(to.flags & TYPE_POINTER && !(from.flags & TYPE_POINTER)) {
         return primfrom_t != nullptr && *primfrom_t == VAR_U64;
     }
 
@@ -498,8 +499,8 @@ is_type_coercion_permissible(type_data& left, const type_data& right) {
     const auto* left_t    = std::get_if<var_t>(&left.name);
     const auto* right_t   = std::get_if<var_t>(&right.name);
 
-    if(left.flags  & TYPE_IS_POINTER) ++ptr_count;
-    if(right.flags & TYPE_IS_POINTER) ++ptr_count;
+    if(left.flags  & TYPE_POINTER) ++ptr_count;
+    if(right.flags & TYPE_POINTER) ++ptr_count;
 
     if(ptr_count == 2) return left_t != nullptr && *left_t == VAR_VOID && left.pointer_depth == 1;
     if(ptr_count != 0) return false;
@@ -518,12 +519,16 @@ is_type_coercion_permissible(type_data& left, const type_data& right) {
 
 
 bool
+is_type_invalid_in_inferred_context(const type_data& type) {
+    return (type.kind == TYPE_KIND_PROCEDURE && !(type.flags & TYPE_POINTER)) || type.flags & TYPE_INFERRED;
+}
+
+bool
 is_type_reassignable(const type_data& type) {
     return type.array_lengths.empty()
         && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)
-        && !(type.flags & TYPE_IS_CONSTANT);
+        && !(type.flags & TYPE_CONSTANT);
 }
-
 
 bool
 is_type_cast_eligible(const type_data& type) {
@@ -532,14 +537,12 @@ is_type_cast_eligible(const type_data& type) {
         && type.kind != TYPE_KIND_STRUCT;
 }
 
-
 bool
 is_type_lop_eligible(const type_data& type) {
-    return (type.flags & TYPE_IS_POINTER
+    return (type.flags & TYPE_POINTER
         || type.kind == TYPE_KIND_VARIABLE)
         && type.array_lengths.empty();
 }
-
 
 bool
 is_type_bwop_eligible(const type_data& type) {
@@ -556,7 +559,6 @@ is_type_bwop_eligible(const type_data& type) {
         && !PRIMITIVE_IS_FLOAT(*primitive_ptr);
 }
 
-
 bool
 is_type_arithmetic_eligible(const type_data& type, const token_t _operator) {
 
@@ -571,7 +573,7 @@ is_type_arithmetic_eligible(const type_data& type, const token_t _operator) {
         return false;
     }
 
-    if(type.flags & TYPE_IS_POINTER) {
+    if(type.flags & TYPE_POINTER) {
         return _operator == TOKEN_INCREMENT
             || _operator == TOKEN_DECREMENT
             || _operator == TOKEN_PLUS
@@ -583,20 +585,19 @@ is_type_arithmetic_eligible(const type_data& type, const token_t _operator) {
     return type.kind == TYPE_KIND_VARIABLE || (type.pointer_depth == 1 && type.kind == TYPE_KIND_STRUCT);
 }
 
-
 bool
 can_operator_be_applied_to(const token_t _operator, const type_data& type) {
 
-    if(type.flags & TYPE_IS_ARRAY) {
+    if(type.flags & TYPE_ARRAY) {
         return false;
     }
 
     if(_operator == TOKEN_VALUE_ASSIGNMENT) {
-        return !(type.flags & TYPE_IS_CONSTANT) && !(type.flags & TYPE_RVALUE);
+        return !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
     }
 
     if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) {
-        return is_type_arithmetic_eligible(type, _operator) && !(type.flags & TYPE_IS_CONSTANT) && !(type.flags & TYPE_RVALUE);
+        return is_type_arithmetic_eligible(type, _operator) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
     }
 
     if(TOKEN_OP_IS_ARITHMETIC(_operator)) {
@@ -604,7 +605,7 @@ can_operator_be_applied_to(const token_t _operator, const type_data& type) {
     }
 
     if(TOKEN_OP_IS_BW_ASSIGN(_operator)) {
-        return is_type_bwop_eligible(type) && !(type.flags & TYPE_IS_CONSTANT) && !(type.flags & TYPE_RVALUE);
+        return is_type_bwop_eligible(type) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
     }
 
     if(TOKEN_OP_IS_BITWISE(_operator)) {

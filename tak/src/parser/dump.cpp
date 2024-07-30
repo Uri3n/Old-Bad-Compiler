@@ -152,8 +152,10 @@ display_node_identifier(ast_node* node, std::string& node_title, parser& parser)
         sym_t_str = "Procedure";
     } else if(sym_ptr->type.kind == TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
-    } else {
+    } else if(sym_ptr->type.kind == TYPE_KIND_STRUCT){
         sym_t_str = "Struct";
+    } else {
+        sym_t_str = "Inferred";
     }
 
 
@@ -722,21 +724,15 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
 
 
     std::string flags;
-    if(type.flags & TYPE_IS_CONSTANT) {
-        flags += "CONSTANT | ";
-    } if(type.flags & TYPE_IS_FOREIGN) {
-        flags += "FOREIGN | ";
-    } if(type.flags & TYPE_IS_POINTER) {
-        flags += "POINTER | ";
-    }  if(type.flags & TYPE_IS_GLOBAL) {
-        flags += "GLOBAL | ";
-    } if(type.flags & TYPE_IS_ARRAY) {
-        flags += "ARRAY | ";
-    } if(type.flags & TYPE_IS_PROCARG) {
-        flags += "PROCEDURE_ARGUMENT | ";
-    } if(type.flags & TYPE_DEFAULT_INITIALIZED) {
-        flags += "DEFAULT INITIALIZED";
-    }
+    if(type.flags & TYPE_CONSTANT)         flags += "CONSTANT | ";
+    if(type.flags & TYPE_FOREIGN)          flags += "FOREIGN | ";
+    if(type.flags & TYPE_POINTER)          flags += "POINTER | ";
+    if(type.flags & TYPE_GLOBAL)           flags += "GLOBAL | ";
+    if(type.flags & TYPE_ARRAY)            flags += "ARRAY | ";
+    if(type.flags & TYPE_PROCARG)          flags += "PROCEDURE_ARGUMENT | ";
+    if(type.flags * TYPE_UNINITIALIZED)    flags += "UNINITIALIZED |";
+    if(type.flags & TYPE_DEFAULT_INIT)     flags += "DEFAULT INITIALIZED | ";
+    if(type.flags & TYPE_INFERRED)         flags += "INFERRED";
 
     if(flags.size() >= 2 && flags[flags.size()-2] == '|') {
         flags.erase(flags.size()-2);
@@ -744,14 +740,9 @@ format_type_data(const type_data& type, const uint16_t num_tabs) {
 
 
     std::string sym_t_str;
-    if(type.kind == TYPE_KIND_PROCEDURE) {
-        sym_t_str = "Procedure";
-    } else if(type.kind == TYPE_KIND_VARIABLE) {
-        sym_t_str = "Variable";
-    } else if(type.kind == TYPE_KIND_STRUCT) {
-        sym_t_str = "Struct";
-    }
-
+    if(type.kind == TYPE_KIND_PROCEDURE)     sym_t_str = "Procedure";
+    else if(type.kind == TYPE_KIND_VARIABLE) sym_t_str = "Variable";
+    else if(type.kind == TYPE_KIND_STRUCT)   sym_t_str = "Struct";
 
     std::string type_name_str;
     if(auto is_var = std::get_if<var_t>(&type.name)) {

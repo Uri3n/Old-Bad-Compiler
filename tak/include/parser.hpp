@@ -86,10 +86,10 @@ public:
     symbol*  lookup_unique_symbol(uint32_t symbol_index);
     symbol*  create_symbol(
         const std::string& name,
-        size_t   src_index,
+        size_t src_index,
         uint32_t line_number,
-        type_kind_t    sym_type,
-        uint16_t sym_flags,
+        type_kind_t sym_type,
+        uint64_t sym_flags,
         const std::optional<type_data>& data = std::nullopt
     );
 
@@ -154,6 +154,7 @@ ast_node* parse_expression(parser& parser, lexer& lxr, bool subexpression, bool 
 ast_node* parse_identifier(parser& parser, lexer& lxr);
 ast_node* parse_unary_expression(parser& parser, lexer& lxr);
 ast_node* parse_decl(parser& parser, lexer& lxr);
+ast_node* parse_inferred_decl(symbol* var, parser& parser, lexer& lxr);
 ast_node* parse_vardecl(symbol* var, parser& parser, lexer& lxr);
 ast_node* parse_procdecl(symbol* proc, parser& parser, lexer& lxr);
 ast_node* parse_structdecl(symbol* _struct, parser& parser, lexer& lxr);

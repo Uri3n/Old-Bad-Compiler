@@ -636,7 +636,6 @@ parse_subscript(ast_node* operand, parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-
     lxr.advance(1);
     state = true;
     return node;

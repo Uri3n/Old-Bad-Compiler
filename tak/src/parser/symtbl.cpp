@@ -49,10 +49,10 @@ parser::push_scope() {
 symbol*
 parser::create_symbol(
         const std::string& name,
-        const size_t       src_index,
-        const uint32_t     line_number,
-        const type_kind_t        sym_type,
-        const uint16_t     sym_flags,
+        const size_t src_index,
+        const uint32_t line_number,
+        const type_kind_t sym_type,
+        const uint64_t sym_flags,
         const std::optional<type_data>& data
     ) {
 
@@ -76,7 +76,7 @@ parser::create_symbol(
 
 
     sym.type.flags   |= sym_flags;
-    sym.type.kind = sym_type;
+    sym.type.kind     = sym_type;
     sym.line_number   = line_number;
     sym.src_pos       = src_index;
     sym.symbol_index  = curr_sym_index_;

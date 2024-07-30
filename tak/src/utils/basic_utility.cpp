@@ -67,9 +67,10 @@ typedata_to_str_msg(const type_data& type) {
     std::string buffer;
     bool is_proc = false;
 
-
-    if(type.flags & TYPE_IS_CONSTANT) buffer += "const ";
+    if(type.flags & TYPE_INFERRED) return "Invalid Type";
+    if(type.flags & TYPE_CONSTANT) buffer += "const ";
     if(type.flags & TYPE_RVALUE)      buffer += "rvalue ";
+
 
     if(const auto* is_primitive = std::get_if<var_t>(&type.name)) {
         buffer += var_t_to_string(*is_primitive);
@@ -83,19 +84,18 @@ typedata_to_str_msg(const type_data& type) {
     }
 
 
-    if(type.flags & TYPE_IS_POINTER) {
+    if(type.flags & TYPE_POINTER) {
         for(uint16_t i = 0; i < type.pointer_depth; i++) {
             buffer += '^';
         }
     }
 
-    if(type.flags & TYPE_IS_ARRAY) {
+    if(type.flags & TYPE_ARRAY) {
         for(size_t i = 0 ; i < type.array_lengths.size(); i++) {
             if(!type.array_lengths[i]) buffer += "[]";
             else buffer += fmt("[{}]", type.array_lengths[i]);
         }
     }
-
 
     if(is_proc) {
         buffer += '(';

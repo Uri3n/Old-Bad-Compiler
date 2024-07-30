@@ -66,28 +66,24 @@ parse_branch(parser &parser, lexer &lxr) {
         }
 
         if(!VALID_SUBEXPRESSION(if_stmt->condition->type) && if_stmt->condition->type != NODE_VARDECL) {
-            lxr.raise_error("Expression cannot be used within branch statement condition.", curr_pos, line);
+            lxr.raise_error("Expression cannot be used within if statement condition.", curr_pos, line);
             return nullptr;
         }
 
-        if(lxr.current() != TOKEN_LBRACE) {
-            lxr.raise_error("Expected branch body.");
-            return nullptr;
-        }
-
-
-        //
-        // Parse branch body
-        //
-
-        lxr.advance(1);
-        while(lxr.current() != TOKEN_RBRACE) {
+        if(lxr.current() == TOKEN_LBRACE) {
+            lxr.advance(1);
+            while(lxr.current() != TOKEN_RBRACE) {
+                if_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+                if(if_stmt->body.back() == nullptr) return nullptr;
+                if_stmt->body.back()->parent = if_stmt;
+            }
+            lxr.advance(1);
+        } else {
             if_stmt->body.emplace_back(parse_expression(parser, lxr, false));
             if(if_stmt->body.back() == nullptr) return nullptr;
             if_stmt->body.back()->parent = if_stmt;
         }
 
-        lxr.advance(1);
         parser.pop_scope();
     } while(lxr.current() == TOKEN_KW_ELIF);
 
@@ -103,21 +99,23 @@ parse_branch(parser &parser, lexer &lxr) {
         else_stmt->parent = node;
         node->_else       = else_stmt;
 
-        if(lxr.peek(1) != TOKEN_LBRACE) {
-            lxr.raise_error("Expected beginning of \"else\" branch body.");
-            return nullptr;
-        }
-
-        lxr.advance(2);
+        lxr.advance(1);
         parser.push_scope();
 
-        while(lxr.current() != TOKEN_RBRACE) {
+        if(lxr.current() == TOKEN_LBRACE) {
+            lxr.advance(1);
+            while(lxr.current() != TOKEN_RBRACE) {
+                else_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+                if(else_stmt->body.back() == nullptr) return nullptr;
+                else_stmt->body.back()->parent = else_stmt;
+            }
+            lxr.advance(1);
+        } else {
             else_stmt->body.emplace_back(parse_expression(parser, lxr, false));
             if(else_stmt->body.back() == nullptr) return nullptr;
             else_stmt->body.back()->parent = else_stmt;
         }
 
-        lxr.advance(1);
         parser.pop_scope();
     }
 
@@ -153,7 +151,7 @@ parse_case(parser& parser, lexer& lxr) {
     if(node->value == nullptr
         || node->value->literal_type == TOKEN_STRING_LITERAL
         || node->value->literal_type == TOKEN_FLOAT_LITERAL
-        ) {
+    ) {
         lxr.raise_error("Case value must be a constant, integer literal.", curr_pos, line);
         return nullptr;
     }
@@ -264,11 +262,14 @@ parse_switch(parser &parser, lexer &lxr) {
             const uint32_t case_line = lxr.current().line;
             auto*          new_case  = parse_case(parser, lxr);
 
+            if(new_case == nullptr) {
+                return nullptr;
+            }
 
             for(const auto& _case : node->cases) {
                 if(_case->value->literal_type == new_case->value->literal_type // Duplicate case value.
                     && _case->value->value == new_case->value->value
-                    ) {
+                ) {
                     lxr.raise_error("Case pertains to the same value as a previous one.", case_pos, case_line);
                     return nullptr;
                 }
@@ -298,11 +299,11 @@ parse_switch(parser &parser, lexer &lxr) {
         }
     }
 
+
     if(!reached_default) {
         lxr.raise_error("Unexpected end of switch body: all switches must contain a default case.");
         return nullptr;
     }
-
 
     lxr.advance(1);
     state = true;
@@ -402,11 +403,13 @@ parse_while(parser& parser, lexer& lxr) {
             lxr.advance(1);
         }
 
-        else
+        else {
             node->body.emplace_back(parse_expression(parser, lxr, false));
+        }
 
-        if(node->body.back() == nullptr)
+        if(node->body.back() == nullptr) {
             return nullptr;
+        }
 
         node->body.back()->parent = node;
     }
@@ -554,7 +557,7 @@ parse_for(parser& parser, lexer& lxr) {
 
     auto* node  = new ast_for();
     bool  state = false;
-    node->pos = lxr.current().src_pos;
+    node->pos   = lxr.current().src_pos;
 
     size_t   curr_pos = 0;
     uint32_t line     = 0;

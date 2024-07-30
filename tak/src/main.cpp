@@ -5,7 +5,8 @@
 #include <checker.hpp>
 #include <exception>
 
-#define CURRENT_TEST "tests/test1.txt"
+#define CURRENT_TEST "tests/test2.txt"
+
 
 void
 handle_uncaught_exception() {
@@ -24,43 +25,6 @@ handle_uncaught_exception() {
 
     std::cerr << "[!] exception routine finished. terminating..." << std::endl;
     std::exit(EXIT_FAILURE);
-}
-
-
-void typecomp_test() {
-
-    type_data type1;
-    type_data type2;
-    type_data type3;
-    type_data type4;
-
-    type1.kind = TYPE_KIND_VARIABLE;
-    type1.name = VAR_F64;
-
-    type2.kind = TYPE_KIND_VARIABLE;
-    type2.name = VAR_I64;
-    type2.flags |= TYPE_IS_POINTER;
-    type2.pointer_depth = 1;
-
-    type3.kind = TYPE_KIND_PROCEDURE;
-    type3.name = std::monostate();
-    type3.return_type = std::make_shared<type_data>(type1);
-    type3.parameters = std::make_shared<std::vector<type_data>>();
-    type3.parameters->emplace_back(type1);
-    type3.parameters->emplace_back(type1);
-
-    type4.kind = TYPE_KIND_PROCEDURE;
-    type4.name = std::monostate();
-    type4.return_type = std::make_shared<type_data>(type1);
-    type4.parameters = std::make_shared<std::vector<type_data>>();
-    type4.parameters->emplace_back(type2);
-
-
-    if(is_type_coercion_permissible(type1, type2)) {
-        print("right type is coercible to left type!");
-    } else {
-        print("Type coercion not permitted!");
-    }
 }
 
 
@@ -100,10 +64,13 @@ generate_check_ast(parser& parser, const std::string& source_file_name) {
     }
 
     parser.dump_nodes();
-    parser.dump_symbols();
     parser.dump_types();
-    return check_tree(parser, lxr);
-    //return true;
+    if(!check_tree(parser, lxr) ) {
+        return false;
+    }
+
+    parser.dump_symbols();
+    return true;
 }
 
 int main() {

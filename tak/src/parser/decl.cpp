@@ -69,7 +69,7 @@ parse_proc_ptr(symbol* proc, parser& parser, lexer& lxr) {
         return node;
     }
 
-    proc->type.flags |= TYPE_DEFAULT_INITIALIZED;
+    proc->type.flags |= TYPE_DEFAULT_INIT;
     state = true;
     return node;
 }
@@ -83,7 +83,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
     const auto     name      = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos   = lxr.current().src_pos;
     const uint32_t line      = lxr.current().line;
-    uint16_t       flags     = TYPE_IS_PROCARG;
+    uint64_t       flags     = TYPE_PROCARG;
 
 
     if(parser.namespace_exists(std::string(lxr.current().value))) {
@@ -98,7 +98,7 @@ parse_parameterized_vardecl(parser& parser, lexer& lxr) {
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
-        flags |= TYPE_IS_CONSTANT;
+        flags |= TYPE_CONSTANT;
     }
 
     else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
@@ -160,12 +160,12 @@ parse_procdecl(symbol* proc, parser& parser, lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
 
 
-    if(!(proc->type.flags & TYPE_IS_GLOBAL)) {
+    if(!(proc->type.flags & TYPE_GLOBAL)) {
         lxr.raise_error("Declaration of procedure at non-global scope.");
         return nullptr;
     }
 
-    if(!(proc->type.flags & TYPE_IS_CONSTANT)) {
+    if(!(proc->type.flags & TYPE_CONSTANT)) {
         lxr.raise_error("Procedures must be declared as constant. This one was declared using ':'.");
         return nullptr;
     }
@@ -316,7 +316,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
         return nullptr;
     }
 
-    const uint16_t temp = var->type.flags;
+    const uint64_t temp = var->type.flags;
     var->type           = *type_data;
     var->type.flags    |= temp;
 
@@ -364,7 +364,7 @@ parse_vardecl(symbol* var, parser& parser, lexer& lxr) {
     }
 
 
-    var->type.flags |= TYPE_DEFAULT_INITIALIZED;
+    var->type.flags |= TYPE_DEFAULT_INIT;
     state = true;
     return node;
 }
@@ -376,7 +376,7 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
 
     if(const auto type = parse_type(parser, lxr)) {
-        const uint16_t temp  = _struct->type.flags;
+        const uint64_t temp  = _struct->type.flags;
         _struct->type        = *type;
         _struct->type.flags |= temp;
     } else {
@@ -416,7 +416,51 @@ parse_structdecl(symbol* _struct, parser& parser, lexer& lxr) {
         return node;
     }
 
-    _struct->type.flags |= TYPE_DEFAULT_INITIALIZED;
+    _struct->type.flags |= TYPE_DEFAULT_INIT;
+    return node;
+}
+
+
+ast_node*
+parse_inferred_decl(symbol* var, parser& parser, lexer& lxr) {
+
+    parser_assert(lxr.current() == TOKEN_VALUE_ASSIGNMENT, "Expected '='.");
+    parser_assert(var->type.flags & TYPE_INFERRED, "Passed symbol does not have inferred flag set.");
+
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    auto* node       = new ast_vardecl();
+    node->identifier = new ast_identifier();
+    node->pos        = var->src_pos;
+
+    node->identifier->pos          = var->src_pos;
+    node->identifier->parent       = node;
+    node->identifier->symbol_index = var->symbol_index;
+
+    bool state = false;
+    defer_if(!state, [&] {
+       delete node;
+    });
+
+
+    lxr.advance(1);
+    auto* subexpr = parse_expression(parser, lxr, true);
+    if(subexpr == nullptr) {
+        return nullptr;
+    }
+
+    if(!VALID_SUBEXPRESSION(subexpr->type)) {
+        lxr.raise_error(fmt("Invalid subexpression being assigned to variable \"{}\".", var->name), curr_pos, line);
+        return nullptr;
+    }
+
+    subexpr->parent  = node;
+    node->init_value = subexpr;
+    var->type.name   = VAR_NONE;
+
+    state = true;
     return node;
 }
 
@@ -426,17 +470,16 @@ parse_decl(parser& parser, lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
-
     const auto     name     = parser.namespace_as_string() + std::string(lxr.current().value);
     const size_t   src_pos  = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    uint16_t       flags    = TYPE_FLAGS_NONE;
-    type_kind_t          type     = TYPE_KIND_VARIABLE;
+    uint64_t       flags    = TYPE_FLAGS_NONE;
+    type_kind_t    type     = TYPE_KIND_VARIABLE;
 
 
     lxr.advance(1);
     if(lxr.current() == TOKEN_CONST_TYPE_ASSIGNMENT) {
-        flags |= TYPE_IS_CONSTANT;
+        flags |= TYPE_CONSTANT;
     }
 
     else if(lxr.current() != TOKEN_TYPE_ASSIGNMENT) {
@@ -450,7 +493,7 @@ parse_decl(parser& parser, lexer& lxr) {
     }
 
     if(parser.scope_stack_.size() <= 1) {
-        flags |= TYPE_IS_GLOBAL;
+        flags |= TYPE_GLOBAL;
     }
 
 
@@ -463,7 +506,20 @@ parse_decl(parser& parser, lexer& lxr) {
         return nullptr;
     }
 
+
+    //
+    // Inferred type.
+    //
+
     lxr.advance(1);
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
+        if(auto* inferred_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_NONE, flags | TYPE_INFERRED | TYPE_UNINITIALIZED)) {
+            return parse_inferred_decl(inferred_ptr, parser, lxr);
+        }
+
+        return nullptr;
+    }
+
     if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected type identifier here.");
         return nullptr;
@@ -471,48 +527,43 @@ parse_decl(parser& parser, lexer& lxr) {
 
 
     //
-    // Parse if procedure
+    // Procedure or procedure pointer declaration.
     //
 
     if(lxr.current() == TOKEN_KW_PROC) {
+        type = TYPE_KIND_PROCEDURE;
+        if(auto* proc_ptr = parser.create_symbol(name, src_pos, line, type, flags)) {
+            if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) { // function pointer
+                proc_ptr->type.flags |= TYPE_POINTER | TYPE_UNINITIALIZED;
+                return parse_proc_ptr(proc_ptr, parser, lxr);
+            }
 
-        type           = TYPE_KIND_PROCEDURE;
-        auto* proc_ptr = parser.create_symbol(name, src_pos, line, type, flags);
-        if(proc_ptr == nullptr) {
-            return nullptr;
+            return parse_procdecl(proc_ptr, parser, lxr);
         }
 
-        if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) { // function pointer
-            proc_ptr->type.flags |= TYPE_IS_POINTER;
-            return parse_proc_ptr(proc_ptr, parser, lxr);
-        }
-
-        return parse_procdecl(proc_ptr, parser, lxr);
+        return nullptr;
     }
 
 
     //
-    // Parse if struct
+    // Struct declaration.
     //
 
     if(lxr.current() == TOKEN_IDENTIFIER) {
-
-        type             = TYPE_KIND_STRUCT;
-        auto* struct_ptr = parser.create_symbol(name, src_pos, line, type, flags);
-
-        if(struct_ptr == nullptr) {
-            return nullptr;
+        type = TYPE_KIND_STRUCT;
+        if(auto* struct_ptr = parser.create_symbol(name, src_pos, line, type, flags | TYPE_UNINITIALIZED)) {
+            return parse_structdecl(struct_ptr, parser, lxr);
         }
 
-        return parse_structdecl(struct_ptr, parser, lxr);
+        return nullptr;
     }
 
 
     //
-    // Parse if variable
+    // Primitive declaration.
     //
 
-    auto* var_ptr = parser.create_symbol(name, src_pos, line, type, flags);
+    auto* var_ptr = parser.create_symbol(name, src_pos, line, type, flags | TYPE_UNINITIALIZED);
     if(var_ptr == nullptr) {
         return nullptr;
     }

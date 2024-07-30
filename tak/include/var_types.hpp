@@ -29,18 +29,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum type_flags : uint16_t {
-    TYPE_FLAGS_NONE          = 0UL,
-    TYPE_IS_CONSTANT         = 1UL,
-    TYPE_IS_FOREIGN          = 1UL << 1,
-    TYPE_IS_POINTER          = 1UL << 2,
-    TYPE_IS_GLOBAL           = 1UL << 3,
-    TYPE_IS_ARRAY            = 1UL << 4,
-    TYPE_IS_PROCARG          = 1UL << 5,
-    TYPE_DEFAULT_INITIALIZED = 1UL << 6,
-    TYPE_IS_DEFERRED         = 1UL << 7,
-    TYPE_NON_CONCRETE        = 1UL << 8,
-    TYPE_RVALUE              = 1UL << 9,
+enum type_flags : uint64_t {
+    TYPE_FLAGS_NONE     = 0ULL,
+    TYPE_CONSTANT       = 1ULL,
+    TYPE_FOREIGN        = 1ULL << 1,
+    TYPE_POINTER        = 1ULL << 2,
+    TYPE_GLOBAL         = 1ULL << 3,
+    TYPE_ARRAY          = 1ULL << 4,
+    TYPE_PROCARG        = 1ULL << 5,
+    TYPE_DEFAULT_INIT   = 1ULL << 6,
+    TYPE_INFERRED       = 1ULL << 7,
+    TYPE_NON_CONCRETE   = 1ULL << 8,
+    TYPE_RVALUE         = 1ULL << 9,
+    TYPE_UNINITIALIZED  = 1ULL << 10,
 };
 
 enum type_kind_t : uint8_t {
@@ -69,9 +70,8 @@ enum var_t : uint16_t {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct type_data {
-
     uint16_t    pointer_depth  = 0;
-    uint16_t    flags          = TYPE_FLAGS_NONE;
+    uint64_t    flags          = TYPE_FLAGS_NONE;
     type_kind_t kind           = TYPE_KIND_NONE;
 
     std::vector<uint32_t>                   array_lengths;          // Only multiple elements if matrix
@@ -97,7 +97,6 @@ struct symbol {
 };
 
 struct member_data {
-
     std::string name;
     type_data   type;
 

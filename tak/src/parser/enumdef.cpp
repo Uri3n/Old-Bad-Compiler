@@ -157,8 +157,8 @@ parse_enumdef(parser& parser, lexer& lxr) {
         decl->identifier = new ast_identifier();
         decl->pos        = lxr.current().src_pos;
 
-        sym->type.flags |= TYPE_IS_CONSTANT;
-        sym->type.flags |= TYPE_IS_GLOBAL;
+        sym->type.flags |= TYPE_CONSTANT;
+        sym->type.flags |= TYPE_GLOBAL;
 
         decl->identifier->symbol_index = sym->symbol_index;
         decl->identifier->parent       = decl;
