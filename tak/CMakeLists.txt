@@ -25,7 +25,6 @@ add_executable(tak src/main.cpp
         src/utils/basic_utility.cpp
         src/utils/destructors.cpp
         src/checker/report_error.cpp
-        src/checker/get.cpp
         src/checker/convert.cpp
         src/checker/verify.cpp
         src/checker/visit.cpp

@@ -15,7 +15,7 @@ main :: proc() -> i32 {
  myvar : bool = true; 
  second : f32[3]; 
 
- defer_if true, 100 * 2; 
+ defer_if true, print("hello world"); 
 
  ret 0;
 } 
