@@ -1,0 +1,5 @@
+こんにちは世界 :: i8^ = "Hello, World!"; 
+
+myvar : i64   = 100;
+Привет : bool = myvar; 
+м_vир :: bool = Привет; 

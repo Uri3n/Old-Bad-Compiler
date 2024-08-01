@@ -25,6 +25,30 @@ Lexer::peek_char() {
     return src_[src_index_ + 1];
 }
 
+bool
+Lexer::is_current_utf8_begin() {
+    return static_cast<uint8_t>(current_char()) >= 0x80;
+}
+
+void
+Lexer::skip_utf8_sequence() {
+    assert(is_current_utf8_begin());
+
+    const uint8_t c        = static_cast<uint8_t>(current_char());
+    const size_t curr_pos  = src_index_;
+    bool invalid           = false;
+
+    if      ((c & 0xE0) == 0xC0) advance_char(2);
+    else if ((c & 0xF0) == 0xE0) advance_char(3);
+    else if ((c & 0xF8) == 0xF0) advance_char(4);
+    else invalid = true;
+
+    if(invalid || src_index_ - 1 >= src_.size()) {
+        print("{}", fmt("Invalid UTF-8 character sequence was found in file {} at byte position {}.", source_file_name_, curr_pos));
+        exit(1);
+    }
+}
+
 char
 Lexer::current_char() {
     if(src_index_ >= src_.size()) {
@@ -64,11 +88,5 @@ Lexer::init(const std::string& file_name) {
         return false;
     }
 
-    return true;
-}
-
-bool
-Lexer::init(const std::vector<char>& src) {
-    this->src_ = src;
     return true;
 }

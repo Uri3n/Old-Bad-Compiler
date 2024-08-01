@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(tak src/main.cpp
 
         src/lexer/lex.cpp
-        src/lexer/basic.cpp
+        src/lexer/iterate.cpp
         src/lexer/tokens.cpp
         src/lexer/ambiguous_token.cpp
         src/lexer/report_error.cpp

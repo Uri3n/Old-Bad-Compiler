@@ -5,13 +5,8 @@
 #include <checker.hpp>
 #include <exception>
 
-#define CURRENT_TEST "tests/test2.txt"
+#define CURRENT_TEST "tests/test_utf8.txt"
 
-/*
-    TODO before codegen:
-    - methods
-    - defer_if
-*/
 
 void
 handle_uncaught_exception() {
@@ -70,6 +65,7 @@ generate_check_ast(Parser& parser, const std::string& source_file_name) {
 
     parser.dump_nodes();
     parser.dump_types();
+
     if(!visit_tree(parser, lxr) ) {
         return false;
     }
@@ -93,7 +89,7 @@ int main() {
 
 #else
 
-    lexer lxr;
+    Lexer lxr;
     if(!lxr.init(CURRENT_TEST)) {
         return EXIT_FAILURE;
     }
@@ -104,7 +100,7 @@ int main() {
     } while(lxr.current() != TOKEN_END_OF_FILE && lxr.current() != TOKEN_ILLEGAL);
 
    if(lxr.current() == TOKEN_ILLEGAL) {
-       lxr.raise_error("This is an error!!", lxr.current().src_pos);
+       lxr.raise_error("Illegal token!", lxr.current().src_pos);
    }
 
 #endif

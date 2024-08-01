@@ -220,23 +220,41 @@ std::optional<std::string>
 remove_escaped_chars(const std::string_view& str) {
 
     std::string buffer;
+    size_t      index = 0;
 
-    for(size_t i = 0; i < str.size(); i++) {
-        if(str[i] == '\\') {
-            if(i + 1 >= str.size()) {
+    while(index < str.size()) {
+
+        const uint8_t raw = static_cast<uint8_t>(str[index]);
+        if(raw >= 0x80) {
+            const size_t utf8_begin = index;
+            bool invalid            = false;
+
+            if      ((raw & 0xE0) == 0xC0) index += 2;
+            else if ((raw & 0xF0) == 0xE0) index += 3;
+            else if ((raw & 0xF8) == 0xF0) index += 4;
+            else invalid = true;
+
+            if(invalid || index - 1 >= str.size()) {
+                panic("Invalid UTF-8 sequence.");
+            }
+
+            buffer += str.substr(utf8_begin, index - utf8_begin);
+        }
+        else if(str[index] == '\\') {
+            if(index + 1 >= str.size()) {
                 return std::nullopt;
             }
 
-            if(const auto escaped = get_escaped_char_via_real(str[i + 1])) {
+            if(const auto escaped = get_escaped_char_via_real(str[index + 1])) {
                 buffer += *escaped;
-                i++;
+                index += 2;
             } else {
                 return std::nullopt;
             }
         }
-
         else {
-            buffer += str[i];
+            buffer += str[index];
+            ++index;
         }
     }
 

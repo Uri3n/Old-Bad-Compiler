@@ -216,7 +216,11 @@ lexer_token_fwdslash(Lexer &lxr) {
     switch(lxr.peek_char()) {
         case '/':
             while(lxr.current_char() != '\0' && lxr.current_char() != '\n') {
-                lxr.advance_char(1);
+                if(lxr.is_current_utf8_begin()) {
+                    lxr.skip_utf8_sequence();
+                } else {
+                    lxr.advance_char(1);
+                }
             }
 
             _current.type = TOKEN_NONE;
@@ -237,7 +241,11 @@ lexer_token_fwdslash(Lexer &lxr) {
                     lxr.advance_line();
                 }
 
-                lxr.advance_char(1);
+                if(lxr.is_current_utf8_begin()) {
+                    lxr.skip_utf8_sequence();
+                } else {
+                    lxr.advance_char(1);
+                }
             }
 
 
@@ -506,9 +514,8 @@ lexer_token_quote(Lexer &lxr) {
     }
 
 
-    const char opening_quote = lxr.current_char();
-    size_t     string_start  = index;
-
+    const char   opening_quote = lxr.current_char();
+    const size_t string_start  = index;
 
     lxr.advance_char(1);
     while(true) {
@@ -528,7 +535,9 @@ lexer_token_quote(Lexer &lxr) {
             lxr.advance_char(2);
         }
 
-        else {
+        else if (lxr.is_current_utf8_begin()){
+            lxr.skip_utf8_sequence();
+        } else {
             lxr.advance_char(1);
         }
     }
@@ -543,13 +552,24 @@ lexer_token_singlequote(Lexer &lxr) {
 
     lxr.advance_char(1);
 
-    if(lxr.current_char() == '\\') {          // check for escaped single-quote
-        lxr.advance_char(2);
-    } else if(lxr.current_char() == '\'') {   // empty literal
+    if(lxr.current_char() == '\\') {
+        lxr.advance(1);
+        if(lxr.is_current_utf8_begin()) {
+            _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+            return;
+        }
+        lxr.advance_char(1);
+    }
+    else if(lxr.current_char() == '\'') {
         lxr.advance_char(1);
         _current = Token{TOKEN_CHARACTER_LITERAL, KIND_LITERAL, start, {&src[start], index - start}};
         return;
-    } else {
+    }
+    else if(lxr.is_current_utf8_begin()) {
+        _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src[start], index - start}};
+        return;
+    }
+    else {
         lxr.advance_char(1);
     }
 

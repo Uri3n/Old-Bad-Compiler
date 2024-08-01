@@ -40,13 +40,15 @@ public:
     void   advance_char(uint32_t amnt);
     void   advance_line();
 
+    bool   is_current_utf8_begin();
+    void   skip_utf8_sequence();
+
     void   _raise_error_impl(const std::string& message, size_t file_position, uint32_t line);
     void   raise_error(const std::string& message);
     void   raise_error(const std::string& message, size_t file_position, uint32_t line);
     void   raise_error(const std::string& message, size_t file_position);
 
-    bool init(const std::string& source_file_name);
-    bool init(const std::vector<char>& source);
+    bool init(const std::string& file_name);
 
     ~Lexer() = default;
     Lexer()  = default;

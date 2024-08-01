@@ -16,14 +16,14 @@ token_hex_literal(Lexer& lxr) {
 
     lxr.advance_char(2);
     while(true) {
-        if(lxr.current_char() == '\0')    break;
-        if(!isxdigit(lxr.current_char())) break;
+        if(lxr.current_char() == '\0') break;
+        if(!isxdigit(static_cast<uint8_t>(lxr.current_char()))) break;
 
         lxr.advance_char(1);
     }
 
     const std::string_view token_raw = {&src[start], index - start};
-    if(token_raw.back() == '\0' || !isxdigit(token_raw.back())) {
+    if(token_raw.back() == '\0' || !isxdigit(static_cast<uint8_t>(token_raw.back()))) {
         return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
@@ -34,7 +34,7 @@ token_hex_literal(Lexer& lxr) {
 Token
 token_numeric_literal(Lexer& lxr) {
 
-    assert(isdigit(lxr.current_char()));
+    assert( isdigit(static_cast<uint8_t>(lxr.current_char())) );
 
     auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start   = lxr.src_index_;
@@ -65,11 +65,11 @@ token_numeric_literal(Lexer& lxr) {
             // Parse exponent
             if(lxr.peek_char() == '-' || lxr.peek_char() == '+') {
                 lxr.advance_char(1);
-                if(!isdigit(lxr.peek_char())) break;
+                if(!isdigit(static_cast<uint8_t>(lxr.peek_char()))) break;
             }
         }
 
-        else if(!isdigit(lxr.current_char())) {
+        else if(!isdigit(static_cast<uint8_t>(lxr.current_char()))) {
             break;
         }
 
@@ -78,11 +78,11 @@ token_numeric_literal(Lexer& lxr) {
 
 
     const std::string_view token_raw = {&src[start], index - start};
-    if(!isdigit(token_raw.back())) {
+    if(!isdigit(static_cast<uint8_t>(token_raw.back()))) {
         return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, token_raw};
     }
 
-    const auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [&](const char c) { return !isdigit(c); });
+    const auto is_float = std::find_if(token_raw.begin(), token_raw.end(), [&](const char c) { return !isdigit(static_cast<uint8_t>(c)); });
     if(is_float == token_raw.end()) {
         return Token{TOKEN_INTEGER_LITERAL, KIND_LITERAL, start, token_raw};
     }
@@ -147,7 +147,7 @@ lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_fun
         return;
     }
 
-    if(isdigit(lxr.current_char())) {
+    if(isdigit(static_cast<uint8_t>(lxr.current_char()))) {
         if(lxr.current_char() == '0' && lxr.peek_char() == 'x') {
             _current = token_hex_literal(lxr);
         } else {
@@ -163,7 +163,11 @@ lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_fun
     //
 
     while(!illegals.contains(lxr.current_char()) && lxr.current_char() != '\0') {
-        lxr.advance_char(1);
+        if(lxr.is_current_utf8_begin()) {
+            lxr.skip_utf8_sequence();
+        } else {
+            lxr.advance_char(1);
+        }
     }
 
     const std::string_view token_raw = {&src[start], index - start};
