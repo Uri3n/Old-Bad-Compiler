@@ -5,8 +5,8 @@
 #include <lexer.hpp>
 
 
-Token
-token_hex_literal(Lexer& lxr) {
+tak::Token
+tak::token_hex_literal(Lexer& lxr) {
 
     assert(lxr.current_char() == '0');
     assert(lxr.peek_char() == 'x');
@@ -31,8 +31,8 @@ token_hex_literal(Lexer& lxr) {
 }
 
 
-Token
-token_numeric_literal(Lexer& lxr) {
+tak::Token
+tak::token_numeric_literal(Lexer& lxr) {
 
     assert( isdigit(static_cast<uint8_t>(lxr.current_char())) );
 
@@ -92,7 +92,7 @@ token_numeric_literal(Lexer& lxr) {
 
 
 void
-lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals) {
+tak::lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = index;

@@ -5,11 +5,11 @@
 #include <parser.hpp>
 
 
-AstNode*
-parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, const bool parse_single) {
+tak::AstNode*
+tak::parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, const bool parse_single) {
 
     const auto  curr  = lxr.current();
-    AstNode*   expr  = nullptr;
+    AstNode*    expr  = nullptr;
     bool        state = false;
 
     defer_if(!state, [&] {
@@ -17,17 +17,17 @@ parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, const boo
     });
 
 
-    if(curr == TOKEN_END_OF_FILE)       return nullptr;
-    if(curr == TOKEN_IDENTIFIER)        expr = parse_identifier(parser, lxr);
-    else if(curr == TOKEN_AT)           expr = parse_compiler_directive(parser, lxr);
-    else if(curr == TOKEN_LPAREN)       expr = parse_parenthesized_expression(parser, lxr);
-    else if(curr == TOKEN_LBRACE)       expr = parse_braced_expression(parser, lxr);
-    else if(curr.kind == KIND_LITERAL)  expr = parse_singleton_literal(parser, lxr);
-    else if(curr.kind == KIND_KEYWORD)  expr = parse_keyword(parser, lxr);
+    if(curr == TOKEN_END_OF_FILE)             return nullptr;
+    if(curr == TOKEN_AT)                      expr = parse_compiler_directive(parser, lxr);
+    else if(curr == TOKEN_LPAREN)             expr = parse_parenthesized_expression(parser, lxr);
+    else if(curr == TOKEN_LBRACE)             expr = parse_braced_expression(parser, lxr);
+    else if(curr.kind == KIND_LITERAL)        expr = parse_singleton_literal(parser, lxr);
+    else if(curr.kind == KIND_KEYWORD)        expr = parse_keyword(parser, lxr);
+    else if(TOKEN_IDENT_START(curr.type))     expr = parse_identifier(parser, lxr);
     else if(TOKEN_VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
 
     else {
-        lxr.raise_error("Illegal token."); // @Cleanup: better error message
+        lxr.raise_error("Unexpected token.");
         return nullptr;
     }
 
@@ -120,8 +120,8 @@ parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, const boo
 }
 
 
-AstNode*
-parse_keyword(Parser &parser, Lexer &lxr) {
+tak::AstNode*
+tak::parse_keyword(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current().kind == KIND_KEYWORD, "Expected keyword.");
 
@@ -149,8 +149,8 @@ parse_keyword(Parser &parser, Lexer &lxr) {
 }
 
 
-AstNode*
-parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LPAREN, "Expected beginning of parenthesized expression.");
 
@@ -172,8 +172,8 @@ parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_cast(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_cast(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_CAST, "Expected \"cast\" keyword.");
 
@@ -221,7 +221,7 @@ parse_cast(Parser& parser, Lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current() != TOKEN_IDENTIFIER && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
+    if(!TOKEN_IDENT_START(lxr.current().type) && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
         lxr.raise_error("Expected type identifier.");
         return nullptr;
     }
@@ -248,14 +248,19 @@ parse_cast(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_singleton_literal(Parser& _, Lexer& lxr) {
+tak::AstNode*
+tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().kind == KIND_LITERAL, "Expected literal.");
 
+    bool  state        = false;
     auto* node         = new AstSingletonLiteral();
     node->literal_type = lxr.current().type;
     node->pos          = lxr.current().src_pos;
+
+    defer_if(!state, [&] {
+        delete node;
+    });
 
 
     //
@@ -300,12 +305,13 @@ parse_singleton_literal(Parser& _, Lexer& lxr) {
     }
 
     lxr.advance(1);
+    state = true;
     return node;
 }
 
 
-AstNode*
-parse_nullptr(Lexer& lxr) {
+tak::AstNode*
+tak::parse_nullptr(Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_NULLPTR, "Expected \"nullptr\" keyword.");
 
@@ -319,8 +325,8 @@ parse_nullptr(Lexer& lxr) {
 }
 
 
-AstNode*
-parse_member_access(AstNode* target, Lexer& lxr) {
+tak::AstNode*
+tak::parse_member_access(AstNode* target, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_DOT, "Expected '.'");
     parser_assert(target != nullptr, "null target.");
@@ -355,8 +361,8 @@ parse_member_access(AstNode* target, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_sizeof(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_sizeof(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_SIZEOF, "Expected \"sizeof\" keyword.");
 
@@ -373,7 +379,7 @@ parse_sizeof(Parser& parser, Lexer& lxr) {
 
 
     lxr.advance(1);
-    if(lxr.current() == TOKEN_IDENTIFIER) {
+    if(TOKEN_IDENT_START(lxr.current().type)) {
 
         std::string name_if_type;
 
@@ -431,8 +437,8 @@ parse_sizeof(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_braced_expression(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LBRACE, "Expected left-brace.");
 
@@ -473,8 +479,8 @@ parse_braced_expression(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_unary_expression(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
 
     parser_assert(TOKEN_VALID_UNARY_OPERATOR(lxr.current()), "Expected unary operator.");
 
@@ -505,8 +511,8 @@ parse_unary_expression(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LPAREN, "Expected '('.");
 
@@ -575,8 +581,8 @@ parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR, "Expected binary operator.");
     parser_assert(left_operand != nullptr, "Null left operand passed.");
@@ -626,8 +632,8 @@ parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['.");
     parser_assert(operand != nullptr, "Null operand.");

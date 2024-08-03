@@ -5,9 +5,8 @@
 #include <lexer.hpp>
 
 
-
 void
-Lexer::advance(const uint32_t amnt) {
+tak::Lexer::advance(const uint32_t amnt) {
 
     if(current_ == TOKEN_END_OF_FILE || current_ == TOKEN_ILLEGAL) {
         return;
@@ -69,8 +68,8 @@ Lexer::advance(const uint32_t amnt) {
 }
 
 
-Token&
-Lexer::current() {
+tak::Token&
+tak::Lexer::current() {
     if(current_ == TOKEN_NONE) { // if the lexer was just created current will be TOKEN_NONE initially
         advance(1);
     }
@@ -79,8 +78,8 @@ Lexer::current() {
 }
 
 
-Token
-Lexer::peek(const uint32_t amnt) {
+tak::Token
+tak::Lexer::peek(const uint32_t amnt) {
 
     if(current_ == TOKEN_NONE) {
         advance(1);

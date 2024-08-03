@@ -5,16 +5,16 @@
 #include <parser.hpp>
 
 
-AstBinexpr::~AstBinexpr() {
+tak::AstBinexpr::~AstBinexpr() {
     delete left_op;
     delete right_op;
 }
 
-AstMemberAccess::~AstMemberAccess() {
+tak::AstMemberAccess::~AstMemberAccess() {
     delete target;
 }
 
-AstBranch::~AstBranch() {
+tak::AstBranch::~AstBranch() {
     for(AstNode const* node : conditions) {
         delete node;
     }
@@ -24,7 +24,7 @@ AstBranch::~AstBranch() {
     }
 }
 
-AstIf::~AstIf() {
+tak::AstIf::~AstIf() {
     for(AstNode const* node : body) {
         delete node;
     }
@@ -32,13 +32,13 @@ AstIf::~AstIf() {
     delete condition;
 }
 
-AstElse::~AstElse() {
+tak::AstElse::~AstElse() {
     for(AstNode const* node : body) {
         delete node;
     }
 }
 
-AstProcdecl::~AstProcdecl() {
+tak::AstProcdecl::~AstProcdecl() {
     for(AstNode const* node : body) {
         delete node;
     }
@@ -50,7 +50,7 @@ AstProcdecl::~AstProcdecl() {
     delete identifier;
 }
 
-AstVardecl::~AstVardecl() {
+tak::AstVardecl::~AstVardecl() {
     if(init_value.has_value()) {
         delete *init_value;
     }
@@ -58,7 +58,7 @@ AstVardecl::~AstVardecl() {
     delete identifier;
 }
 
-AstCall::~AstCall() {
+tak::AstCall::~AstCall() {
     for(AstNode const* node : arguments) {
         delete node;
     }
@@ -66,27 +66,27 @@ AstCall::~AstCall() {
     delete target;
 }
 
-AstEnumdef::~AstEnumdef() {
+tak::AstEnumdef::~AstEnumdef() {
     delete _namespace;
     delete alias;
 }
 
-AstCast::~AstCast() {
+tak::AstCast::~AstCast() {
     delete target;
 }
 
-AstBlock::~AstBlock() {
+tak::AstBlock::~AstBlock() {
     for(AstNode const* node : body) {
         delete node;
     }
 }
 
-AstSubscript::~AstSubscript() {
+tak::AstSubscript::~AstSubscript() {
     delete operand;
     delete value;
 }
 
-AstFor::~AstFor() {
+tak::AstFor::~AstFor() {
     for(AstNode const* node : body) {
         delete node;
     }
@@ -96,7 +96,7 @@ AstFor::~AstFor() {
     if(update)    delete *update;
 }
 
-AstWhile::~AstWhile() {
+tak::AstWhile::~AstWhile() {
     for(AstNode const* node : body) {
         delete node;
     }
@@ -104,46 +104,46 @@ AstWhile::~AstWhile() {
     delete condition;
 }
 
-AstDoWhile::~AstDoWhile() {
-    for(AstNode const* node : body) {
+tak::AstDoWhile::~AstDoWhile() {
+    for(tak::AstNode const* node : body) {
         delete node;
     }
 
     delete condition;
 }
 
-AstUnaryexpr::~AstUnaryexpr() {
+tak::AstUnaryexpr::~AstUnaryexpr() {
     delete operand;
 }
 
-AstBracedExpression::~AstBracedExpression() {
-    for(AstNode const* node : members) {
+tak::AstBracedExpression::~AstBracedExpression() {
+    for(tak::AstNode const* node : members) {
         delete node;
     }
 }
 
-AstRet::~AstRet() {
+tak::AstRet::~AstRet() {
     if(value.has_value()) {
         delete *value;
     }
 }
 
-AstCase::~AstCase() {
-    for(AstNode const* node : body) {
+tak::AstCase::~AstCase() {
+    for(tak::AstNode const* node : body) {
         delete node;
     }
 
     delete value;
 }
 
-AstDefault::~AstDefault() {
-    for(AstNode const* node : body) {
+tak::AstDefault::~AstDefault() {
+    for(tak::AstNode const* node : body) {
         delete node;
     }
 }
 
-AstSwitch::~AstSwitch() {
-    for(AstNode const* node : cases) {
+tak::AstSwitch::~AstSwitch() {
+    for(tak::AstNode const* node : cases) {
         delete node;
     }
 
@@ -151,28 +151,28 @@ AstSwitch::~AstSwitch() {
     delete target;
 }
 
-AstNamespaceDecl::~AstNamespaceDecl() {
-    for(AstNode const* node : children) {
+tak::AstNamespaceDecl::~AstNamespaceDecl() {
+    for(tak::AstNode const* node : children) {
         delete node;
     }
 }
 
-AstSizeof::~AstSizeof() {
-    if(const auto* is_ident = std::get_if<AstNode*>(&this->target)) {
+tak::AstSizeof::~AstSizeof() {
+    if(const auto* is_ident = std::get_if<tak::AstNode*>(&this->target)) {
         delete *is_ident;
     }
 }
 
-AstDefer::~AstDefer() {
+tak::AstDefer::~AstDefer() {
     delete call;
 }
 
-AstDeferIf::~AstDeferIf() {
+tak::AstDeferIf::~AstDeferIf() {
     delete call;
     delete condition;
 }
 
-Parser::~Parser() {
+tak::Parser::~Parser() {
     for(AstNode const* node : toplevel_decls_) {
         delete node;
     }

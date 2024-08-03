@@ -10,8 +10,6 @@
 
 #define defer(callable) auto _ = defer_wrapper(callable);
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #define defer_if(condition, callable) \
     auto _ = defer_wrapper([&]{       \
         auto _sub = callable;         \

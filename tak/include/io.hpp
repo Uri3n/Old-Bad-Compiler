@@ -8,40 +8,39 @@
 #include <format>
 #include <iostream>
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename ... Args>
-static std::string fmt(const std::format_string<Args...> fmt, Args... args) {
+namespace tak {
 
-    std::string output;
+    template<typename ... Args>
+    static std::string fmt(const std::format_string<Args...> fmt, Args... args) {
+        std::string output;
 
-    try {
-        output = std::vformat(fmt.get(), std::make_format_args(args...));
-    } catch(const std::format_error& e) {
-        output = std::string("FORMAT ERROR: ") + e.what();
-    } catch(...) {
-        output = "UNKNOWN FORMATTING ERROR";
+        try {
+            output = std::vformat(fmt.get(), std::make_format_args(args...));
+        } catch(const std::format_error& e) {
+            output = std::string("FORMAT ERROR: ") + e.what();
+        } catch(...) {
+            output = "UNKNOWN FORMATTING ERROR";
+        }
+
+        return output;
     }
 
-    return output;
-}
 
+    template<typename ... Args>
+    static void print(const std::format_string<Args...> fmt, Args... args) {
+        std::string output;
 
-template<typename ... Args>
-static void print(const std::format_string<Args...> fmt, Args... args) {
+        try {
+            output = std::vformat(fmt.get(), std::make_format_args(args...));
+        } catch(const std::format_error& e) {
+            output = std::string("FORMAT ERROR: ") + e.what();
+        } catch(...) {
+            output = "UNKNOWN FORMATTING ERROR";
+        }
 
-    std::string output;
-
-    try {
-        output = std::vformat(fmt.get(), std::make_format_args(args...));
-    } catch(const std::format_error& e) {
-        output = std::string("FORMAT ERROR: ") + e.what();
-    } catch(...) {
-        output = "UNKNOWN FORMATTING ERROR";
+        std::cout << output << std::endl;
     }
-
-    std::cout << output << std::endl;
 }
-
 #endif //IO_HPP

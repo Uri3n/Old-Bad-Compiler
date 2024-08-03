@@ -14,8 +14,8 @@ static bool is_t_within_range(J val) {
 }
 
 
-TypeData
-convert_int_lit_to_type(const AstSingletonLiteral* node) {
+tak::TypeData
+tak::convert_int_lit_to_type(const AstSingletonLiteral* node) {
 
     assert(node != nullptr);
     assert(node->literal_type == TOKEN_INTEGER_LITERAL);
@@ -42,8 +42,8 @@ convert_int_lit_to_type(const AstSingletonLiteral* node) {
 }
 
 
-TypeData
-convert_float_lit_to_type(const AstSingletonLiteral* node) {
+tak::TypeData
+tak::convert_float_lit_to_type(const AstSingletonLiteral* node) {
 
     assert(node != nullptr);
     assert(node->literal_type == TOKEN_FLOAT_LITERAL);
@@ -70,7 +70,7 @@ convert_float_lit_to_type(const AstSingletonLiteral* node) {
 
 
 bool
-type_promote_non_concrete(TypeData& left, const TypeData& right) {
+tak::type_promote_non_concrete(TypeData& left, const TypeData& right) {
 
     const auto* pleft_t  = std::get_if<var_t>(&left.name);
     const auto* pright_t = std::get_if<var_t>(&right.name);
@@ -106,7 +106,7 @@ type_promote_non_concrete(TypeData& left, const TypeData& right) {
 
 
 bool
-flip_sign(TypeData& type) {
+tak::flip_sign(TypeData& type) {
 
     assert(type.pointer_depth == 0);
     assert(type.array_lengths.empty());
@@ -133,8 +133,8 @@ flip_sign(TypeData& type) {
 }
 
 
-std::optional<TypeData>
-get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     if(node->members.empty()) {
@@ -177,8 +177,8 @@ get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx) 
 }
 
 
-std::optional<TypeData>
-get_dereferenced_type(const TypeData& type) {
+std::optional<tak::TypeData>
+tak::get_dereferenced_type(const TypeData& type) {
 
     TypeData deref_t = type;
 
@@ -219,8 +219,8 @@ get_dereferenced_type(const TypeData& type) {
 }
 
 
-std::optional<TypeData>
-get_addressed_type(const TypeData& type) {
+std::optional<tak::TypeData>
+tak::get_addressed_type(const TypeData& type) {
 
     if(type.flags & TYPE_ARRAY || type.flags & TYPE_RVALUE) {
         return std::nullopt;
@@ -234,11 +234,11 @@ get_addressed_type(const TypeData& type) {
 }
 
 
-std::optional<TypeData>
-get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, Parser& parser) {
+std::optional<tak::TypeData>
+tak::get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, Parser& parser) {
 
     const auto   member_chunks = split_struct_member_path(member_path);
-    const auto*  member_data   = parser.lookup_type(base_type_name);
+    const auto*  member_data   = parser.lookup_type_members(base_type_name);
     size_t       index         = 0;
 
     if(member_chunks.empty() || member_data == nullptr) {
@@ -259,7 +259,7 @@ get_struct_member_type_data(const std::string& member_path, const std::string& b
                 if(const auto* struct_name = std::get_if<std::string>(&member.type.name)) {
                     ++index;
                     if(parser.type_exists(*struct_name) && member.type.array_lengths.empty() && member.type.pointer_depth < 2) {
-                        return recurse(parser.lookup_type(*struct_name));
+                        return recurse(parser.lookup_type_members(*struct_name));
                     }
                 }
 
@@ -275,7 +275,7 @@ get_struct_member_type_data(const std::string& member_path, const std::string& b
 
 
 void
-assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx) {
+tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx) {
 
     assert(expr != nullptr);
     assert(type.kind == TYPE_KIND_STRUCT);
@@ -287,7 +287,7 @@ assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* exp
 
     const std::string* name = std::get_if<std::string>(&type.name);
     assert(name != nullptr);
-    std::vector<MemberData>* members = ctx.parser_.lookup_type(*name);
+    std::vector<MemberData>* members = ctx.parser_.lookup_type_members(*name);
     assert(members != nullptr);
 
 

@@ -5,7 +5,7 @@
 #include <checker.hpp>
 
 void
-CheckerContext::raise_error(const std::string& message, const size_t position) {
+tak::CheckerContext::raise_error(const std::string& message, const size_t position) {
     lxr_.raise_error(fmt("ERROR: {}\n", message), position);
     ++error_count_;
 
@@ -15,7 +15,7 @@ CheckerContext::raise_error(const std::string& message, const size_t position) {
 }
 
 void
-CheckerContext::raise_warning(const std::string& message, const size_t position) {
+tak::CheckerContext::raise_warning(const std::string& message, const size_t position) {
     lxr_.raise_error(fmt("WARNING: {}\n", message), position);
     ++warning_count_;
 }

@@ -10,6 +10,8 @@ add_executable(tak src/main.cpp
         src/lexer/tokens.cpp
         src/lexer/ambiguous_token.cpp
         src/lexer/report_error.cpp
+        src/lexer/init.cpp
+
         src/parser/symtbl.cpp
         src/parser/dump.cpp
         src/parser/decl.cpp
@@ -22,12 +24,15 @@ add_executable(tak src/main.cpp
         src/parser/directive.cpp
         src/parser/enumdef.cpp
         src/parser/structdef.cpp
-        src/utils/basic_utility.cpp
-        src/utils/destructors.cpp
+
         src/checker/report_error.cpp
         src/checker/convert.cpp
         src/checker/verify.cpp
         src/checker/visit.cpp
+
+        src/support/basic_utility.cpp
+        src/support/destructors.cpp
+        src/support/do_compile.cpp
 
         include/token.hpp
         include/Lexer.hpp
@@ -38,7 +43,9 @@ add_executable(tak src/main.cpp
         include/var_types.hpp
         include/checker.hpp
         include/panic.hpp
-        include/utils.hpp
+        include/support.hpp
+        include/enter_namespace.hpp
 )
 
+target_compile_definitions(tak PRIVATE TAK_DEBUG)
 target_include_directories(tak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

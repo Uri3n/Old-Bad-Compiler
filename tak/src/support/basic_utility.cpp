@@ -2,11 +2,11 @@
 // Created by Diago on 2024-07-23.
 //
 
-#include <utils.hpp>
+#include <support.hpp>
 
 
 std::string
-token_to_string(const token_t type) {
+tak::token_to_string(const token_t type) {
 
 #define X(NAME, STR) case TOKEN_##NAME: return STR;
     switch(type) {
@@ -17,7 +17,7 @@ token_to_string(const token_t type) {
 }
 
 std::string
-token_type_to_string(const token_t type) {
+tak::token_type_to_string(const token_t type) {
 
 #define X(NAME, UNUSED_STR) case TOKEN_##NAME: return #NAME;
     switch(type) {
@@ -28,7 +28,7 @@ token_type_to_string(const token_t type) {
 }
 
 std::string
-token_kind_to_string(const token_kind kind) {
+tak::token_kind_to_string(const token_kind kind) {
 
 #define X(NAME) case KIND_##NAME: return #NAME;
     switch(kind) {
@@ -39,7 +39,7 @@ token_kind_to_string(const token_kind kind) {
 }
 
 std::string
-var_t_to_string(const var_t type) {
+tak::var_t_to_string(const var_t type) {
 
     switch(type) {
         case VAR_NONE:     return "None";
@@ -62,14 +62,14 @@ var_t_to_string(const var_t type) {
 }
 
 std::string
-typedata_to_str_msg(const TypeData& type) {
+tak::typedata_to_str_msg(const TypeData& type) {
 
     std::string buffer;
     bool is_proc = false;
 
     if(type.flags & TYPE_INFERRED) return "Invalid Type";
     if(type.flags & TYPE_CONSTANT) buffer += "const ";
-    if(type.flags & TYPE_RVALUE)      buffer += "rvalue ";
+    if(type.flags & TYPE_RVALUE)   buffer += "rvalue ";
 
 
     if(const auto* is_primitive = std::get_if<var_t>(&type.name)) {
@@ -118,8 +118,8 @@ typedata_to_str_msg(const TypeData& type) {
     return buffer;
 }
 
-var_t
-token_to_var_t(const token_t tok_t) {
+tak::var_t
+tak::token_to_var_t(const token_t tok_t) {
 
     switch(tok_t) {
         case TOKEN_KW_I8:   return VAR_I8;
@@ -138,7 +138,7 @@ token_to_var_t(const token_t tok_t) {
 }
 
 uint16_t
-precedence_of(const token_t _operator) {
+tak::precedence_of(const token_t _operator) {
 
     switch(_operator) {
 
@@ -178,7 +178,7 @@ precedence_of(const token_t _operator) {
 }
 
 uint16_t
-var_t_to_size_bytes(const var_t type) {
+tak::var_t_to_size_bytes(const var_t type) {
 
     // Assumes type is NOT a pointer.
 
@@ -200,7 +200,7 @@ var_t_to_size_bytes(const var_t type) {
 }
 
 std::optional<char>
-get_escaped_char_via_real(const char real) {
+tak::get_escaped_char_via_real(const char real) {
 
     switch(real) {
         case 'n':  return '\n';
@@ -217,7 +217,7 @@ get_escaped_char_via_real(const char real) {
 }
 
 std::optional<std::string>
-remove_escaped_chars(const std::string_view& str) {
+tak::remove_escaped_chars(const std::string_view& str) {
 
     std::string buffer;
     size_t      index = 0;
@@ -262,7 +262,7 @@ remove_escaped_chars(const std::string_view& str) {
 }
 
 std::optional<std::string>
-get_actual_string(const std::string_view& str) {
+tak::get_actual_string(const std::string_view& str) {
 
     if(auto actual = remove_escaped_chars(str)) {
         if(actual->size() < 3)
@@ -277,7 +277,7 @@ get_actual_string(const std::string_view& str) {
 }
 
 std::optional<char>
-get_actual_char(const std::string_view& str) {
+tak::get_actual_char(const std::string_view& str) {
 
     if(const auto actual = remove_escaped_chars(str)) {
         if(actual->size() < 3)
@@ -290,7 +290,7 @@ get_actual_char(const std::string_view& str) {
 }
 
 std::optional<size_t>
-lexer_token_lit_to_int(const Token& tok) {
+tak::lexer_token_lit_to_int(const Token& tok) {
 
     size_t val = 0;
 
@@ -314,7 +314,7 @@ lexer_token_lit_to_int(const Token& tok) {
 }
 
 void
-lexer_display_token_data(const Token& tok) {
+tak::lexer_display_token_data(const Token& tok) {
     print(
         "Value: {}\nType: {}\nKind: {}\nFile Pos Index: {}\nLine Number: {}\n",
         tok.value,
@@ -326,7 +326,7 @@ lexer_display_token_data(const Token& tok) {
 }
 
 std::vector<std::string>
-split_struct_member_path(std::string path) {
+tak::split_struct_member_path(std::string path) {
 
     if(path.empty() || path.front() != '.') {
         panic(fmt("split_struct_member_path: malformed path value: {}", path));

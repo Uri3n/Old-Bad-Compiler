@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-AstNode*
-parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected \"proc\" keyword.");
     parser_assert(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR, "Expected next token to be pointy fella (^).");
@@ -75,8 +75,8 @@ parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
 }
 
 
-AstVardecl*
-parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
+tak::AstVardecl*
+tak::parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected variable identifier.");
 
@@ -91,7 +91,7 @@ parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
         return nullptr;
     }
 
-    if(parser.scoped_symbol_exists_at_current_scope(name)) {   // a new scope should be pushed by parse_procdecl
+    if(parser.scoped_symbol_exists_at_current_scope(name)) {   // a new scope should be pushed by tak::parse_procdecl
         lxr.raise_error("Symbol already exists within this scope.");
         return nullptr;
     }
@@ -107,7 +107,7 @@ parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
     }
 
     lxr.advance(1);
-    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
+    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
         lxr.raise_error("Expected type identifier.");
         return nullptr;
     }
@@ -154,8 +154,8 @@ parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_PROC, "Expected proc type identifier.");
 
@@ -230,7 +230,7 @@ parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() != TOKEN_ARROW || (lxr.peek(1).kind != KIND_TYPE_IDENTIFIER && lxr.peek(1) != TOKEN_IDENTIFIER)) {
+    if(lxr.current() != TOKEN_ARROW || (lxr.peek(1).kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.peek(1)))) {
         lxr.raise_error("Expected procedure return type after parameter list.");
         return nullptr;
     }
@@ -238,7 +238,7 @@ parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
     lxr.advance(1);
     if(lxr.current() == TOKEN_KW_VOID && lxr.peek(1) != TOKEN_BITWISE_XOR_OR_PTR) {
         lxr.advance(1);
-    } else if(const auto _type_data = parse_type(parser, lxr)) {
+    } else if(const auto _type_data = tak::parse_type(parser, lxr)) {
         proc->type.return_type  = std::make_shared<TypeData>();
         *proc->type.return_type = *_type_data;
     } else {
@@ -306,12 +306,12 @@ parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER, "Expected type identifier.");
 
-    const auto type_data = parse_type(parser, lxr);
+    const auto type_data = tak::parse_type(parser, lxr);
     if(!type_data) {
         return nullptr;
     }
@@ -370,15 +370,15 @@ parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_structdecl(Symbol* _struct, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_usertype_decl(Symbol* sym, Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected struct type name.");
+    parser_assert(TOKEN_IDENT_START(lxr.current().type), "Expected user type name.");
 
-    if(const auto type = parse_type(parser, lxr)) {
-        const uint64_t temp  = _struct->type.flags;
-        _struct->type        = *type;
-        _struct->type.flags |= temp;
+    if(const auto type = tak::parse_type(parser, lxr)) {
+        const uint64_t temp  = sym->type.flags;
+        sym->type            = *type;
+        sym->type.flags     |= temp;
     } else {
         return nullptr;
     }
@@ -388,7 +388,7 @@ parse_structdecl(Symbol* _struct, Parser& parser, Lexer& lxr) {
     node->identifier               = new AstIdentifier();
     node->pos                      = lxr.current().src_pos;
     node->identifier->parent       = node;
-    node->identifier->symbol_index = _struct->symbol_index;
+    node->identifier->symbol_index = sym->symbol_index;
     node->identifier->pos          = lxr.current().src_pos;
 
 
@@ -407,7 +407,7 @@ parse_structdecl(Symbol* _struct, Parser& parser, Lexer& lxr) {
 
         const auto expr_type = (*node->init_value)->type;
         if(!VALID_SUBEXPRESSION(expr_type)) {
-            lxr.raise_error("Invalid subexpression being assigned to struct.", curr_pos, line);
+            lxr.raise_error("Invalid subexpression.", curr_pos, line);
             delete node;
             return nullptr;
         }
@@ -416,13 +416,13 @@ parse_structdecl(Symbol* _struct, Parser& parser, Lexer& lxr) {
         return node;
     }
 
-    _struct->type.flags |= TYPE_DEFAULT_INIT;
+    sym->type.flags |= TYPE_DEFAULT_INIT;
     return node;
 }
 
 
-AstNode*
-parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_VALUE_ASSIGNMENT, "Expected '='.");
     parser_assert(var->type.flags & TYPE_INFERRED, "Passed symbol does not have inferred flag set.");
@@ -465,8 +465,8 @@ parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_decl(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_decl(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_IDENTIFIER, "Expected identifier.");
 
@@ -474,7 +474,7 @@ parse_decl(Parser& parser, Lexer& lxr) {
     const size_t   src_pos  = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
     uint64_t       flags    = TYPE_FLAGS_NONE;
-    type_kind_t    type     = TYPE_KIND_VARIABLE;
+    uint32_t       replace  = INVALID_SYMBOL_INDEX;
 
 
     lxr.advance(1);
@@ -496,77 +496,94 @@ parse_decl(Parser& parser, Lexer& lxr) {
         flags |= TYPE_GLOBAL;
     }
 
-
-    //
-    // Check for redeclarations.
-    //
-
     if(parser.scoped_symbol_exists_at_current_scope(name)) {
-        lxr.raise_error("Symbol redeclaration, this already exists at the current scope.", src_pos, line);
-        return nullptr;
+        const uint32_t index = parser.lookup_scoped_symbol(name);
+        auto* sym            = parser.lookup_unique_symbol(index);
+        if(sym->placeholder) {
+            replace          = index;
+            sym->placeholder = false;
+            sym->src_pos     = src_pos;
+            sym->line_number = line;
+        } else {
+            lxr.raise_error("Redeclaration: symbol already exists at this scope", src_pos, line);
+            return nullptr;
+        }
     }
 
 
-    //
-    // Inferred type.
-    //
-
+    // Inferred type
     lxr.advance(1);
-    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
-        if(auto* inferred_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_NONE, flags | TYPE_INFERRED | TYPE_UNINITIALIZED)) {
-            return parse_inferred_decl(inferred_ptr, parser, lxr);
+    if(lxr.current() == TOKEN_VALUE_ASSIGNMENT)
+    {
+        Symbol* inferred_ptr = nullptr;
+        if(replace != INVALID_SYMBOL_INDEX) {
+            inferred_ptr              = parser.lookup_unique_symbol(replace);
+            inferred_ptr->type.kind   = TYPE_KIND_NONE;
+            inferred_ptr->type.flags  = flags | TYPE_INFERRED | TYPE_UNINITIALIZED;
+        } else {
+            inferred_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_NONE, flags | TYPE_INFERRED | TYPE_UNINITIALIZED);
         }
 
-        return nullptr;
+        assert(inferred_ptr != nullptr);
+        return tak::parse_inferred_decl(inferred_ptr, parser, lxr);
     }
 
-    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
+
+    if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
         lxr.raise_error("Expected type identifier here.");
         return nullptr;
     }
 
 
-    //
-    // Procedure or procedure pointer declaration.
-    //
-
-    if(lxr.current() == TOKEN_KW_PROC) {
-        type = TYPE_KIND_PROCEDURE;
-        if(auto* proc_ptr = parser.create_symbol(name, src_pos, line, type, flags)) {
-            if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) { // function pointer
-                proc_ptr->type.flags |= TYPE_POINTER | TYPE_UNINITIALIZED;
-                return parse_proc_ptr(proc_ptr, parser, lxr);
-            }
-
-            return parse_procdecl(proc_ptr, parser, lxr);
+    // Procedure (maybe pointer)
+    if(lxr.current() == TOKEN_KW_PROC)
+    {
+        Symbol* proc_ptr = nullptr;
+        if(replace != INVALID_SYMBOL_INDEX) {
+            proc_ptr              = parser.lookup_unique_symbol(replace);
+            proc_ptr->type.kind   = TYPE_KIND_PROCEDURE;
+            proc_ptr->type.flags  = flags;
+        } else {
+            proc_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_PROCEDURE, flags);
         }
 
-        return nullptr;
-    }
-
-
-    //
-    // Struct declaration.
-    //
-
-    if(lxr.current() == TOKEN_IDENTIFIER) {
-        type = TYPE_KIND_STRUCT;
-        if(auto* struct_ptr = parser.create_symbol(name, src_pos, line, type, flags | TYPE_UNINITIALIZED)) {
-            return parse_structdecl(struct_ptr, parser, lxr);
+        assert(proc_ptr != nullptr);
+        if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) {
+            proc_ptr->type.flags |= TYPE_POINTER | TYPE_UNINITIALIZED;
+            return tak::parse_proc_ptr(proc_ptr, parser, lxr);
         }
 
-        return nullptr;
+        return tak::parse_procdecl(proc_ptr, parser, lxr);
     }
 
 
-    //
-    // Primitive declaration.
-    //
+    // Struct or type alias decl
+    if(TOKEN_IDENT_START(lxr.current().type))
+    {
+        Symbol* utype_ptr = nullptr;
+        if(replace != INVALID_SYMBOL_INDEX) {
+            utype_ptr              = parser.lookup_unique_symbol(replace);
+            utype_ptr->type.kind   = TYPE_KIND_VARIABLE;
+            utype_ptr->type.flags  = flags | TYPE_UNINITIALIZED;
+        } else {
+            utype_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_VARIABLE, flags | TYPE_UNINITIALIZED);
+        }
 
-    auto* var_ptr = parser.create_symbol(name, src_pos, line, type, flags | TYPE_UNINITIALIZED);
-    if(var_ptr == nullptr) {
-        return nullptr;
+        assert(utype_ptr != nullptr);
+        return tak::parse_usertype_decl(utype_ptr, parser, lxr);
     }
 
-    return parse_vardecl(var_ptr, parser, lxr);
+
+    // Primitive type
+    Symbol* var_ptr = nullptr;
+    if(replace != INVALID_SYMBOL_INDEX) {
+        var_ptr              = parser.lookup_unique_symbol(replace);
+        var_ptr->type.kind   = TYPE_KIND_VARIABLE;
+        var_ptr->type.flags  = flags | TYPE_UNINITIALIZED;
+    } else {
+      var_ptr = parser.create_symbol(name, src_pos, line, TYPE_KIND_VARIABLE, flags | TYPE_UNINITIALIZED);
+    }
+
+    assert(var_ptr != nullptr);
+    return tak::parse_vardecl(var_ptr, parser, lxr);
 }

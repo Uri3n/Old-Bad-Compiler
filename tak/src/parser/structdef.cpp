@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-AstNode*
-parse_structdef(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_structdef(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_STRUCT, "Expected \"struct\" keyword.");
 
@@ -27,9 +27,22 @@ parse_structdef(Parser& parser, Lexer& lxr) {
     }
 
     const auto type_name = parser.namespace_as_string() + std::string(lxr.current().value);
+    UserType*  replace   = nullptr;
 
-    if(parser.type_exists(type_name) || parser.type_alias_exists(type_name)) {
-        lxr.raise_error("Naming conflict: type or type alias has already been defined elsewhere.");
+    if(parser.type_exists(type_name)) {
+        replace = parser.lookup_type(type_name);
+        assert(replace != nullptr);
+        if(replace->is_placeholder) {
+            replace->is_placeholder = false;
+            replace->members.clear();
+        } else {
+            lxr.raise_error("Naming conflict: this type already exists.");
+            return nullptr;
+        }
+    }
+
+    if(parser.type_alias_exists(type_name)) {
+        lxr.raise_error("Naming conflict: a type alias already has this name.");
         return nullptr;
     }
 
@@ -44,17 +57,18 @@ parse_structdef(Parser& parser, Lexer& lxr) {
     // foo^, where foo is the struct.
     //
 
-    if(!parser.create_type(type_name, std::vector<MemberData>())) {
+    if(replace == nullptr && !parser.create_type(type_name, std::vector<MemberData>())) {
         return nullptr;
     }
 
 
     //
-    // Parse out each struct member
+    // Parse out each struct member.
+    // TODO: currently this will not catch nested identical structs within members of members.
     //
 
     lxr.advance(2);
-    std::vector<MemberData>* members = parser.lookup_type(type_name);
+    std::vector<MemberData>* members = parser.lookup_type_members(type_name);
 
     while(lxr.current() != TOKEN_RBRACE) {
 
@@ -62,7 +76,6 @@ parse_structdef(Parser& parser, Lexer& lxr) {
             lxr.raise_error("Expected identifier.");
             return nullptr;
         }
-
 
         auto name     = std::string(lxr.current().value);
         bool is_const = false;
@@ -80,12 +93,12 @@ parse_structdef(Parser& parser, Lexer& lxr) {
         }
 
         lxr.advance(1);
-        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
+        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
             lxr.raise_error("Expected type identifier.");
             return nullptr;
         }
 
-        if(const auto type = parse_type(parser, lxr)) {
+        if(const auto type = tak::parse_type(parser, lxr)) {
             if(type->kind == TYPE_KIND_PROCEDURE && type->pointer_depth < 1) {
                 lxr.raise_error("Procedures cannot be used as struct members.", curr_pos, line);
                 return nullptr;

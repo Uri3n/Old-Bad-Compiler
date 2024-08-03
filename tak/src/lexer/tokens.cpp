@@ -6,7 +6,7 @@
 
 
 void
-lexer_token_skip(Lexer& lxr) {
+tak::lexer_token_skip(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -18,9 +18,8 @@ lexer_token_skip(Lexer& lxr) {
     }
 }
 
-
 void
-lexer_token_newline(Lexer& lxr) {
+tak::lexer_token_newline(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -33,9 +32,8 @@ lexer_token_newline(Lexer& lxr) {
     }
 }
 
-
 void
-lexer_token_semicolon(Lexer& lxr) {
+tak::lexer_token_semicolon(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -47,9 +45,8 @@ lexer_token_semicolon(Lexer& lxr) {
     }
 }
 
-
 void
-lexer_token_lparen(Lexer &lxr) {
+tak::lexer_token_lparen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -61,9 +58,8 @@ lexer_token_lparen(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_rparen(Lexer &lxr) {
+tak::lexer_token_rparen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -75,9 +71,8 @@ lexer_token_rparen(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_lbrace(Lexer &lxr) {
+tak::lexer_token_lbrace(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -89,9 +84,8 @@ lexer_token_lbrace(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_rbrace(Lexer &lxr) {
+tak::lexer_token_rbrace(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -103,9 +97,8 @@ lexer_token_rbrace(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_comma(Lexer &lxr) {
+tak::lexer_token_comma(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -117,9 +110,8 @@ lexer_token_comma(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_hyphen(Lexer &lxr) {
+tak::lexer_token_hyphen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -152,9 +144,8 @@ lexer_token_hyphen(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_plus(Lexer &lxr) {
+tak::lexer_token_plus(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -180,9 +171,8 @@ lexer_token_plus(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_asterisk(Lexer &lxr) {
+tak::lexer_token_asterisk(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -201,9 +191,8 @@ lexer_token_asterisk(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_fwdslash(Lexer &lxr) {
+tak::lexer_token_fwdslash(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -269,9 +258,8 @@ lexer_token_fwdslash(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_percent(Lexer &lxr) {
+tak::lexer_token_percent(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -290,9 +278,8 @@ lexer_token_percent(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_equals(Lexer &lxr) {
+tak::lexer_token_equals(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -311,9 +298,8 @@ lexer_token_equals(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_lessthan(Lexer &lxr) {
+tak::lexer_token_lessthan(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -348,9 +334,8 @@ lexer_token_lessthan(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_greaterthan(Lexer &lxr) {
+tak::lexer_token_greaterthan(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -386,9 +371,8 @@ lexer_token_greaterthan(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_ampersand(Lexer &lxr) {
+tak::lexer_token_ampersand(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -416,9 +400,8 @@ lexer_token_ampersand(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_verticalline(Lexer &lxr) {
+tak::lexer_token_verticalline(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -446,9 +429,8 @@ lexer_token_verticalline(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_exclamation(Lexer &lxr) {
+tak::lexer_token_exclamation(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -467,9 +449,8 @@ lexer_token_exclamation(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_tilde(Lexer &lxr) {
+tak::lexer_token_tilde(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -481,9 +462,8 @@ lexer_token_tilde(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_uparrow(Lexer &lxr) {
+tak::lexer_token_uparrow(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -502,9 +482,8 @@ lexer_token_uparrow(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_quote(Lexer &lxr) {
+tak::lexer_token_quote(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -543,9 +522,8 @@ lexer_token_quote(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_singlequote(Lexer &lxr) {
+tak::lexer_token_singlequote(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
     const size_t start = index;
@@ -590,9 +568,8 @@ lexer_token_singlequote(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_lsquarebracket(Lexer &lxr) {
+tak::lexer_token_lsquarebracket(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -604,9 +581,8 @@ lexer_token_lsquarebracket(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_rsquarebracket(Lexer &lxr) {
+tak::lexer_token_rsquarebracket(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -620,7 +596,7 @@ lexer_token_rsquarebracket(Lexer &lxr) {
 
 
 void
-lexer_token_questionmark(Lexer &lxr) {
+tak::lexer_token_questionmark(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -632,9 +608,8 @@ lexer_token_questionmark(Lexer &lxr) {
     }
 }
 
-
 void
-lexer_token_colon(Lexer &lxr) {
+tak::lexer_token_colon(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -654,7 +629,7 @@ lexer_token_colon(Lexer &lxr) {
 }
 
 void
-lexer_token_dot(Lexer &lxr) {
+tak::lexer_token_dot(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -667,7 +642,7 @@ lexer_token_dot(Lexer &lxr) {
 }
 
 void
-lexer_token_backslash(Lexer& lxr) {
+tak::lexer_token_backslash(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -680,11 +655,11 @@ lexer_token_backslash(Lexer& lxr) {
 }
 
 void
-lexer_token_null(Lexer& lxr) {
+tak::lexer_token_null(Lexer& lxr) {
     lxr.current_ = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, lxr.src_.size() - 1, "\\0"};
 }
 
-void lexer_token_at(Lexer &lxr) {
+void tak::lexer_token_at(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -704,7 +679,7 @@ void lexer_token_at(Lexer &lxr) {
 //
 
 void
-lexer_token_backtick(Lexer& lxr) {
+tak::lexer_token_backtick(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
@@ -717,7 +692,7 @@ lexer_token_backtick(Lexer& lxr) {
 }
 
 void
-lexer_token_pound(Lexer &lxr) {
+tak::lexer_token_pound(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 

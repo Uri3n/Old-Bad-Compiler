@@ -1,35 +1,21 @@
 
-struct foo {
- otha : i32^^;
-}
-
-struct bar {
-   mem1      : bool;
-   fucker    : foo;
-   fuckerton : i8[10];
-}
-
-print :: proc(msg: i8^) -> void {}
-get_int :: proc() -> u64 {}
-
-
+namespace ass {
 main :: proc() -> i32 {
-   
-  myvar : i32 = 1;
-  if myvar : bar print("sss");
-    
-  if myvar != 2 {
-    ++myvar;
-    print("hello world");
-  }
-   
-
-  /*
-  var  : i32^[3][2];
-  var2 : i32^[3] = var[get_int() * 21];  
-  var3 : bar;
-  var4 : i8 = var3.fuckerton[3]; 
-  */
-
-  ret 0;
+   // \other();
+   ret 0;
+} 
 }
+
+@alias second = ass\bar;
+
+namespace ass {
+   struct foo {mem1:bool;}
+   struct bar {
+     first  : bool;
+     second : i32^;
+   }
+}
+
+myvar : second = { true, nullptr };
+myvar.first = false;
+

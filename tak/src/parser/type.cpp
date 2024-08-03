@@ -6,7 +6,7 @@
 
 
 std::optional<std::vector<uint32_t>>
-parse_array_data(Lexer& lxr) {
+tak::parse_array_data(Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['");
     std::vector<uint32_t> lengths;
@@ -52,11 +52,14 @@ parse_array_data(Lexer& lxr) {
 }
 
 
-std::optional<TypeData>
-parse_type(Parser& parser, Lexer& lxr) {
+std::optional<tak::TypeData>
+tak::parse_type(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || lxr.current() == TOKEN_IDENTIFIER, "Expected type.");
+    parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || TOKEN_IDENT_START(lxr.current().type), "Expected type.");
+
     TypeData data;
+    const size_t   curr_pos  = lxr.current().src_pos;
+    const uint32_t curr_line = lxr.current().line;
 
 
     //
@@ -68,7 +71,7 @@ parse_type(Parser& parser, Lexer& lxr) {
         data.name     = std::monostate();
     }
 
-    else if(lxr.current() == TOKEN_IDENTIFIER) {
+    else if(TOKEN_IDENT_START(lxr.current().type)) {
 
         const auto name = get_namespaced_identifier(lxr);
         if(!name) {
@@ -79,13 +82,12 @@ parse_type(Parser& parser, Lexer& lxr) {
         if(parser.type_alias_exists(canonical_name)) {
             data = parser.lookup_type_alias(canonical_name);
         }
-        else if(!parser.type_exists(canonical_name)) {
-            lxr.raise_error("Invalid type specifier.");
-            return std::nullopt;
-        }
         else {
+            if(!parser.type_exists(canonical_name)) {
+                parser.create_placeholder_type(canonical_name, curr_pos, curr_line);
+            }
             data.kind = TYPE_KIND_STRUCT;
-            data.name     = canonical_name;
+            data.name = canonical_name;
         }
     }
 
@@ -102,12 +104,12 @@ parse_type(Parser& parser, Lexer& lxr) {
         else {
             _var_t = token_to_var_t(lxr.current().type);
             if(_var_t == VAR_NONE) {
-                lxr.raise_error("Invalid type specifier.");
+                lxr.raise_error("Invalid type specifier.", curr_pos, curr_line);
                 return std::nullopt;
             }
         }
 
-        data.name     = _var_t;
+        data.name = _var_t;
         data.kind = TYPE_KIND_VARIABLE;
     }
 
@@ -158,7 +160,7 @@ parse_type(Parser& parser, Lexer& lxr) {
 
     while(lxr.current() != TOKEN_RPAREN) {
 
-        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && lxr.current() != TOKEN_IDENTIFIER) {
+        if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
             lxr.raise_error("Expected type identifier.");
             return std::nullopt;
         }
@@ -180,7 +182,7 @@ parse_type(Parser& parser, Lexer& lxr) {
     // Get return type. If VOID, we can just leave data.return_type as nullptr and return.
     //
 
-    if(lxr.peek(1) != TOKEN_ARROW || (lxr.peek(2).kind != KIND_TYPE_IDENTIFIER && lxr.peek(2) != TOKEN_IDENTIFIER)) {
+    if(lxr.peek(1) != TOKEN_ARROW || (lxr.peek(2).kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type))) {
         lxr.raise_error("Expected procedure return type after parameter list. Example: -> i32");
         return std::nullopt;
     }

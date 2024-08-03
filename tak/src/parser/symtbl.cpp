@@ -4,8 +4,9 @@
 
 #include <parser.hpp>
 
+
 void
-Parser::pop_scope() {
+tak::Parser::pop_scope() {
     if(scope_stack_.empty()) {
         return;
     }
@@ -13,9 +14,8 @@ Parser::pop_scope() {
     scope_stack_.pop_back();
 }
 
-
 bool
-Parser::scoped_symbol_exists(const std::string &name) {
+tak::Parser::scoped_symbol_exists(const std::string &name) {
     if(scope_stack_.empty()) {
         return false;
     }
@@ -29,9 +29,8 @@ Parser::scoped_symbol_exists(const std::string &name) {
     return false;
 }
 
-
 bool
-Parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
+tak::Parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
     if(scope_stack_.empty()) {
         return false;
     }
@@ -39,32 +38,42 @@ Parser::scoped_symbol_exists_at_current_scope(const std::string& name) {
     return scope_stack_.back().contains(name);
 }
 
-
 void
-Parser::push_scope() {
+tak::Parser::push_scope() {
     scope_stack_.emplace_back(std::unordered_map<std::string, uint32_t>());
 }
 
+uint32_t
+tak::Parser::create_placeholder_symbol(const std::string& name, const size_t src_index, const uint32_t line_number) {
 
-Symbol*
-Parser::create_symbol(
-        const std::string& name,
-        const size_t src_index,
-        const uint32_t line_number,
-        const type_kind_t sym_type,
-        const uint64_t sym_flags,
-        const std::optional<TypeData>& data
-    ) {
+    assert(!scope_stack_.empty());
+    assert(!scoped_symbol_exists(name));
 
+    ++curr_sym_index_;
+    scope_stack_.front()[name] = curr_sym_index_;
 
-    if(scope_stack_.empty()) {
-        panic("parse-error: call to create_symbol with no symbol stack.");
-    }
+    auto& sym        = sym_table_[curr_sym_index_];
+    sym.name         = name;
+    sym.placeholder  = true;
+    sym.symbol_index = curr_sym_index_;
+    sym.src_pos      = src_index;
+    sym.line_number  = line_number;
 
-    if(scope_stack_.back().contains(name)) {
-        panic(fmt("parse-error: could not create symbol {} because it already exists in this scope.", name));
-    }
+    return curr_sym_index_;
+}
 
+tak::Symbol*
+tak::Parser::create_symbol(
+    const std::string& name,
+    const size_t src_index,
+    const uint32_t line_number,
+    const type_kind_t sym_type,
+    const uint64_t sym_flags,
+    const std::optional<TypeData>& data
+) {
+
+    assert(!scope_stack_.empty());
+    assert(!scope_stack_.back().contains(name));
 
     ++curr_sym_index_;
     scope_stack_.back()[name] = curr_sym_index_;
@@ -73,7 +82,6 @@ Parser::create_symbol(
     if(data) {
         sym.type = *data;
     }
-
 
     sym.type.flags   |= sym_flags;
     sym.type.kind     = sym_type;
@@ -91,7 +99,7 @@ Parser::create_symbol(
 
 
 uint32_t
-Parser::lookup_scoped_symbol(const std::string& name) {
+tak::Parser::lookup_scoped_symbol(const std::string& name) {
     if(scope_stack_.empty()) {
         return INVALID_SYMBOL_INDEX;
     }
@@ -106,8 +114,8 @@ Parser::lookup_scoped_symbol(const std::string& name) {
 }
 
 
-Symbol*
-Parser::lookup_unique_symbol(const uint32_t symbol_index) {
+tak::Symbol*
+tak::Parser::lookup_unique_symbol(const uint32_t symbol_index) {
     if(sym_table_.contains(symbol_index)) {
         return &sym_table_[symbol_index];
     }

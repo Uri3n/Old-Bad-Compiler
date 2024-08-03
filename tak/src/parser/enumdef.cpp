@@ -6,27 +6,27 @@
 
 
 static bool
-type_is_valid_as_enumeration(const TypeData& type) {
-    if(auto* _var_t = std::get_if<var_t>(&type.name)) {
-        return (*_var_t == VAR_I8
-            || *_var_t == VAR_U8
-            || *_var_t == VAR_I16
-            || *_var_t == VAR_U16
-            || *_var_t == VAR_I32
-            || *_var_t == VAR_U32
-            || *_var_t == VAR_I64
-            || *_var_t == VAR_U64)
+type_is_valid_as_enumeration(const tak::TypeData& type) {
+    if(auto* _var_t = std::get_if<tak::var_t>(&type.name)) {
+        return (*_var_t == tak::VAR_I8
+            || *_var_t ==  tak::VAR_U8
+            || *_var_t ==  tak::VAR_I16
+            || *_var_t ==  tak::VAR_U16
+            || *_var_t ==  tak::VAR_I32
+            || *_var_t ==  tak::VAR_U32
+            || *_var_t ==  tak::VAR_I64
+            || *_var_t ==  tak::VAR_U64)
             && (type.array_lengths.empty()
             && type.pointer_depth == 0
-            && type.kind == TYPE_KIND_VARIABLE);
+            && type.kind == tak::TYPE_KIND_VARIABLE);
     }
 
     return false;
 }
 
 
-AstNode*
-parse_enumdef(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_enumdef(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_ENUM, "Expected \"enum\" keyword.");
 
@@ -87,7 +87,7 @@ parse_enumdef(Parser& parser, Lexer& lxr) {
     }
 
     lxr.advance(2);
-    if(lxr.current() != TOKEN_IDENTIFIER && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
+    if(TOKEN_IDENT_START(lxr.current().type) && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
         lxr.raise_error("Expected enum type identifier.");
         return nullptr;
     }
@@ -99,7 +99,7 @@ parse_enumdef(Parser& parser, Lexer& lxr) {
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    auto           type     = parse_type(parser, lxr);
+    auto           type     = tak::parse_type(parser, lxr);
 
     if(!type) {
         return nullptr;

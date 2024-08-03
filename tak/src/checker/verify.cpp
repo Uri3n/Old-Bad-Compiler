@@ -6,7 +6,7 @@
 
 
 bool
-types_are_identical(const TypeData& first, const TypeData& second) {
+tak::types_are_identical(const TypeData& first, const TypeData& second) {
 
     if(first.kind != second.kind
         || first.pointer_depth != second.pointer_depth
@@ -70,7 +70,7 @@ types_are_identical(const TypeData& first, const TypeData& second) {
 
 
 bool
-is_type_cast_permissible(const TypeData& from, const TypeData& to) {
+tak::is_type_cast_permissible(const TypeData& from, const TypeData& to) {
 
     if(types_are_identical(from, to)) {
         return true;
@@ -106,7 +106,7 @@ is_type_cast_permissible(const TypeData& from, const TypeData& to) {
 
 
 bool
-is_type_coercion_permissible(TypeData& left, const TypeData& right) {
+tak::is_type_coercion_permissible(TypeData& left, const TypeData& right) {
 
     if(types_are_identical(left, right)) {
         return true;
@@ -141,7 +141,7 @@ is_type_coercion_permissible(TypeData& left, const TypeData& right) {
 
 
 bool
-are_array_types_equivalent(const TypeData& first, const TypeData& second) {
+tak::are_array_types_equivalent(const TypeData& first, const TypeData& second) {
 
     assert(first.flags & TYPE_ARRAY);
     assert(second.flags & TYPE_ARRAY);
@@ -180,7 +180,7 @@ are_array_types_equivalent(const TypeData& first, const TypeData& second) {
 
 
 bool
-array_has_inferred_sizes(const TypeData& type) {
+tak::array_has_inferred_sizes(const TypeData& type) {
     assert(type.flags & TYPE_ARRAY);
     for(const auto length : type.array_lengths) {
         if(length == 0) return true;
@@ -190,33 +190,33 @@ array_has_inferred_sizes(const TypeData& type) {
 }
 
 bool
-is_type_invalid_in_inferred_context(const TypeData& type) {
+tak::is_type_invalid_in_inferred_context(const TypeData& type) {
     return (type.kind == TYPE_KIND_PROCEDURE && !(type.flags & TYPE_POINTER)) || type.flags & TYPE_INFERRED;
 }
 
 bool
-is_type_reassignable(const TypeData& type) {
+tak::is_type_reassignable(const TypeData& type) {
     return type.array_lengths.empty()
         && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)
         && !(type.flags & TYPE_CONSTANT);
 }
 
 bool
-is_type_cast_eligible(const TypeData& type) {
+tak::is_type_cast_eligible(const TypeData& type) {
     return type.array_lengths.empty()
         && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)
         && type.kind != TYPE_KIND_STRUCT;
 }
 
 bool
-is_type_lop_eligible(const TypeData& type) {
+tak::is_type_lop_eligible(const TypeData& type) {
     return (type.flags & TYPE_POINTER
         || type.kind == TYPE_KIND_VARIABLE)
         && type.array_lengths.empty();
 }
 
 bool
-is_type_bwop_eligible(const TypeData& type) {
+tak::is_type_bwop_eligible(const TypeData& type) {
 
     const auto* primitive_ptr = std::get_if<var_t>(&type.name);
     if(primitive_ptr == nullptr) {
@@ -231,7 +231,7 @@ is_type_bwop_eligible(const TypeData& type) {
 }
 
 bool
-is_type_arithmetic_eligible(const TypeData& type, const token_t _operator) {
+tak::is_type_arithmetic_eligible(const TypeData& type, const token_t _operator) {
 
     assert(TOKEN_OP_IS_ARITHMETIC(_operator));
 
@@ -257,7 +257,7 @@ is_type_arithmetic_eligible(const TypeData& type, const token_t _operator) {
 }
 
 bool
-can_operator_be_applied_to(const token_t _operator, const TypeData& type) {
+tak::can_operator_be_applied_to(const token_t _operator, const TypeData& type) {
 
     if(type.flags & TYPE_ARRAY) {
         return false;

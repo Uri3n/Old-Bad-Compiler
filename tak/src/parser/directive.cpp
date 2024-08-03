@@ -5,8 +5,8 @@
 #include <parser.hpp>
 
 
-AstNode*
-parse_type_alias(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_type_alias(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current().value == "alias", "Expected \"@alias\" directive.");
 
@@ -33,7 +33,7 @@ parse_type_alias(Parser& parser, Lexer& lxr) {
 
     node->name = parser.namespace_as_string() + std::string(lxr.current().value);
     if(parser.type_alias_exists(node->name) || parser.type_exists(node->name)) {
-        lxr.raise_error("Type or type alias already exists within this namespace.");
+        lxr.raise_error("Type or type alias with the same name already exists within this namespace.");
         return nullptr;
     }
 
@@ -43,7 +43,7 @@ parse_type_alias(Parser& parser, Lexer& lxr) {
     }
 
     lxr.advance(2);
-    if(lxr.current() != TOKEN_IDENTIFIER && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
+    if(!TOKEN_IDENT_START(lxr.current().type) && lxr.current().kind != KIND_TYPE_IDENTIFIER) {
         lxr.raise_error("Expected type identifier.");
         return nullptr;
     }
@@ -59,8 +59,8 @@ parse_type_alias(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_compiler_directive(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_AT, "Expected '@'.");
     lxr.advance(1);

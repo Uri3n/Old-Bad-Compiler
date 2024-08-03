@@ -132,6 +132,11 @@
     || token_type == TOKEN_DECREMENT           \
 )                                              \
 
+#define TOKEN_IDENT_START(token_type)          \
+    (token_type == TOKEN_IDENTIFIER            \
+     || token_type == TOKEN_NAMESPACE_ACCESS   \
+)                                              \
+
 #define TOKEN_OP_IS_ARITHMETIC(token_type)     \
    (token_type == TOKEN_PLUS                   \
     || token_type == TOKEN_PLUSEQ              \
@@ -181,35 +186,36 @@
     || token_type == TOKEN_CONDITIONAL_NOT     \
 )                                              \
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define X(NAME, STR_UNUSED) TOKEN_##NAME,
-enum token_t : uint32_t {
-    TOKEN_LIST
-};
-#undef X
+namespace tak {
 
-#define X(NAME) KIND_##NAME,
-enum token_kind : uint8_t {
-    TOKEN_KIND_LIST
-};
-#undef X
+    #define X(NAME, STR_UNUSED) TOKEN_##NAME,
+        enum token_t : uint32_t {
+            TOKEN_LIST
+        };
+    #undef X
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    #define X(NAME) KIND_##NAME,
+        enum token_kind : uint8_t {
+            TOKEN_KIND_LIST
+        };
+    #undef X
 
-struct Token {
-    token_t    type    = TOKEN_NONE;
-    token_kind kind    = KIND_UNSPECIFIC;
-    size_t     src_pos = 0;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::string_view value;
-    uint32_t         line = 0;
+    struct Token {
+        token_t    type    = TOKEN_NONE;
+        token_kind kind    = KIND_UNSPECIFIC;
+        size_t     src_pos = 0;
 
-    bool operator==(const token_t other) const  {return other == type;}
-    bool operator==(const Token& other)  const  {return other.type == this->type;}
+        std::string_view value;
+        uint32_t         line = 0;
 
-    bool operator!=(const token_t other) const  {return other != type;}
-    bool operator!=(const Token& other)  const  {return other.type != this->type;}
-};
+        bool operator==(const token_t other) const  {return other == type;}
+        bool operator==(const Token& other)  const  {return other.type == this->type;}
 
+        bool operator!=(const token_t other) const  {return other != type;}
+        bool operator!=(const Token& other)  const  {return other.type != this->type;}
+    };
+}
 #endif //TOKEN_HPP

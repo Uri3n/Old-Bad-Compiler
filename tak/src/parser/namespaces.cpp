@@ -6,7 +6,7 @@
 
 
 bool
-Parser::enter_namespace(const std::string& name) {
+tak::Parser::enter_namespace(const std::string& name) {
     for(const auto& _namespace : namespace_stack_)
         if(_namespace == name) return false;
 
@@ -15,7 +15,7 @@ Parser::enter_namespace(const std::string& name) {
 }
 
 void
-Parser::leave_namespace() {
+tak::Parser::leave_namespace() {
     if(namespace_stack_.empty())
         return;
 
@@ -23,7 +23,7 @@ Parser::leave_namespace() {
 }
 
 bool
-Parser::namespace_exists(const std::string& name) {
+tak::Parser::namespace_exists(const std::string& name) {
     for(const auto& _namespace : namespace_stack_)
         if(_namespace == name) return true;
 
@@ -31,10 +31,16 @@ Parser::namespace_exists(const std::string& name) {
 }
 
 std::string
-Parser::get_canonical_name(const std::string& name) {
+tak::Parser::get_canonical_name(std::string name, const bool is_symbol) {
 
-    std::string full;
+    assert(!name.empty());
+    if(name.front() == '\\') {
+        return name;
+    }
+
     std::string begin;
+    std::string last_exists;
+    std::string namespaces = "\\";
 
     if(const size_t pos = name.find('\\'); pos != std::string::npos) {
         begin = name.substr(0, pos);
@@ -43,35 +49,48 @@ Parser::get_canonical_name(const std::string& name) {
     }
 
     for(const auto& _namespace : namespace_stack_) {
+
+        std::string actual = namespaces + name;
+        if(is_symbol && scoped_symbol_exists(actual)) {
+            last_exists = actual;
+        } else if(!is_symbol && (type_exists(actual) || type_alias_exists(actual))) {
+            last_exists = actual;
+        }
+
         if(_namespace == begin)
             break;
 
-        full += _namespace + '\\';
+        namespaces += _namespace + '\\';
     }
 
-    full += name;
-    return full;
+    std::string actual = namespaces + name;         // being a lazy bitch here idc
+    if(is_symbol && scoped_symbol_exists(actual)) {
+        last_exists = actual;
+    } else if(!is_symbol && (type_exists(actual) || type_alias_exists(actual))) {
+        last_exists = actual;
+    }
+
+    if(!last_exists.empty()) {
+        return last_exists;
+    }
+
+    return namespaces + name;
 }
 
 std::string
-Parser::get_canonical_type_name(const std::string& name) {
-    if(type_exists(name) || type_alias_exists(name))
-        return name;
-
-    return get_canonical_name(name);
+tak::Parser::get_canonical_type_name(const std::string& name) {
+    return get_canonical_name(name, false);
 }
 
 std::string
-Parser::get_canonical_sym_name(const std::string& name) {
-    if(scoped_symbol_exists(name))
-        return name;
-
-    return get_canonical_name(name);
+tak::Parser::get_canonical_sym_name(const std::string& name) {
+    return get_canonical_name(name, true);
 }
 
 std::string
-Parser::namespace_as_string() {
-    std::string as_str;
+tak::Parser::namespace_as_string() {
+
+    std::string as_str = "\\";
 
     for(const auto& _namespace : namespace_stack_)
         as_str += _namespace + '\\';
@@ -80,8 +99,8 @@ Parser::namespace_as_string() {
 }
 
 
-AstNode*
-parse_namespace(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_namespace(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_NAMESPACE, "Expected \"namespace\" keyword.");
     lxr.advance(1);

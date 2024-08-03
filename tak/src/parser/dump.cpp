@@ -4,6 +4,7 @@
 
 #include <parser.hpp>
 
+
 /////////////////////////////////////////////////////////////////////
 // I need an easy way to view the generated AST...
 //
@@ -29,23 +30,23 @@ display_fake_node(const std::string& name, std::string& node_title, uint32_t& de
     }
 
     ++depth;
-    print("{}{}", node_title, name);
+    tak::print("{}{}", node_title, name);
 }
 
 static void
-display_node_vardecl(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_vardecl(tak::AstNode* node, std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
     node_title += "Variable Declaration";
-    const auto* vardecl = dynamic_cast<AstVardecl*>(node);
+    const auto* vardecl = dynamic_cast<tak::AstVardecl*>(node);
 
     if(vardecl == nullptr) {
         node_title += " !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
 
-    print("{}", node_title);
+    tak::print("{}", node_title);
     display_node_data(vardecl->identifier, depth + 1, _);
     if(vardecl->init_value.has_value()) {
         display_node_data(*(vardecl->init_value), depth + 1, _);
@@ -53,18 +54,18 @@ display_node_vardecl(AstNode* node, std::string& node_title, const uint32_t dept
 }
 
 static void
-display_node_procdecl(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* procdecl = dynamic_cast<AstProcdecl*>(node);
+    const auto* procdecl = dynamic_cast<tak::AstProcdecl*>(node);
 
     if(procdecl == nullptr) {
         node_title += " !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
 
-    print("{}Procedure Declaration", node_title);
+    tak::print("{}Procedure Declaration", node_title);
     display_node_data(procdecl->identifier, depth + 1, _);
 
     if(!procdecl->parameters.empty() || !procdecl->body.empty()) {
@@ -78,15 +79,15 @@ display_node_procdecl(AstNode* node, std::string& node_title, uint32_t depth, Pa
 
 
     if(!procdecl->parameters.empty()) {
-        print("{}Parameters", node_title);
-        for(AstNode* param : procdecl->parameters) {
+        tak::print("{}Parameters", node_title);
+        for(tak::AstNode* param : procdecl->parameters) {
             display_node_data(param, depth + 1, _);
         }
     }
 
     if(!procdecl->body.empty()) {
-        print("{}Procedure Body", node_title);
-        for(AstNode* child : procdecl->body) {
+        tak::print("{}Procedure Body", node_title);
+        for(tak::AstNode* child : procdecl->body) {
             display_node_data(child, depth + 1, _);
         }
     }
@@ -94,195 +95,195 @@ display_node_procdecl(AstNode* node, std::string& node_title, uint32_t depth, Pa
 
 
 static void
-display_node_binexpr(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_binexpr(tak::AstNode* node, std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* binexpr = dynamic_cast<AstBinexpr*>(node);
+    const auto* binexpr = dynamic_cast<tak::AstBinexpr*>(node);
 
     if(binexpr == nullptr) {
         node_title += "(Binary Expression) !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
     node_title += token_type_to_string(binexpr->_operator);
-    print("{} (Binary Expression)", node_title);
+    tak::print("{} (Binary Expression)", node_title);
 
     display_node_data(binexpr->left_op, depth + 1, _);
     display_node_data(binexpr->right_op, depth + 1, _);
 }
 
 static void
-display_node_unaryexpr(AstNode* node, std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_unaryexpr(tak::AstNode* node, std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* unaryexpr = dynamic_cast<AstUnaryexpr*>(node);
+    const auto* unaryexpr = dynamic_cast<tak::AstUnaryexpr*>(node);
 
     if(unaryexpr == nullptr) {
         node_title += "(Unary Expression) !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
-    node_title += token_type_to_string(unaryexpr->_operator);
-    print("{} (Unary Expression)", node_title);
+    node_title += tak::token_type_to_string(unaryexpr->_operator);
+    tak::print("{} (Unary Expression)", node_title);
 
     display_node_data(unaryexpr->operand, depth + 1, _);
 }
 
 static void
-display_node_identifier(AstNode* node, std::string& node_title, Parser& parser) {
+display_node_identifier(tak::AstNode* node, std::string& node_title, tak::Parser& parser) {
 
-    const auto* ident = dynamic_cast<AstIdentifier*>(node);
+    const auto* ident = dynamic_cast<tak::AstIdentifier*>(node);
 
     if(ident == nullptr) {
         node_title += "(Ident) !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
-    const Symbol* sym_ptr = parser.lookup_unique_symbol(ident->symbol_index);
+    const tak::Symbol* sym_ptr = parser.lookup_unique_symbol(ident->symbol_index);
     if(sym_ptr == nullptr) {
-        node_title += fmt("(Ident) (Sym Index {}) !! NOT IN SYMBOL TABLE", ident->symbol_index);
-        print("{}", node_title);
+        node_title += tak::fmt("(Ident) (Sym Index {}) !! NOT IN SYMBOL TABLE", ident->symbol_index);
+        tak::print("{}", node_title);
         return;
     }
 
 
     std::string sym_t_str;
-    if(sym_ptr->type.kind == TYPE_KIND_PROCEDURE) {
+    if(sym_ptr->type.kind == tak::TYPE_KIND_PROCEDURE) {
         sym_t_str = "Procedure";
-    } else if(sym_ptr->type.kind == TYPE_KIND_VARIABLE) {
+    } else if(sym_ptr->type.kind == tak::TYPE_KIND_VARIABLE) {
         sym_t_str = "Variable";
-    } else if(sym_ptr->type.kind == TYPE_KIND_STRUCT){
+    } else if(sym_ptr->type.kind == tak::TYPE_KIND_STRUCT){
         sym_t_str = "Struct";
     } else {
         sym_t_str = "Inferred";
     }
 
 
-    node_title += fmt(
+    node_title += tak::fmt(
         "{} ({}) (Sym Index {})",
         sym_ptr->name,
         sym_t_str,
         sym_ptr->symbol_index
     );
 
-    print("{}", node_title);
+    tak::print("{}", node_title);
 }
 
 static void
-display_node_literal(AstNode* node, std::string& node_title) {
+display_node_literal(tak::AstNode* node, std::string& node_title) {
 
-    const auto* lit = dynamic_cast<AstSingletonLiteral*>(node);
+    const auto* lit = dynamic_cast<tak::AstSingletonLiteral*>(node);
 
     if(lit == nullptr) {
         node_title += "(Literal) !! INVALID NODE TYPE";
-        print("{}", node_title);
+        tak::print("{}", node_title);
         return;
     }
 
-    node_title += fmt("{} ({})", lit->value, token_type_to_string(lit->literal_type));
-    print("{}", node_title);
+    node_title += tak::fmt("{} ({})", lit->value, token_type_to_string(lit->literal_type));
+    tak::print("{}", node_title);
 }
 
 static void
-display_node_call(AstNode* node, std::string& node_title, uint32_t depth, Parser& parser) {
+display_node_call(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& parser) {
 
-    const auto* call = dynamic_cast<AstCall*>(node);
+    const auto* call = dynamic_cast<tak::AstCall*>(node);
     if(call == nullptr) {
-        print("{} (Call) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Call) !! INVALID NODE TYPE", node_title);
         return;
     }
 
 
-    print("{}Procedure Call", node_title);
+    tak::print("{}Procedure Call", node_title);
     display_node_data(call->target, depth + 1, parser);
 
     if(!call->arguments.empty()) {
         display_fake_node("Arguments", node_title, depth);
     }
 
-    for(AstNode* arg : call->arguments) {
+    for(tak::AstNode* arg : call->arguments) {
         display_node_data(arg, depth + 1, parser);
     }
 }
 
 static void
-display_node_brk(AstNode* node, const std::string& node_title) {
+display_node_brk(tak::AstNode* node, const std::string& node_title) {
 
-    const auto* brk = dynamic_cast<AstBrk*>(node);
+    const auto* brk = dynamic_cast<tak::AstBrk*>(node);
     if(brk == nullptr) {
-        print("{} (Break) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Break) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Break Statement", node_title);
+    tak::print("{}Break Statement", node_title);
 }
 
 static void
-display_node_cont(AstNode* node, const std::string& node_title) {
+display_node_cont(tak::AstNode* node, const std::string& node_title) {
 
-    const auto* cont = dynamic_cast<AstCont*>(node);
+    const auto* cont = dynamic_cast<tak::AstCont*>(node);
     if(cont == nullptr) {
-        print("{} (Continue) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Continue) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Continue Statement", node_title);
+    tak::print("{}Continue Statement", node_title);
 }
 
 static void
-display_node_ret(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_ret(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* ret = dynamic_cast<AstRet*>(node);
+    const auto* ret = dynamic_cast<tak::AstRet*>(node);
     if(ret == nullptr) {
-        print("{} (Return) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Return) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Return", node_title);
+    tak::print("{}Return", node_title);
     if(ret->value.has_value()) {
         display_node_data(*ret->value, depth + 1, _);
     }
 }
 
 static void
-display_node_structdef(AstNode* node, const std::string& node_title) {
+display_node_structdef(tak::AstNode* node, const std::string& node_title) {
 
-    const auto* _struct = dynamic_cast<AstStructdef*>(node);
+    const auto* _struct = dynamic_cast<tak::AstStructdef*>(node);
     if(_struct == nullptr) {
-        print("{} (Struct Definition) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Struct Definition) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}{} (Struct Definition)", node_title, _struct->name);
+    tak::print("{}{} (Struct Definition)", node_title, _struct->name);
 }
 
 static void
-display_node_braced_expression(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_braced_expression(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* expr = dynamic_cast<AstBracedExpression*>(node);
+    const auto* expr = dynamic_cast<tak::AstBracedExpression*>(node);
     if(expr == nullptr) {
-        print("{} (Braced Expression) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Braced Expression) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Braced Expression", node_title);
-    for(AstNode* member : expr->members) {
+    tak::print("{}Braced Expression", node_title);
+    for(tak::AstNode* member : expr->members) {
         display_node_data(member, depth + 1, _);
     }
 }
 
 static void
-display_node_branch(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_branch(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* branch = dynamic_cast<AstBranch*>(node);
+    const auto* branch = dynamic_cast<tak::AstBranch*>(node);
     if(branch == nullptr) {
-        print("{} (Branch) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Branch) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Branch", node_title);
-    for(AstNode* if_stmt : branch->conditions) {
+    tak::print("{}Branch", node_title);
+    for(tak::AstNode* if_stmt : branch->conditions) {
         display_node_data(if_stmt, depth + 1, _);
     }
 
@@ -292,105 +293,105 @@ display_node_branch(AstNode* node, const std::string& node_title, const uint32_t
 }
 
 static void
-display_node_if(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_if(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* if_stmt = dynamic_cast<AstIf*>(node);
+    const auto* if_stmt = dynamic_cast<tak::AstIf*>(node);
     if(if_stmt == nullptr) {
-        print("{} (If) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (If) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}If", node_title);
+    tak::print("{}If", node_title);
     display_node_data(if_stmt->condition, depth + 1, _);
     display_fake_node("Body", node_title, depth);
 
-    for(AstNode* expr :  if_stmt->body) {
+    for(tak::AstNode* expr :  if_stmt->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_while(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_while(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* _while = dynamic_cast<AstWhile*>(node);
+    const auto* _while = dynamic_cast<tak::AstWhile*>(node);
     if(_while == nullptr) {
-        print("{} (While) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (While) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}While", node_title);
+    tak::print("{}While", node_title);
     display_node_data(_while->condition, depth + 1, _);
     display_fake_node("Body", node_title, depth);
 
-    for(AstNode* expr : _while->body) {
+    for(tak::AstNode* expr : _while->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_else(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_else(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* else_stmt = dynamic_cast<AstElse*>(node);
+    const auto* else_stmt = dynamic_cast<tak::AstElse*>(node);
     if(else_stmt == nullptr) {
-        print("{} (Else) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Else) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Else", node_title);
+    tak::print("{}Else", node_title);
     display_fake_node("Body", node_title, depth);
 
-    for(AstNode* expr :  else_stmt->body) {
+    for(tak::AstNode* expr :  else_stmt->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_case(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_case(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* _case = dynamic_cast<AstCase*>(node);
+    const auto* _case = dynamic_cast<tak::AstCase*>(node);
     if(_case == nullptr) {
-        print("{} (Default) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Default) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Case {} (Fallthrough={})", node_title, _case->value->value, _case->fallthrough ? "True" : "False");
+    tak::print("{}Case {} (Fallthrough={})", node_title, _case->value->value, _case->fallthrough ? "True" : "False");
     display_fake_node("Body", node_title, depth);
 
-    for(AstNode* expr : _case->body) {
+    for(tak::AstNode* expr : _case->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_default(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_default(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* _default = dynamic_cast<AstDefault*>(node);
+    const auto* _default = dynamic_cast<tak::AstDefault*>(node);
     if(_default == nullptr) {
-        print("{} (Default) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Default) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Default", node_title);
+    tak::print("{}Default", node_title);
     display_fake_node("Body", node_title, depth);
 
-    for(AstNode* expr : _default->body) {
+    for(tak::AstNode* expr : _default->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_switch(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_switch(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* _switch = dynamic_cast<AstSwitch*>(node);
+    const auto* _switch = dynamic_cast<tak::AstSwitch*>(node);
     if(_switch == nullptr) {
-        print("{} (Switch) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Switch) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Switch", node_title);
+    tak::print("{}Switch", node_title);
 
     display_node_data(_switch->target, depth + 1, _);
-    for(AstNode* _case : _switch->cases) {
+    for(tak::AstNode* _case : _switch->cases) {
         display_node_data(_case, depth + 1, _);
     }
 
@@ -398,15 +399,15 @@ display_node_switch(AstNode* node, const std::string& node_title, const uint32_t
 }
 
 static void
-display_node_for(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_for(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* _for = dynamic_cast<AstFor*>(node);
+    const auto* _for = dynamic_cast<tak::AstFor*>(node);
     if(_for == nullptr) {
-        print("{} (For) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}For", node_title);
+    tak::print("{}For", node_title);
 
     uint32_t    tmp_depth = depth;
     std::string tmp_title = node_title;
@@ -433,70 +434,70 @@ display_node_for(AstNode* node, std::string& node_title, uint32_t depth, Parser&
 
 
     display_fake_node("Body", node_title, depth);
-    for(AstNode* expr : _for->body) {
+    for(tak::AstNode* expr : _for->body) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_subscript(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_subscript(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* subscript = dynamic_cast<AstSubscript*>(node);
+    const auto* subscript = dynamic_cast<tak::AstSubscript*>(node);
     if(subscript == nullptr) {
-        print("{} (For) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Index Into (Subscript)", node_title);
+    tak::print("{}Index Into (Subscript)", node_title);
     display_node_data(subscript->operand, depth + 1, _);
     display_node_data(subscript->value, depth + 1, _);
 }
 
 static void
-display_node_block(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_block(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* block = dynamic_cast<AstBlock*>(node);
+    const auto* block = dynamic_cast<tak::AstBlock*>(node);
     if(block == nullptr) {
-        print("{} (Block) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Block) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Scope Block", node_title);
-    for(AstNode* child : block->body) {
+    tak::print("{}Scope Block", node_title);
+    for(tak::AstNode* child : block->body) {
         display_node_data(child, depth + 1, _);
     }
 }
 
 static void
-display_node_namespacedecl(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_namespacedecl(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* _namespace = dynamic_cast<AstNamespaceDecl*>(node);
+    const auto* _namespace = dynamic_cast<tak::AstNamespaceDecl*>(node);
     if(_namespace == nullptr) {
-        print("{} (For) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (For) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}{} (Namespace Decl)", node_title, _namespace->full_path);
-    for(AstNode* expr : _namespace->children) {
+    tak::print("{}{} (Namespace Decl)", node_title, _namespace->full_path);
+    for(tak::AstNode* expr : _namespace->children) {
         display_node_data(expr, depth + 1, _);
     }
 }
 
 static void
-display_node_dowhile(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_dowhile(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* dowhile = dynamic_cast<AstDoWhile*>(node);
+    const auto* dowhile = dynamic_cast<tak::AstDoWhile*>(node);
     if(dowhile == nullptr) {
-        print("{} (Do-While) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Do-While) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Do", node_title);
+    tak::print("{}Do", node_title);
     uint32_t    tmp_depth = depth;
     std::string tmp_title = node_title;
 
     display_fake_node("Body", tmp_title, tmp_depth);
-    for(AstNode* expr : dowhile->body) {
+    for(tak::AstNode* expr : dowhile->body) {
         display_node_data(expr, tmp_depth + 1, _);
     }
 
@@ -508,15 +509,15 @@ display_node_dowhile(AstNode* node, const std::string& node_title, const uint32_
 }
 
 static void
-display_node_cast(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_cast(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* cast = dynamic_cast<AstCast*>(node);
+    const auto* cast = dynamic_cast<tak::AstCast*>(node);
     if(cast == nullptr) {
-        print("{} (Type Cast) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Type Cast) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Type Cast", node_title);
+    tak::print("{}Type Cast", node_title);
     display_node_data(cast->target, depth + 1, _);
 
 
@@ -525,68 +526,68 @@ display_node_cast(AstNode* node, std::string& node_title, uint32_t depth, Parser
     //
 
     std::string type_name;
-    if(const auto* is_var = std::get_if<var_t>(&cast->type.name)) {
-        type_name = var_t_to_string(*is_var);
+    if(const auto* is_var = std::get_if<tak::var_t>(&cast->type.name)) {
+        type_name = tak::var_t_to_string(*is_var);
     } else if(const auto* is_struct = std::get_if<std::string>(&cast->type.name)) {
-        type_name = fmt("{} (Structure)", *is_struct);
+        type_name = tak::fmt("{} (Structure)", *is_struct);
     } else {
         type_name = "Procedure";
     }
 
-    display_fake_node(fmt("Type: {}", type_name), node_title, depth);
+    display_fake_node(tak::fmt("Type: {}", type_name), node_title, depth);
 }
 
 static void
-display_node_enumdef(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_enumdef(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* _enum = dynamic_cast<AstEnumdef*>(node);
+    const auto* _enum = dynamic_cast<tak::AstEnumdef*>(node);
     if(_enum == nullptr) {
-        print("{} (Enum Definition) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Enum Definition) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}{} (Enum Definition)", node_title, _enum->alias->name);
+    tak::print("{}{} (Enum Definition)", node_title, _enum->alias->name);
     display_node_data(_enum->_namespace, depth + 1, _);
     display_node_data(_enum->alias, depth + 1, _);
 }
 
 static void
-display_node_defer(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_defer(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* defer_stmt = dynamic_cast<AstDefer*>(node);
+    const auto* defer_stmt = dynamic_cast<tak::AstDefer*>(node);
     if(defer_stmt == nullptr) {
-        print("{} (Defer Statement) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Defer Statement) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}defer", node_title);
+    tak::print("{}defer", node_title);
     display_node_data(defer_stmt->call, depth + 1, _);
 }
 
 static void
-display_node_defer_if(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_defer_if(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* defer_stmt = dynamic_cast<AstDeferIf*>(node);
+    const auto* defer_stmt = dynamic_cast<tak::AstDeferIf*>(node);
     if(defer_stmt == nullptr) {
-        print("{} (defer_if Statement) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (defer_if Statement) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}defer_if", node_title);
+    tak::print("{}defer_if", node_title);
     display_node_data(defer_stmt->condition, depth + 1, _);
     display_node_data(defer_stmt->call, depth + 1, _);
 }
 
 static void
-display_node_type_alias(AstNode* node, const std::string& node_title, Parser& parser) {
+display_node_type_alias(tak::AstNode* node, const std::string& node_title, tak::Parser& parser) {
 
-    const auto* alias = dynamic_cast<AstTypeAlias*>(node);
+    const auto* alias = dynamic_cast<tak::AstTypeAlias*>(node);
     if(alias == nullptr) {
-        print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}{}: Type Alias Definition, Expands To {}",
+    tak::print("{}{}: Type Alias Definition, Expands To {}",
         node_title,
         alias->name,
         typedata_to_str_msg(parser.lookup_type_alias(alias->name))
@@ -594,34 +595,34 @@ display_node_type_alias(AstNode* node, const std::string& node_title, Parser& pa
 }
 
 static void
-display_node_member_access(AstNode* node, const std::string& node_title, const uint32_t depth, Parser& _) {
+display_node_member_access(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
 
-    const auto* member = dynamic_cast<AstMemberAccess*>(node);
+    const auto* member = dynamic_cast<tak::AstMemberAccess*>(node);
     if(member == nullptr) {
-        print("{} (Member Access) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Member Access) !! INVALID NODE TYPE", node_title);
         return;
     }
 
-    print("{}Member Access ({})", node_title, member->path);
+    tak::print("{}Member Access ({})", node_title, member->path);
     display_node_data(member->target, depth + 1, _);
 }
 
 static void
-display_node_sizeof(AstNode* node, std::string& node_title, uint32_t depth, Parser& _) {
+display_node_sizeof(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
-    const auto* _sizeof = dynamic_cast<AstSizeof*>(node);
+    const auto* _sizeof = dynamic_cast<tak::AstSizeof*>(node);
     if(_sizeof == nullptr) {
-        print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
+        tak::print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
         return;
     }
 
 
-    print("{}SizeOf", node_title);
+    tak::print("{}SizeOf", node_title);
 
-    if(const auto* is_raw_type = std::get_if<TypeData>(&_sizeof->target)) {
-        display_fake_node(fmt("Type: {}", typedata_to_str_msg(*is_raw_type)), node_title, depth);
+    if(const auto* is_raw_type = std::get_if<tak::TypeData>(&_sizeof->target)) {
+        display_fake_node(tak::fmt("Type: {}", typedata_to_str_msg(*is_raw_type)), node_title, depth);
     }
-    else if(const auto* is_node = std::get_if<AstNode*>(&_sizeof->target)) {
+    else if(const auto* is_node = std::get_if<tak::AstNode*>(&_sizeof->target)) {
         display_node_data(*is_node, depth + 1, _);
     }
     else {
@@ -630,7 +631,7 @@ display_node_sizeof(AstNode* node, std::string& node_title, uint32_t depth, Pars
 }
 
 void
-display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
+tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 
     const uint32_t num_spaces = (depth * 2) + (depth * 3);
     std::string    node_title;
@@ -687,7 +688,7 @@ display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 }
 
 void
-Parser::dump_nodes() {
+tak::Parser::dump_nodes() {
 
     print("-- ABSTRACT SYNTAX TREE -- ");
     for(const auto node : toplevel_decls_)
@@ -697,7 +698,7 @@ Parser::dump_nodes() {
 }
 
 void
-Parser::dump_types() {
+tak::Parser::dump_types() {
 
     if(type_table_.empty()) {
         print("No user-defined types exist.");
@@ -705,11 +706,11 @@ Parser::dump_types() {
     }
 
     print(" -- USER DEFINED TYPES -- ");
-    for(const auto &[name, members] : type_table_) {
-        print("~ {} ~\n  Members:", name);
-        for(size_t i = 0; i < members.size(); ++i) {
-            print("    {}. {}", std::to_string(i + 1), members[i].name);
-            print("{}", format_type_data(members[i].type, 1));
+    for(const auto &[name, type] : type_table_) {
+        print("~ {}{} ~\n  Members:", name, type.is_placeholder ? " (Placeholder)" : "");
+        for(size_t i = 0; i < type.members.size(); ++i) {
+            print("    {}. {}", std::to_string(i + 1), type.members[i].name);
+            print("{}", format_type_data(type.members[i].type, 1));
         }
     }
 
@@ -717,7 +718,7 @@ Parser::dump_types() {
 }
 
 std::string
-format_type_data(const TypeData& type, const uint16_t num_tabs) {
+tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
 
     static constexpr std::string_view fmt_type =
         "{} - Symbol Type:   {}"
@@ -742,12 +743,14 @@ format_type_data(const TypeData& type, const uint16_t num_tabs) {
     if(type.flags & TYPE_GLOBAL)           flags += "GLOBAL | ";
     if(type.flags & TYPE_ARRAY)            flags += "ARRAY | ";
     if(type.flags & TYPE_PROCARG)          flags += "PROCEDURE_ARGUMENT | ";
-    if(type.flags * TYPE_UNINITIALIZED)    flags += "UNINITIALIZED | ";
+    if(type.flags & TYPE_UNINITIALIZED)    flags += "UNINITIALIZED | ";
     if(type.flags & TYPE_DEFAULT_INIT)     flags += "DEFAULT INITIALIZED | ";
     if(type.flags & TYPE_INFERRED)         flags += "INFERRED";
 
     if(flags.size() >= 2 && flags[flags.size()-2] == '|') {
         flags.erase(flags.size()-2);
+    } if(flags.empty()) {
+        flags = "None";
     }
 
 
@@ -755,6 +758,7 @@ format_type_data(const TypeData& type, const uint16_t num_tabs) {
     if(type.kind == TYPE_KIND_PROCEDURE)     sym_t_str = "Procedure";
     else if(type.kind == TYPE_KIND_VARIABLE) sym_t_str = "Variable";
     else if(type.kind == TYPE_KIND_STRUCT)   sym_t_str = "Struct";
+    else if(type.kind == TYPE_KIND_NONE)     sym_t_str = "None";
 
     std::string type_name_str;
     if(auto is_var = std::get_if<var_t>(&type.name)) {
@@ -817,19 +821,20 @@ format_type_data(const TypeData& type, const uint16_t num_tabs) {
 }
 
 void
-Parser::dump_symbols() {
+tak::Parser::dump_symbols() {
 
     static constexpr std::string_view fmt_sym =
-        "~ {} ~"
+        "~ {}{} ~"
         "\n - Symbol Index:  {}"
         "\n - Line Number:   {}"
         "\n - File Position: {}"
-        "{}"; //< type data
+        "\n{}"; //< type data
 
     print(" -- SYMBOL TABLE -- ");
     for(const auto &[index, sym] : sym_table_) {
         print(fmt_sym,
             sym.name,
+            sym.placeholder ? " (Placeholder)" : "",
             sym.symbol_index,
             sym.line_number,
             sym.src_pos,

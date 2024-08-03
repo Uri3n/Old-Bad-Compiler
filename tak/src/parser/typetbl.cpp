@@ -6,49 +6,58 @@
 
 
 bool
-Parser::type_exists(const std::string& name) {
+tak::Parser::type_exists(const std::string& name) {
     return type_table_.contains(name);
 }
 
 bool
-Parser::create_type(const std::string& name, std::vector<MemberData>&& type_data) {
-    if(type_exists(name)) {
-        panic(fmt("Internal parse-error: attempt to create type \"{}\" when it already exists.", name));
-    }
+tak::Parser::create_type(const std::string& name, std::vector<MemberData>&& type_data) {
+    assert(!type_exists(name));
 
-    type_table_[name] = type_data;
+    auto& user_t          = type_table_[name];
+    user_t.members        = type_data;
+    user_t.is_placeholder = false;
+
     return true;
 }
 
-std::vector<MemberData>*
-Parser::lookup_type(const std::string& name) {
-    if(!type_exists(name)) {
-        panic(fmt("Internal parse-error: looking up nonexistent type \"{}\".", name));
-    }
+bool
+tak::Parser::create_placeholder_type(const std::string& name, const size_t pos, const uint32_t line) {
+    assert(!type_exists(name));
 
+    auto& user_t           = type_table_[name];
+    user_t.is_placeholder  = true;
+    user_t.pos_first_used  = pos;
+    user_t.line_first_used = line;
+    return true;
+}
+
+std::vector<tak::MemberData>*
+tak::Parser::lookup_type_members(const std::string& name) {
+    assert(type_exists(name));
+    return &type_table_[name].members;
+}
+
+tak::UserType*
+tak::Parser::lookup_type(const std::string& name) {
+    assert(type_exists(name));
     return &type_table_[name];
 }
 
 bool
-Parser::create_type_alias(const std::string& name, const TypeData& data) {
-    if(type_aliases_.contains(name)) {
-        panic(fmt("Internal parse-error: attempt to create type alias \"{}\" when it already exists.", name));
-    }
-
+tak::Parser::create_type_alias(const std::string& name, const TypeData& data) {
+    assert(!type_aliases_.contains(name));
     type_aliases_[name] = data;
     return true;
 }
 
 bool
-Parser::type_alias_exists(const std::string& name) {
+tak::Parser::type_alias_exists(const std::string& name) {
     return type_aliases_.contains(name);
 }
 
-TypeData
-Parser::lookup_type_alias(const std::string& name) {
-    if(!type_aliases_.contains(name)) {
-        panic(fmt("Internal parse-error: attempted lookup for non-existent type alias \"{}\".", name));
-    }
-
+tak::TypeData
+tak::Parser::lookup_type_alias(const std::string& name) {
+    assert(type_aliases_.contains(name));
     return type_aliases_[name];
 }

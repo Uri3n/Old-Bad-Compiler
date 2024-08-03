@@ -6,7 +6,7 @@
 
 
 void
-Lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
+tak::Lexer::_raise_error_impl(const std::string& message, size_t file_position, const uint32_t line) {
 
     size_t line_start = file_position;
     size_t line_end   = file_position;
@@ -25,12 +25,12 @@ Lexer::_raise_error_impl(const std::string& message, size_t file_position, const
         ++line_end;
 
 
-    uint32_t offset    = file_position - (line_start + 1);
-    auto     full_line = std::string(&src_[line_start], line_end - line_start);
+    const uint32_t offset  = file_position - (line_start + 1);
+    auto full_line         = std::string(&src_[line_start], line_end - line_start);
 
     if(full_line.empty() || offset >= full_line.size()) {
-        print("Unexpected end of file!");
-        exit(1); // @temporary: should be returning normally if this is the case.
+        print("Unexpected end of file!"); // @Cleanup: This is lazy and bad.
+        exit(1);
     }
 
     if(full_line.front() == '\n') {
@@ -42,28 +42,34 @@ Lexer::_raise_error_impl(const std::string& message, size_t file_position, const
     // display the error message
     //
 
+    std::string filler;
     std::string whitespace;
+
+    filler.resize(full_line.size());
     whitespace.resize(offset);
+
+    std::fill(filler.begin(), filler.end(), '_');
     std::fill(whitespace.begin(), whitespace.end(), ' ');
 
+    assert(offset + 1 < filler.size());
+    filler[offset + 1] = '^';
+
     print("in {}{}", source_file_name_, !line ? std::string("") : ':' + std::to_string(line));
-    print("{}", full_line);
-    print("{}^", whitespace);
-    print("{}{}", whitespace, message);
+    print("{}\n{}", full_line, filler);
+    print("{}{}\n\n", whitespace, message);
 }
 
-
 void
-Lexer::raise_error(const std::string& message) {
+tak::Lexer::raise_error(const std::string& message) {
     _raise_error_impl(message, current_.src_pos, current_.line);
 }
 
 void
-Lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
+tak::Lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
     _raise_error_impl(message, file_position, line);
 }
 
 void
-Lexer::raise_error(const std::string& message, const size_t file_position) {
+tak::Lexer::raise_error(const std::string& message, const size_t file_position) {
     _raise_error_impl(message, file_position, 0);
 }

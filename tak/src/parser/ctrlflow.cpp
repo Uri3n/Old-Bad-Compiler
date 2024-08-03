@@ -5,32 +5,34 @@
 #include <parser.hpp>
 
 
-AstNode*
-parse_cont(Lexer& lxr) {
+tak::AstNode*
+tak::parse_cont(Lexer& lxr) {
+
     parser_assert(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
 
     auto* node = new AstCont();
-    node->pos = lxr.current().src_pos;
+    node->pos  = lxr.current().src_pos;
 
     lxr.advance(1);
     return node;
 }
 
 
-AstNode*
-parse_brk(Lexer& lxr) {
+tak::AstNode*
+tak::parse_brk(Lexer& lxr) {
+
     parser_assert(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
 
     auto* node = new AstBrk();
-    node->pos = lxr.current().src_pos;
+    node->pos  = lxr.current().src_pos;
 
     lxr.advance(1);
     return node;
 }
 
 
-AstNode*
-parse_branch(Parser &parser, Lexer &lxr) {
+tak::AstNode*
+tak::parse_branch(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
 
@@ -124,8 +126,8 @@ parse_branch(Parser &parser, Lexer &lxr) {
 }
 
 
-AstCase*
-parse_case(Parser& parser, Lexer& lxr) {
+tak::AstCase*
+tak::parse_case(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
     parser.push_scope();
@@ -176,8 +178,8 @@ parse_case(Parser& parser, Lexer& lxr) {
 }
 
 
-AstDefault*
-parse_default(Parser& parser, Lexer& lxr) {
+tak::AstDefault*
+tak::parse_default(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
     parser.push_scope();
@@ -214,8 +216,8 @@ parse_default(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_switch(Parser &parser, Lexer &lxr) {
+tak::AstNode*
+tak::parse_switch(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
     lxr.advance(1);
@@ -260,7 +262,7 @@ parse_switch(Parser &parser, Lexer &lxr) {
 
             const size_t   case_pos  = lxr.current().src_pos;
             const uint32_t case_line = lxr.current().line;
-            auto*          new_case  = parse_case(parser, lxr);
+            auto*          new_case  = tak::parse_case(parser, lxr);
 
             if(new_case == nullptr) {
                 return nullptr;
@@ -285,7 +287,7 @@ parse_switch(Parser &parser, Lexer &lxr) {
                 return nullptr;
             }
 
-            node->_default = parse_default(parser, lxr);
+            node->_default = tak::parse_default(parser, lxr);
             if(node->_default == nullptr)
                 return nullptr;
 
@@ -311,8 +313,8 @@ parse_switch(Parser &parser, Lexer &lxr) {
 }
 
 
-AstNode*
-parse_ret(Parser &parser, Lexer &lxr) {
+tak::AstNode*
+tak::parse_ret(Parser &parser, Lexer &lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
 
@@ -342,8 +344,8 @@ parse_ret(Parser &parser, Lexer &lxr) {
 }
 
 
-AstNode*
-parse_while(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_while(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
 
@@ -389,7 +391,7 @@ parse_while(Parser& parser, Lexer& lxr) {
                 return nullptr;
             }
 
-            node->body.emplace_back(parse_cont(lxr));
+            node->body.emplace_back(tak::parse_cont(lxr));
             lxr.advance(1);
         }
 
@@ -399,7 +401,7 @@ parse_while(Parser& parser, Lexer& lxr) {
                 return nullptr;
             }
 
-            node->body.emplace_back(parse_brk(lxr));
+            node->body.emplace_back(tak::parse_brk(lxr));
             lxr.advance(1);
         }
 
@@ -419,8 +421,8 @@ parse_while(Parser& parser, Lexer& lxr) {
     return node;
 }
 
-AstNode*
-parse_block(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_block(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_BLK, "Expected \"blk\" keyword.");
 
@@ -456,8 +458,8 @@ parse_block(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_defer_if(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_defer_if(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DEFER_IF, "Expected \"defer_if\" keyword.");
     lxr.advance(1);
@@ -509,8 +511,8 @@ parse_defer_if(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_defer(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_defer(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DEFER, "Expected \"defer\" keyword.");
 
@@ -542,8 +544,8 @@ parse_defer(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_dowhile(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_dowhile(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_DO, "Expected \"do\" keyword.");
 
@@ -598,8 +600,8 @@ parse_dowhile(Parser& parser, Lexer& lxr) {
 }
 
 
-AstNode*
-parse_for(Parser& parser, Lexer& lxr) {
+tak::AstNode*
+tak::parse_for(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
 

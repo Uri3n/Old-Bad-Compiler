@@ -5,29 +5,8 @@
 #include <checker.hpp>
 
 
-bool
-visit_tree(Parser& parser, Lexer& lxr) {
-
-    CheckerContext ctx(lxr, parser);
-
-    for(const auto& decl : parser.toplevel_decls_) {
-        if(NODE_NEEDS_VISITING(decl->type)) {
-            visit_node(decl, ctx);
-        }
-    }
-
-    if(ctx.error_count_ > 0) {
-        print("\n{}: BUILD FAILED", lxr.source_file_name_);
-        print("Finished with {} errors, {} warnings.", ctx.error_count_, ctx.warning_count_);
-        return false;
-    }
-
-    return true;
-}
-
-
-std::optional<TypeData>
-visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -86,8 +65,8 @@ visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->operand != nullptr);
@@ -175,8 +154,8 @@ visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_identifier(const AstIdentifier* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_identifier(const AstIdentifier* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto* sym = ctx.parser_.lookup_unique_symbol(node->symbol_index);
@@ -190,8 +169,8 @@ visit_identifier(const AstIdentifier* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     TypeData data;
@@ -237,15 +216,15 @@ visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx) {
 
 
 static void
-initialize_symbol(Symbol* sym) {
-    if(sym->type.flags & TYPE_UNINITIALIZED) {
-        sym->type.flags &= ~TYPE_UNINITIALIZED;
+initialize_symbol(tak::Symbol* sym) {
+    if(sym->type.flags & tak::TYPE_UNINITIALIZED) {
+        sym->type.flags &= ~tak::TYPE_UNINITIALIZED;
     }
 }
 
 
-std::optional<TypeData>
-checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
 
     assert(sym != nullptr && decl != nullptr);
     assert(decl->init_value);
@@ -276,14 +255,14 @@ checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ct
 }
 
 
-std::optional<TypeData>
-checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
 
     assert(sym != nullptr && decl != nullptr);
     assert(sym->type.flags & TYPE_INFERRED);
     assert(decl->init_value.has_value());
 
-    std::optional<TypeData> assigned_t;
+    std::optional<tak::TypeData> assigned_t;
 
 
     if((*decl->init_value)->type == NODE_BRACED_EXPRESSION) {
@@ -315,8 +294,8 @@ checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext
 }
 
 
-std::optional<TypeData>
-visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->identifier != nullptr);
@@ -373,8 +352,8 @@ visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_cast(const AstCast* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_cast(const AstCast* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto  target_t = visit_node(node->target, ctx);
@@ -396,8 +375,8 @@ visit_cast(const AstCast* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_procdecl(const AstProcdecl* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_procdecl(const AstProcdecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -411,8 +390,8 @@ visit_procdecl(const AstProcdecl* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_call(const AstCall* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_call(const AstCall* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -479,8 +458,8 @@ visit_call(const AstCall* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_ret(const AstRet* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_ret(const AstRet* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -533,8 +512,8 @@ visit_ret(const AstRet* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     const auto target_t = visit_node(node->target, ctx);
@@ -561,8 +540,8 @@ visit_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -582,16 +561,16 @@ visit_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_defer(const AstDefer* node,  CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_defer(const AstDefer* node,  CheckerContext& ctx) {
 
     assert(node != nullptr);
     return visit_node(node->call, ctx); // Not much to do here. We just need to typecheck the wrapped call node
 }
 
 
-std::optional<TypeData>
-visit_sizeof(const AstSizeof* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_sizeof(const AstSizeof* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     if(const auto* is_child_node = std::get_if<AstNode*>(&node->target)) {
@@ -610,8 +589,8 @@ visit_sizeof(const AstSizeof* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     for(AstNode* child : node->children) {
@@ -624,8 +603,8 @@ visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_block(const AstBlock* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_block(const AstBlock* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     for(AstNode* child : node->body) {
@@ -638,8 +617,8 @@ visit_block(const AstBlock* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_branch(const AstBranch* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_branch(const AstBranch* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     for(const AstIf* _if : node->conditions) {
@@ -669,8 +648,8 @@ visit_branch(const AstBranch* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_for(const AstFor* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_for(const AstFor* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     if(node->init) {
@@ -697,8 +676,8 @@ visit_for(const AstFor* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_switch(const AstSwitch* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_switch(const AstSwitch* node, CheckerContext& ctx) {
 
     assert(node != nullptr && node->target != nullptr);
     auto target_t = visit_node(node->target, ctx);
@@ -740,8 +719,8 @@ visit_switch(const AstSwitch* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_while(AstNode* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_while(AstNode* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->type == NODE_WHILE || node->type == NODE_DOWHILE);
@@ -782,8 +761,8 @@ visit_while(AstNode* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_subscript(const AstSubscript* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_subscript(const AstSubscript* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -815,8 +794,8 @@ visit_subscript(const AstSubscript* node, CheckerContext& ctx) {
 }
 
 
-std::optional<TypeData>
-visit_node(AstNode* node, CheckerContext& ctx) {
+std::optional<tak::TypeData>
+tak::visit_node(AstNode* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
     assert(node->type != NODE_NONE);
