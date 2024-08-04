@@ -1,21 +1,18 @@
-
-namespace ass {
-main :: proc() -> i32 {
-   // \other();
-   ret 0;
-} 
+struct Array {
+   buffer : void^;
+   length : u64;
 }
 
-@alias second = ass\bar;
 
-namespace ass {
-   struct foo {mem1:bool;}
-   struct bar {
-     first  : bool;
-     second : i32^;
-   }
+compose Array {
+  change_length :: proc(self: Array^, length :: u64, msg : i8^) -> bool {
+    self.length = length;
+  }
+  
+  get_new :: proc(self: Array^) -> Array^ {}  
+
+  x : i32 = 1;
 }
 
-myvar : second = { true, nullptr };
-myvar.first = false;
-
+myvar : Array;
+second  := myvar.change_length(300, "test");

@@ -76,7 +76,7 @@ tak::AstCast::~AstCast() {
 }
 
 tak::AstBlock::~AstBlock() {
-    for(AstNode const* node : body) {
+    for(AstNode const* node : children) {
         delete node;
     }
 }
@@ -105,7 +105,7 @@ tak::AstWhile::~AstWhile() {
 }
 
 tak::AstDoWhile::~AstDoWhile() {
-    for(tak::AstNode const* node : body) {
+    for(AstNode const* node : body) {
         delete node;
     }
 
@@ -117,7 +117,7 @@ tak::AstUnaryexpr::~AstUnaryexpr() {
 }
 
 tak::AstBracedExpression::~AstBracedExpression() {
-    for(tak::AstNode const* node : members) {
+    for(AstNode const* node : members) {
         delete node;
     }
 }
@@ -129,7 +129,7 @@ tak::AstRet::~AstRet() {
 }
 
 tak::AstCase::~AstCase() {
-    for(tak::AstNode const* node : body) {
+    for(AstNode const* node : body) {
         delete node;
     }
 
@@ -137,13 +137,13 @@ tak::AstCase::~AstCase() {
 }
 
 tak::AstDefault::~AstDefault() {
-    for(tak::AstNode const* node : body) {
+    for(AstNode const* node : body) {
         delete node;
     }
 }
 
 tak::AstSwitch::~AstSwitch() {
-    for(tak::AstNode const* node : cases) {
+    for(AstNode const* node : cases) {
         delete node;
     }
 
@@ -151,14 +151,18 @@ tak::AstSwitch::~AstSwitch() {
     delete target;
 }
 
+tak::AstComposeDecl::~AstComposeDecl() {
+
+}
+
 tak::AstNamespaceDecl::~AstNamespaceDecl() {
-    for(tak::AstNode const* node : children) {
+    for(AstNode const* node : children) {
         delete node;
     }
 }
 
 tak::AstSizeof::~AstSizeof() {
-    if(const auto* is_ident = std::get_if<tak::AstNode*>(&this->target)) {
+    if(const auto* is_ident = std::get_if<AstNode*>(&this->target)) {
         delete *is_ident;
     }
 }

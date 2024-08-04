@@ -7,9 +7,11 @@
 #include <cstdlib>
 #include <io.hpp>
 
-#define panic(message)                               \
-    print("PANIC :: {}", message);                   \
-    print("FILE: {}\nLINE: {}", __FILE__, __LINE__); \
-    exit(1);                                         \
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define panic(message)                                    \
+    tak::print("PANIC :: {}", message);                   \
+    tak::print("FILE: {}\nLINE: {}", __FILE__, __LINE__); \
+    exit(1);                                              \
 
 #endif //PANIC_HPP

@@ -8,16 +8,22 @@
 #include <cstdint>
 #include <cassert>
 #include <string>
+#include <utility>
 #include <typeindex>
 #include <parser.hpp>
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define MAX_ERROR_COUNT 45
-#define NODE_NEEDS_VISITING(node_type) (node_type != NODE_BRK        \
-        && node_type != NODE_STRUCT_DEFINITION                       \
-        && node_type != NODE_ENUM_DEFINITION                         \
-        && node_type != NODE_CONT                                    \
-        && node_type != NODE_TYPE_ALIAS                              \
-)                                                                    \
+#define NODE_NEEDS_VISITING(node_type)           \
+   (node_type != tak::NODE_BRK                   \
+    && node_type != tak::NODE_STRUCT_DEFINITION  \
+    && node_type != tak::NODE_ENUM_DEFINITION    \
+    && node_type != tak::NODE_CONT               \
+    && node_type != tak::NODE_TYPE_ALIAS         \
+)                                                \
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
 
@@ -47,6 +53,7 @@ namespace tak {
     bool is_type_reassignable(const TypeData& type);
     bool can_operator_be_applied_to(token_t _operator, const TypeData& type);
     bool is_type_arithmetic_eligible(const TypeData& type, token_t _operator);
+    bool is_returntype_lvalue_eligible(const TypeData& type);
     bool is_type_bwop_eligible(const TypeData& type);
     bool is_type_lop_eligible(const TypeData& type);
     bool flip_sign(TypeData& type);
@@ -62,7 +69,7 @@ namespace tak {
     std::optional<TypeData> visit_member_access(const AstMemberAccess* node, CheckerContext& ctx);
     std::optional<TypeData> visit_vardecl(const AstVardecl* node, CheckerContext& ctx);
     std::optional<TypeData> visit_procdecl(const AstProcdecl* node, CheckerContext& ctx);
-    std::optional<TypeData> visit_call(const AstCall* node, CheckerContext& ctx);
+    std::optional<TypeData> visit_call(AstCall* node, CheckerContext& ctx);
     std::optional<TypeData> visit_switch(const AstSwitch* node, CheckerContext& ctx);
     std::optional<TypeData> visit_cast(const AstCast* node, CheckerContext& ctx);
     std::optional<TypeData> visit_subscript(const AstSubscript* node, CheckerContext& ctx);
@@ -72,6 +79,7 @@ namespace tak {
     std::optional<TypeData> visit_for(const AstFor* node, CheckerContext& ctx);
     std::optional<TypeData> visit_binexpr(AstBinexpr* node, CheckerContext& ctx);
     std::optional<TypeData> visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx);
+    std::optional<TypeData> visit_composedecl(const AstComposeDecl* node, CheckerContext& ctx);
     std::optional<TypeData> visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx);
     std::optional<TypeData> visit_identifier(const AstIdentifier* node, CheckerContext& ctx);
     std::optional<TypeData> visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx);
@@ -86,6 +94,8 @@ namespace tak {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    TypeData to_lvalue(const TypeData& type);
+    TypeData to_rvalue(const TypeData& type);
     TypeData convert_int_lit_to_type(const AstSingletonLiteral* node);
     TypeData convert_float_lit_to_type(const AstSingletonLiteral* node);
 }

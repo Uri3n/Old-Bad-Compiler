@@ -445,11 +445,11 @@ tak::parse_block(Parser& parser, Lexer& lxr) {
     parser.push_scope();
     lxr.advance(2);
     while(lxr.current() != TOKEN_RBRACE) {
-        node->body.emplace_back(parse_expression(parser, lxr, false));
-        if(node->body.back() == nullptr)
+        node->children.emplace_back(parse_expression(parser, lxr, false));
+        if(node->children.back() == nullptr)
             return nullptr;
 
-        node->body.back()->parent = node;
+        node->children.back()->parent = node;
     }
 
     lxr.advance(1);

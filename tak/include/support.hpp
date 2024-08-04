@@ -13,7 +13,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
-    std::vector<std::string> split_struct_member_path(std::string path);
+    std::vector<std::string> split_string(std::string str, char delim);
     std::optional<char> get_escaped_char_via_real(char real);
     std::optional<std::string> remove_escaped_chars(const std::string_view& str);
     std::optional<std::string> get_actual_string(const std::string_view& str);

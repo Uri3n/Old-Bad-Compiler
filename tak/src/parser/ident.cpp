@@ -23,7 +23,6 @@ tak::get_namespaced_identifier(Lexer& lxr) {
       full_name = std::string(lxr.current().value);
     }
 
-
     while(lxr.peek(1) == TOKEN_NAMESPACE_ACCESS) {
         lxr.advance(2);
         if(lxr.current() != TOKEN_IDENTIFIER) {

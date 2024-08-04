@@ -202,6 +202,13 @@ tak::is_type_reassignable(const TypeData& type) {
 }
 
 bool
+tak::is_returntype_lvalue_eligible(const TypeData &type) {
+    return type.kind == TYPE_KIND_STRUCT
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
 tak::is_type_cast_eligible(const TypeData& type) {
     return type.array_lengths.empty()
         && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)

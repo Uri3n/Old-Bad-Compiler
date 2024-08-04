@@ -57,12 +57,6 @@ do_parse(Parser& parser, Lexer& lexer) {
         return false;
     }
 
-#ifdef TAK_DEBUG
-    parser.dump_nodes();
-    parser.dump_symbols();
-    parser.dump_types();
-#endif
-
     return true;
 }
 
@@ -81,6 +75,12 @@ do_check(Parser& parser, Lexer& lexer) {
         print("Finished with {} errors, {} warnings.", ctx.error_count_, ctx.warning_count_);
         return false;
     }
+
+#ifdef TAK_DEBUG
+    parser.dump_nodes();
+    parser.dump_symbols();
+    parser.dump_types();
+#endif
 
     return true;
 }

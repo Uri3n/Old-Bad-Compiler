@@ -86,6 +86,7 @@
     X(KW_NAMESPACE, "namespace")     \
     X(KW_DEFER, "defer")             \
     X(KW_DEFER_IF, "defer_if")       \
+    X(KW_COMPOSE, "compose")         \
     X(KW_PROC, "proc")               \
     X(KW_BLK, "block")               \
     X(KW_CAST, "cast")               \
@@ -114,77 +115,77 @@
     X(KEYWORD)                       \
     X(TYPE_IDENTIFIER)               \
 
-#define TOKEN_VALID_UNARY_OPERATOR(token)      \
-   (token.kind == KIND_UNARY_EXPR_OPERATOR     \
-    || token == TOKEN_PLUS                     \
-    || token == TOKEN_SUB                      \
-    || token == TOKEN_BITWISE_XOR_OR_PTR       \
-    || token == TOKEN_BITWISE_AND              \
-)                                              \
+#define TOKEN_VALID_UNARY_OPERATOR(token)          \
+   (token.kind == KIND_UNARY_EXPR_OPERATOR         \
+    || token == TOKEN_PLUS                         \
+    || token == TOKEN_SUB                          \
+    || token == TOKEN_BITWISE_XOR_OR_PTR           \
+    || token == TOKEN_BITWISE_AND                  \
+)                                                  \
 
-#define TOKEN_OP_IS_ARITH_ASSIGN(token_type)   \
-   (token_type == TOKEN_PLUSEQ                 \
-    || token_type == TOKEN_SUBEQ               \
-    || token_type == TOKEN_MULEQ               \
-    || token_type == TOKEN_DIVEQ               \
-    || token_type == TOKEN_MODEQ               \
-    || token_type == TOKEN_INCREMENT           \
-    || token_type == TOKEN_DECREMENT           \
-)                                              \
+#define TOKEN_OP_IS_ARITH_ASSIGN(token_type)       \
+   (token_type == tak::TOKEN_PLUSEQ                \
+    || token_type == tak::TOKEN_SUBEQ              \
+    || token_type == tak::TOKEN_MULEQ              \
+    || token_type == tak::TOKEN_DIVEQ              \
+    || token_type == tak::TOKEN_MODEQ              \
+    || token_type == tak::TOKEN_INCREMENT          \
+    || token_type == tak::TOKEN_DECREMENT          \
+)                                                  \
 
-#define TOKEN_IDENT_START(token_type)          \
-    (token_type == TOKEN_IDENTIFIER            \
-     || token_type == TOKEN_NAMESPACE_ACCESS   \
-)                                              \
+#define TOKEN_IDENT_START(token_type)              \
+    (token_type == tak::TOKEN_IDENTIFIER           \
+     || token_type == tak::TOKEN_NAMESPACE_ACCESS  \
+)                                                  \
 
-#define TOKEN_OP_IS_ARITHMETIC(token_type)     \
-   (token_type == TOKEN_PLUS                   \
-    || token_type == TOKEN_PLUSEQ              \
-    || token_type == TOKEN_SUB                 \
-    || token_type == TOKEN_SUBEQ               \
-    || token_type == TOKEN_MUL                 \
-    || token_type == TOKEN_MULEQ               \
-    || token_type == TOKEN_DIV                 \
-    || token_type == TOKEN_DIVEQ               \
-    || token_type == TOKEN_MOD                 \
-    || token_type == TOKEN_MODEQ               \
-    || token_type == TOKEN_INCREMENT           \
-    || token_type == TOKEN_DECREMENT           \
-)                                              \
+#define TOKEN_OP_IS_ARITHMETIC(token_type)         \
+   (token_type == tak::TOKEN_PLUS                  \
+    || token_type == tak::TOKEN_PLUSEQ             \
+    || token_type == tak::TOKEN_SUB                \
+    || token_type == tak::TOKEN_SUBEQ              \
+    || token_type == tak::TOKEN_MUL                \
+    || token_type == tak::TOKEN_MULEQ              \
+    || token_type == tak::TOKEN_DIV                \
+    || token_type == tak::TOKEN_DIVEQ              \
+    || token_type == tak::TOKEN_MOD                \
+    || token_type == tak::TOKEN_MODEQ              \
+    || token_type == tak::TOKEN_INCREMENT          \
+    || token_type == tak::TOKEN_DECREMENT          \
+)                                                  \
 
-#define TOKEN_OP_IS_BW_ASSIGN(token_type)      \
-   (token_type == TOKEN_BITWISE_ANDEQ          \
-    || token_type == TOKEN_BITWISE_OREQ        \
-    || token_type == TOKEN_BITWISE_XOREQ       \
-    || token_type == TOKEN_BITWISE_LSHIFTEQ    \
-    || token_type == TOKEN_BITWISE_RSHIFTEQ    \
-)                                              \
+#define TOKEN_OP_IS_BW_ASSIGN(token_type)          \
+   (token_type == tak::TOKEN_BITWISE_ANDEQ         \
+    || token_type == tak::TOKEN_BITWISE_OREQ       \
+    || token_type == tak::TOKEN_BITWISE_XOREQ      \
+    || token_type == tak::TOKEN_BITWISE_LSHIFTEQ   \
+    || token_type == tak::TOKEN_BITWISE_RSHIFTEQ   \
+)                                                  \
 
-#define TOKEN_OP_IS_BITWISE(token_type)        \
-   (token_type == TOKEN_BITWISE_AND            \
-    || token_type == TOKEN_BITWISE_ANDEQ       \
-    || token_type == TOKEN_BITWISE_OR          \
-    || token_type == TOKEN_BITWISE_NOT         \
-    || token_type == TOKEN_BITWISE_OREQ        \
-    || token_type == TOKEN_BITWISE_XOR_OR_PTR  \
-    || token_type == TOKEN_BITWISE_XOREQ       \
-    || token_type == TOKEN_BITWISE_LSHIFT      \
-    || token_type == TOKEN_BITWISE_LSHIFTEQ    \
-    || token_type == TOKEN_BITWISE_RSHIFT      \
-    || token_type == TOKEN_BITWISE_RSHIFTEQ    \
-)                                              \
+#define TOKEN_OP_IS_BITWISE(token_type)            \
+   (token_type == tak::TOKEN_BITWISE_AND           \
+    || token_type == tak::TOKEN_BITWISE_ANDEQ      \
+    || token_type == tak::TOKEN_BITWISE_OR         \
+    || token_type == tak::TOKEN_BITWISE_NOT        \
+    || token_type == tak::TOKEN_BITWISE_OREQ       \
+    || token_type == tak::TOKEN_BITWISE_XOR_OR_PTR \
+    || token_type == tak::TOKEN_BITWISE_XOREQ      \
+    || token_type == tak::TOKEN_BITWISE_LSHIFT     \
+    || token_type == tak::TOKEN_BITWISE_LSHIFTEQ   \
+    || token_type == tak::TOKEN_BITWISE_RSHIFT     \
+    || token_type == tak::TOKEN_BITWISE_RSHIFTEQ   \
+)                                                  \
 
-#define TOKEN_OP_IS_LOGICAL(token_type)        \
-   (token_type == TOKEN_COMP_EQUALS            \
-    || token_type == TOKEN_COMP_NOT_EQUALS     \
-    || token_type == TOKEN_COMP_LT             \
-    || token_type == TOKEN_COMP_LTE            \
-    || token_type == TOKEN_COMP_GT             \
-    || token_type == TOKEN_COMP_GTE            \
-    || token_type == TOKEN_CONDITIONAL_AND     \
-    || token_type == TOKEN_CONDITIONAL_OR      \
-    || token_type == TOKEN_CONDITIONAL_NOT     \
-)                                              \
+#define TOKEN_OP_IS_LOGICAL(token_type)            \
+   (token_type == tak::TOKEN_COMP_EQUALS           \
+    || token_type == tak::TOKEN_COMP_NOT_EQUALS    \
+    || token_type == tak::TOKEN_COMP_LT            \
+    || token_type == tak::TOKEN_COMP_LTE           \
+    || token_type == tak::TOKEN_COMP_GT            \
+    || token_type == tak::TOKEN_COMP_GTE           \
+    || token_type == tak::TOKEN_CONDITIONAL_AND    \
+    || token_type == tak::TOKEN_CONDITIONAL_OR     \
+    || token_type == tak::TOKEN_CONDITIONAL_NOT    \
+)                                                  \
 
 
 namespace tak {

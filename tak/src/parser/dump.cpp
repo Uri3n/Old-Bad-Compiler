@@ -148,17 +148,12 @@ display_node_identifier(tak::AstNode* node, std::string& node_title, tak::Parser
     }
 
 
-    std::string sym_t_str;
-    if(sym_ptr->type.kind == tak::TYPE_KIND_PROCEDURE) {
-        sym_t_str = "Procedure";
-    } else if(sym_ptr->type.kind == tak::TYPE_KIND_VARIABLE) {
-        sym_t_str = "Variable";
-    } else if(sym_ptr->type.kind == tak::TYPE_KIND_STRUCT){
-        sym_t_str = "Struct";
-    } else {
-        sym_t_str = "Inferred";
-    }
-
+    const std::string sym_t_str = [&]() -> std::string {
+        if(sym_ptr->type.kind == tak::TYPE_KIND_PROCEDURE) return "Procedure";
+        if(sym_ptr->type.kind == tak::TYPE_KIND_VARIABLE)  return "Variable";
+        if(sym_ptr->type.kind == tak::TYPE_KIND_STRUCT)    return "Struct";
+        return "Inferred";
+    }();
 
     node_title += tak::fmt(
         "{} ({}) (Sym Index {})",
@@ -463,7 +458,7 @@ display_node_block(tak::AstNode* node, const std::string& node_title, const uint
     }
 
     tak::print("{}Scope Block", node_title);
-    for(tak::AstNode* child : block->body) {
+    for(tak::AstNode* child : block->children) {
         display_node_data(child, depth + 1, _);
     }
 }
@@ -520,19 +515,15 @@ display_node_cast(tak::AstNode* node, std::string& node_title, uint32_t depth, t
     tak::print("{}Type Cast", node_title);
     display_node_data(cast->target, depth + 1, _);
 
+    const std::string type_name = [&]() -> std::string {
 
-    //
-    // Type data displayed is not detailed at all... should be ok though
-    //
-
-    std::string type_name;
-    if(const auto* is_var = std::get_if<tak::var_t>(&cast->type.name)) {
-        type_name = tak::var_t_to_string(*is_var);
-    } else if(const auto* is_struct = std::get_if<std::string>(&cast->type.name)) {
-        type_name = tak::fmt("{} (Structure)", *is_struct);
-    } else {
-        type_name = "Procedure";
-    }
+        if(const auto* is_var = std::get_if<tak::var_t>(&cast->type.name)) {
+            return var_t_to_string(*is_var);
+        } else if(const auto* is_struct = std::get_if<std::string>(&cast->type.name)) {
+            return tak::fmt("{} (Structure)", *is_struct);
+        }
+        return "Procedure";
+    }();
 
     display_fake_node(tak::fmt("Type: {}", type_name), node_title, depth);
 }
@@ -630,6 +621,22 @@ display_node_sizeof(tak::AstNode* node, std::string& node_title, uint32_t depth,
     }
 }
 
+static void
+display_node_composedecl(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
+
+    const auto* compose = dynamic_cast<tak::AstComposeDecl*>(node);
+    if(compose == nullptr) {
+        tak::print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    tak::print("{}Compose Block (For Type {})", node_title, compose->type_name);
+    for(tak::AstNode* child : compose->children) {
+        display_node_data(child, depth + 1, _);
+    }
+}
+
+
 void
 tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 
@@ -667,6 +674,7 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
         case NODE_FOR:                display_node_for(node, node_title, depth, parser); break;
         case NODE_SUBSCRIPT:          display_node_subscript(node, node_title, depth, parser); break;
         case NODE_NAMESPACEDECL:      display_node_namespacedecl(node, node_title, depth, parser); break;
+        case NODE_COMPOSEDECL:        display_node_composedecl(node, node_title, depth, parser); break;
         case NODE_BLOCK:              display_node_block(node, node_title, depth, parser); break;
         case NODE_DOWHILE:            display_node_dowhile(node, node_title, depth,parser); break;
         case NODE_CAST:               display_node_cast(node, node_title, depth, parser); break;
@@ -709,7 +717,7 @@ tak::Parser::dump_types() {
     for(const auto &[name, type] : type_table_) {
         print("~ {}{} ~\n  Members:", name, type.is_placeholder ? " (Placeholder)" : "");
         for(size_t i = 0; i < type.members.size(); ++i) {
-            print("    {}. {}", std::to_string(i + 1), type.members[i].name);
+            print("    {}. {}{}", i + 1, type.members[i].name, type.members[i].type.sym_ref ? " (Method, Symbol Ref)" : "");
             print("{}", format_type_data(type.members[i].type, 1));
         }
     }
@@ -736,68 +744,83 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
     }
 
 
-    std::string flags;
-    if(type.flags & TYPE_CONSTANT)         flags += "CONSTANT | ";
-    if(type.flags & TYPE_FOREIGN)          flags += "FOREIGN | ";
-    if(type.flags & TYPE_POINTER)          flags += "POINTER | ";
-    if(type.flags & TYPE_GLOBAL)           flags += "GLOBAL | ";
-    if(type.flags & TYPE_ARRAY)            flags += "ARRAY | ";
-    if(type.flags & TYPE_PROCARG)          flags += "PROCEDURE_ARGUMENT | ";
-    if(type.flags & TYPE_UNINITIALIZED)    flags += "UNINITIALIZED | ";
-    if(type.flags & TYPE_DEFAULT_INIT)     flags += "DEFAULT INITIALIZED | ";
-    if(type.flags & TYPE_INFERRED)         flags += "INFERRED";
+    const std::string flags = [&]() -> std::string {
+        std::string _flags;
+        if(type.flags & TYPE_CONSTANT)      _flags += "CONSTANT | ";
+        if(type.flags & TYPE_FOREIGN)       _flags += "FOREIGN | ";
+        if(type.flags & TYPE_POINTER)       _flags += "POINTER | ";
+        if(type.flags & TYPE_GLOBAL)        _flags += "GLOBAL | ";
+        if(type.flags & TYPE_ARRAY)         _flags += "ARRAY | ";
+        if(type.flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
+        if(type.flags & TYPE_UNINITIALIZED) _flags += "UNINITIALIZED | ";
+        if(type.flags & TYPE_DEFAULT_INIT)  _flags += "DEFAULT INITIALIZED | ";
+        if(type.flags & TYPE_INFERRED)      _flags += "INFERRED";
 
-    if(flags.size() >= 2 && flags[flags.size()-2] == '|') {
-        flags.erase(flags.size()-2);
-    } if(flags.empty()) {
-        flags = "None";
-    }
-
-
-    std::string sym_t_str;
-    if(type.kind == TYPE_KIND_PROCEDURE)     sym_t_str = "Procedure";
-    else if(type.kind == TYPE_KIND_VARIABLE) sym_t_str = "Variable";
-    else if(type.kind == TYPE_KIND_STRUCT)   sym_t_str = "Struct";
-    else if(type.kind == TYPE_KIND_NONE)     sym_t_str = "None";
-
-    std::string type_name_str;
-    if(auto is_var = std::get_if<var_t>(&type.name)) {
-        type_name_str = var_t_to_string(*is_var);
-    } else if(auto is_struct = std::get_if<std::string>(&type.name)) {
-        type_name_str = fmt("{} (User Defined Struct)", *is_struct);
-    } else {
-        type_name_str = "Procedure";
-    }
-
-
-    std::string return_type_data;
-    std::string param_data;
-
-    if(type.return_type != nullptr) {
-        return_type_data = "\n\n~~ BEGIN RETURN TYPE ~~\n";
-        return_type_data += format_type_data(*type.return_type, num_tabs + 1);
-        return_type_data += "\n~~ END RETURN TYPE ~~\n";
-    } else {
-        return_type_data = "N/A";
-    }
-
-    if(type.parameters != nullptr) {
-        param_data = "\n\n~~ BEGIN PARAMETERS ~~\n";
-        for(const auto& param : *type.parameters) {
-            param_data += format_type_data(param, num_tabs + 1) + '\n';
+        if(_flags.size() >= 2 && _flags[_flags.size()-2] == '|') {
+            _flags.erase(_flags.size()-2);
         }
-        param_data += "~~ END PARAMETERS ~~\n";
-    } else {
-        param_data = "N/A";
-    }
+        if(_flags.empty()) {
+            return "None";
+        }
+        return _flags;
+    }();
 
 
-    std::string array_lengths;
-    for(const auto& len : type.array_lengths)
-        array_lengths += std::to_string(len) + ',';
+    const std::string sym_t_str = [&]() -> std::string {
+        if(type.kind == TYPE_KIND_PROCEDURE) return "Procedure";
+        if(type.kind == TYPE_KIND_VARIABLE)  return "Variable";
+        if(type.kind == TYPE_KIND_STRUCT)    return "Struct";
+        return "None";
+    }();
 
-    if(!array_lengths.empty() && array_lengths.back() == ',')
-        array_lengths.pop_back();
+
+    const std::string type_name_str = [&]() -> std::string {
+        if(const auto* is_var = std::get_if<var_t>(&type.name)) {
+            return var_t_to_string(*is_var);
+        }
+        else if(const auto* is_struct = std::get_if<std::string>(&type.name)) {
+            return fmt("{} (User Defined Struct)", *is_struct);
+        }
+        return "Procedure";
+    }();
+
+
+    const std::string return_type_data = [&]() -> std::string {
+        if(type.return_type != nullptr) {
+            return typedata_to_str_msg(*type.return_type);
+        }
+
+        return "N/A";
+    }();
+
+
+    const std::string param_data = [&]() -> std::string {
+        if(type.parameters != nullptr) {
+            std::string _params;
+            for(const auto& param : *type.parameters) {
+                _params += fmt("{}, ", typedata_to_str_msg(param));
+            }
+            if(_params.size() > 2 && _params[_params.size()-2] == ',') {
+                _params.erase(_params.size()-2);
+            }
+
+            return _params;
+        }
+
+        return "N/A";
+    }();
+
+
+    const std::string array_lengths = [&]() -> std::string {
+        std::string _lengths;
+        for(const auto& len : type.array_lengths) {
+            _lengths += std::to_string(len) + ',';
+        }
+        if(!array_lengths.empty() && array_lengths.back() == ',') {
+            _lengths.pop_back();
+        }
+        return _lengths;
+    }();
 
 
     return fmt(fmt_type,

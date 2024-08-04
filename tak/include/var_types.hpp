@@ -15,13 +15,14 @@
 #define INVALID_SYMBOL_INDEX 0
 #define MAXIMUM_SYMBOL_COUNT 10000 // unused
 
-#define PRIMITIVE_IS_SIGNED(var_type) (var_type == VAR_I8   \
-    || var_type == VAR_I16                                  \
-    || var_type == VAR_I32                                  \
-    || var_type == VAR_I64                                  \
-    || var_type == VAR_F32                                  \
-    || var_type == VAR_F64                                  \
-)                                                           \
+#define PRIMITIVE_IS_SIGNED(var_type) \
+   (var_type == tak::VAR_I8           \
+    || var_type == tak::VAR_I16       \
+    || var_type == tak::VAR_I32       \
+    || var_type == tak::VAR_I64       \
+    || var_type == tak::VAR_F32       \
+    || var_type == tak::VAR_F64       \
+)                                     \
 
 #define PRIMITIVE_IS_FLOAT(var_type) (var_type == VAR_F32   \
     || var_type == VAR_F64                                  \
@@ -43,6 +44,7 @@ namespace tak {
         TYPE_NON_CONCRETE   = 1ULL << 8,
         TYPE_RVALUE         = 1ULL << 9,
         TYPE_UNINITIALIZED  = 1ULL << 10,
+        TYPE_PROC_METHOD    = 1ULL << 11,
     };
 
     enum type_kind_t : uint8_t {
@@ -74,6 +76,7 @@ namespace tak {
         uint16_t    pointer_depth  = 0;
         uint64_t    flags          = TYPE_FLAGS_NONE;
         type_kind_t kind           = TYPE_KIND_NONE;
+        uint32_t    sym_ref        = INVALID_SYMBOL_INDEX;
 
         std::vector<uint32_t>                  array_lengths;          // Only multiple elements if matrix
         std::shared_ptr<std::vector<TypeData>> parameters  = nullptr;  // Can be null, only used for procedures.
@@ -99,8 +102,8 @@ namespace tak {
     };
 
     struct MemberData {
-        std::string name;
-        TypeData   type;
+        std::string name;                           // name of the member variable or method.
+        TypeData    type;                           // empty if sym_ref is set.
 
         ~MemberData() = default;
         MemberData()  = default;

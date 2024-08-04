@@ -5,6 +5,26 @@
 #include <checker.hpp>
 
 
+template<typename T>
+concept ast_node_has_children = requires(T a)
+{
+    { a->children } -> std::same_as<std::vector<tak::AstNode*>&>;
+};
+
+template<typename T> requires ast_node_has_children<T>
+static auto visit_node_children(T node, tak::CheckerContext& ctx) -> std::optional<tak::TypeData> {
+
+    assert(node != nullptr);
+    for(auto* child : node->children) {
+        if(NODE_NEEDS_VISITING(child->type)) {
+            tak::visit_node(child, ctx);
+        }
+    }
+
+    return std::nullopt;
+}
+
+
 std::optional<tak::TypeData>
 tak::visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
@@ -145,10 +165,9 @@ tak::visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
             return addressed_t;
         }
 
-        ctx.raise_error("Operand cannot be addressed.", node->pos);
+        ctx.raise_error(fmt("Cannot get the address of type {}.", type_as_str), node->pos);
         return std::nullopt;
     }
-
 
     panic("visit_unaryexpr: no suitable operator found.");
 }
@@ -390,8 +409,82 @@ tak::visit_procdecl(const AstProcdecl* node, CheckerContext& ctx) {
 }
 
 
+static bool
+verify_method_call(const tak::TypeData& method_t, tak::AstCall* node, tak::CheckerContext& ctx) {
+
+    assert(node != nullptr);
+    assert(node->target != nullptr);
+    assert(method_t.sym_ref != INVALID_SYMBOL_INDEX);
+
+    auto*          maccess     = dynamic_cast<tak::AstMemberAccess*>(node->target);
+    const uint32_t called_with = node->arguments.size();
+    const uint32_t receives    = method_t.parameters == nullptr ? 0 : method_t.parameters->size();
+
+    if(maccess == nullptr || called_with == receives) {
+        ctx.raise_error(tak::fmt("Calling method with {} arguments, but it takes {}.", called_with, !receives ? receives : receives - 1), node->pos);
+        return false;
+    }
+
+
+    const auto  struct_t = visit_node(maccess->target, ctx);
+    const auto* symbol   = ctx.parser_.lookup_unique_symbol(method_t.sym_ref);
+    auto*       ident    = new tak::AstIdentifier();
+
+    assert(struct_t.has_value());
+    assert(struct_t->kind == tak::TYPE_KIND_STRUCT);
+    assert(struct_t->pointer_depth < 2);
+    assert(struct_t->array_lengths.empty());
+    assert(symbol != nullptr);
+
+
+    if(!(struct_t->flags & tak::TYPE_POINTER)) {
+        auto* unaryexpr      = new tak::AstUnaryexpr();               // so we can address the struct during codegen
+        unaryexpr->_operator = tak::TOKEN_BITWISE_AND;                // address-of operator
+        unaryexpr->operand   = maccess->target;                       // change call target to just the proc
+        unaryexpr->pos       = maccess->pos;
+        node->arguments.insert(node->arguments.begin(), unaryexpr);   // add the struct as a call argument.
+    } else {
+        node->arguments.insert(node->arguments.begin(), maccess->target);
+    }
+
+
+    node->target        = ident;
+    ident->symbol_index = symbol->symbol_index;
+    ident->pos          = symbol->src_pos;
+    ident->parent       = node;
+    maccess->target     = nullptr;
+    delete maccess;
+
+
+    if(receives != node->arguments.size()) {
+        ctx.raise_error(tak::fmt("Calling method \"{}\" with {} arguments, but it takes {}.",
+            symbol->name, node->arguments.size(), receives), node->pos);
+        return false;
+    }
+
+    assert(symbol->type.parameters != nullptr);
+    for(size_t i = 0; i < node->arguments.size(); i++) {
+        const auto arg_t = visit_node(node->arguments[i], ctx);
+        if(!arg_t) {
+            ctx.raise_error(tak::fmt("Cannot deduce type of argument {} in this call.", i + 1), node->pos);
+            continue;
+        }
+
+        if(!is_type_coercion_permissible((*symbol->type.parameters)[i], *arg_t)) {
+            const std::string param_t_str = typedata_to_str_msg((*symbol->type.parameters)[i]);
+            const std::string arg_t_str   = typedata_to_str_msg(*arg_t);
+
+            ctx.raise_error(tak::fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
+                i + 1, arg_t_str, param_t_str), node->arguments[i]->pos);
+        }
+    }
+
+    return true;
+}
+
+
 std::optional<tak::TypeData>
-tak::visit_call(const AstCall* node, CheckerContext& ctx) {
+tak::visit_call(AstCall* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
@@ -411,6 +504,19 @@ tak::visit_call(const AstCall* node, CheckerContext& ctx) {
     const uint32_t called_with = node->arguments.size();
     const uint32_t receives    = target_t->parameters == nullptr ? 0 : target_t->parameters->size();
 
+    if(target_t->flags & TYPE_PROC_METHOD && node->target->type == NODE_MEMBER_ACCESS) {
+        if(verify_method_call(*target_t, node, ctx) && target_t->return_type != nullptr) {
+            if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
+                return to_rvalue(*target_t->return_type);
+            }
+
+            return *target_t->return_type;
+        }
+
+        return std::nullopt;
+    }
+
+
     if(called_with != receives) {
         ctx.raise_error(fmt("Attempting to call procedure of type {} with {} arguments, but it takes {}.",
             proc_t_str,
@@ -419,16 +525,27 @@ tak::visit_call(const AstCall* node, CheckerContext& ctx) {
             node->pos
         );
 
-         if(target_t->return_type == nullptr) {
-             return std::nullopt;
-         }
+        if(target_t->return_type == nullptr) {
+            return std::nullopt;
+        }
 
-        target_t->return_type->flags |= TYPE_RVALUE;
+        if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
+            return to_rvalue(*target_t->return_type);
+        }
+
         return *target_t->return_type;
     }
 
+
     if(!called_with && !receives) {
-        target_t->return_type->flags |= TYPE_RVALUE;
+        if(target_t->return_type == nullptr) {
+            return std::nullopt;
+        }
+
+        if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
+            return to_rvalue(*target_t->return_type);
+        }
+
         return *target_t->return_type;
     }
 
@@ -445,15 +562,19 @@ tak::visit_call(const AstCall* node, CheckerContext& ctx) {
                     i + 1, arg_t_str, param_t_str), node->arguments[i]->pos);
             }
         } else {
-            ctx.raise_error("Cannot deduce type of argument {} in this call.", i + 1);
+            ctx.raise_error(fmt("Cannot deduce type of argument {} in this call.", i + 1), node->pos);
         }
     }
+
 
     if(target_t->return_type == nullptr) {
         return std::nullopt;
     }
 
-    target_t->return_type->flags |=TYPE_RVALUE;
+    if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
+        return to_rvalue(*target_t->return_type);
+    }
+
     return *target_t->return_type;
 }
 
@@ -586,34 +707,6 @@ tak::visit_sizeof(const AstSizeof* node, CheckerContext& ctx) {
     const_int.flags |= TYPE_RVALUE | TYPE_CONSTANT | TYPE_NON_CONCRETE;
 
     return const_int;
-}
-
-
-std::optional<tak::TypeData>
-tak::visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx) {
-
-    assert(node != nullptr);
-    for(AstNode* child : node->children) {
-        if(NODE_NEEDS_VISITING(child->type)) {
-            visit_node(child, ctx);
-        }
-    }
-
-    return std::nullopt;
-}
-
-
-std::optional<tak::TypeData>
-tak::visit_block(const AstBlock* node, CheckerContext& ctx) {
-
-    assert(node != nullptr);
-    for(AstNode* child : node->body) {
-        if(NODE_NEEDS_VISITING(child->type)) {
-            visit_node(child, ctx);
-        }
-    }
-
-    return std::nullopt;
 }
 
 
@@ -801,6 +894,9 @@ tak::visit_node(AstNode* node, CheckerContext& ctx) {
     assert(node->type != NODE_NONE);
 
     switch(node->type) {
+        case NODE_NAMESPACEDECL:     return visit_node_children(dynamic_cast<AstNamespaceDecl*>(node), ctx);
+        case NODE_COMPOSEDECL:       return visit_node_children(dynamic_cast<AstComposeDecl*>(node), ctx);
+        case NODE_BLOCK:             return visit_node_children(dynamic_cast<AstBlock*>(node), ctx);
         case NODE_VARDECL:           return visit_vardecl(dynamic_cast<AstVardecl*>(node), ctx);
         case NODE_PROCDECL:          return visit_procdecl(dynamic_cast<AstProcdecl*>(node), ctx);
         case NODE_BINEXPR:           return visit_binexpr(dynamic_cast<AstBinexpr*>(node), ctx);
@@ -811,14 +907,12 @@ tak::visit_node(AstNode* node, CheckerContext& ctx) {
         case NODE_BRANCH:            return visit_branch(dynamic_cast<AstBranch*>(node), ctx);
         case NODE_FOR:               return visit_for(dynamic_cast<AstFor*>(node), ctx);
         case NODE_SWITCH:            return visit_switch(dynamic_cast<AstSwitch*>(node), ctx);
-        case NODE_BLOCK:             return visit_block(dynamic_cast<AstBlock*>(node), ctx);
         case NODE_CALL:              return visit_call(dynamic_cast<AstCall*>(node), ctx);
         case NODE_RET:               return visit_ret(dynamic_cast<AstRet*>(node), ctx);
         case NODE_DEFER:             return visit_defer(dynamic_cast<AstDefer*>(node), ctx);
         case NODE_DEFER_IF:          return visit_defer_if(dynamic_cast<AstDeferIf*>(node), ctx);
         case NODE_SIZEOF:            return visit_sizeof(dynamic_cast<AstSizeof*>(node), ctx);
         case NODE_SUBSCRIPT:         return visit_subscript(dynamic_cast<AstSubscript*>(node), ctx);
-        case NODE_NAMESPACEDECL:     return visit_namespacedecl(dynamic_cast<AstNamespaceDecl*>(node), ctx);
         case NODE_MEMBER_ACCESS:     return visit_member_access(dynamic_cast<AstMemberAccess*>(node), ctx);
         case NODE_WHILE:             return visit_while(node, ctx);
         case NODE_DOWHILE:           return visit_while(node, ctx);

@@ -24,6 +24,7 @@ add_executable(tak src/main.cpp
         src/parser/directive.cpp
         src/parser/enumdef.cpp
         src/parser/structdef.cpp
+        src/parser/compose.cpp
 
         src/checker/report_error.cpp
         src/checker/convert.cpp
@@ -44,7 +45,6 @@ add_executable(tak src/main.cpp
         include/checker.hpp
         include/panic.hpp
         include/support.hpp
-        include/enter_namespace.hpp
 )
 
 target_compile_definitions(tak PRIVATE TAK_DEBUG)

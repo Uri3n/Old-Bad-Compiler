@@ -20,45 +20,53 @@
     exit(1);                                                                    \
 }                                                                               \
 
-#define parser_expect(condition, msg) if((condition)) {                         \
-   lxr.raise_error(msg);                                                        \
-   return nullptr;                                                              \
-}                                                                               \
+#define VALID_SUBEXPRESSION(node_type)             \
+ (node_type == tak::NODE_CALL                      \
+    || node_type == tak::NODE_IDENT                \
+    || node_type == tak::NODE_BINEXPR              \
+    || node_type == tak::NODE_SINGLETON_LITERAL    \
+    || node_type == tak::NODE_UNARYEXPR            \
+    || node_type == tak::NODE_BRACED_EXPRESSION    \
+    || node_type == tak::NODE_CAST                 \
+    || node_type == tak::NODE_SUBSCRIPT            \
+    || node_type == tak::NODE_CAST                 \
+    || node_type == tak::NODE_MEMBER_ACCESS        \
+    || node_type == tak::NODE_SIZEOF               \
+)                                                  \
 
-#define VALID_SUBEXPRESSION(node_type) (node_type == NODE_CALL                  \
-    || node_type == NODE_IDENT                                                  \
-    || node_type == NODE_BINEXPR                                                \
-    || node_type == NODE_SINGLETON_LITERAL                                      \
-    || node_type == NODE_UNARYEXPR                                              \
-    || node_type == NODE_BRACED_EXPRESSION                                      \
-    || node_type == NODE_CAST                                                   \
-    || node_type == NODE_SUBSCRIPT                                              \
-    || node_type == NODE_CAST                                                   \
-    || node_type == NODE_MEMBER_ACCESS                                          \
-    || node_type == NODE_SIZEOF                                                 \
-)                                                                               \
+#define VALID_AT_TOPLEVEL(node_type)               \
+   (node_type == tak::NODE_VARDECL                 \
+    || node_type == tak::NODE_STRUCT_DEFINITION    \
+    || node_type == tak::NODE_NAMESPACEDECL        \
+    || node_type == tak::NODE_COMPOSEDECL          \
+    || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_ENUM_DEFINITION      \
+    || node_type == tak::NODE_TYPE_ALIAS           \
+)                                                  \
 
-#define EXPR_NEVER_NEEDS_TERMINAL(node_type) (node_type == NODE_PROCDECL        \
-    || node_type == NODE_BRANCH                                                 \
-    || node_type == NODE_IF                                                     \
-    || node_type == NODE_ELSE                                                   \
-    || node_type == NODE_FOR                                                    \
-    || node_type == NODE_WHILE                                                  \
-    || node_type == NODE_PROCDECL                                               \
-    || node_type == NODE_SWITCH                                                 \
-    || node_type == NODE_NAMESPACEDECL                                          \
-    || node_type == NODE_BLOCK                                                  \
-    || node_type == NODE_STRUCT_DEFINITION                                      \
-    || node_type == NODE_ENUM_DEFINITION                                        \
-)                                                                               \
+#define VALID_WITHIN_COMPOSE(node_type)            \
+   (node_type == tak::NODE_VARDECL                 \
+    || node_type == tak::NODE_STRUCT_DEFINITION    \
+    || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_ENUM_DEFINITION      \
+    || node_type == tak::NODE_TYPE_ALIAS           \
+)                                                  \
 
-#define VALID_AT_TOPLEVEL(node_type) (node_type == NODE_VARDECL                 \
-    || node_type == NODE_STRUCT_DEFINITION                                      \
-    || node_type == NODE_NAMESPACEDECL                                          \
-    || node_type == NODE_PROCDECL                                               \
-    || node_type == NODE_ENUM_DEFINITION                                        \
-    || node_type == NODE_TYPE_ALIAS                                             \
-)                                                                               \
+#define EXPR_NEVER_NEEDS_TERMINAL(node_type)       \
+   (node_type == tak::NODE_PROCDECL                \
+    || node_type == tak::NODE_BRANCH               \
+    || node_type == tak::NODE_IF                   \
+    || node_type == tak::NODE_ELSE                 \
+    || node_type == tak::NODE_FOR                  \
+    || node_type == tak::NODE_WHILE                \
+    || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_SWITCH               \
+    || node_type == tak::NODE_NAMESPACEDECL        \
+    || node_type == tak::NODE_COMPOSEDECL          \
+    || node_type == tak::NODE_BLOCK                \
+    || node_type == tak::NODE_STRUCT_DEFINITION    \
+    || node_type == tak::NODE_ENUM_DEFINITION      \
+)                                                  \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -173,6 +181,7 @@ namespace tak {
     AstNode* parse_singleton_literal(Parser& parser, Lexer& lxr);
     AstNode* parse_braced_expression(Parser& parser, Lexer& lxr);
     AstNode* parse_namespace(Parser& parser, Lexer& lxr);
+    AstNode* parse_compose(Parser& parser, Lexer& lxr);
     AstNode* parse_enumdef(Parser& parser, Lexer& lxr);
     AstNode* parse_nullptr(Lexer& lxr);
     AstNode* parse_parenthesized_expression(Parser& parser, Lexer& lxr);

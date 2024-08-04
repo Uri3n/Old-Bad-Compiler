@@ -5,6 +5,31 @@
 #include <parser.hpp>
 
 
+static bool
+is_type_invalid_as_member(const std::string& struct_name, const tak::TypeData& type) {
+
+    const auto* name_ptr = std::get_if<std::string>(&type.name);
+    if(name_ptr != nullptr && *name_ptr == struct_name) {
+        return true;
+    }
+
+    for(const uint32_t length : type.array_lengths) {
+        if(length == 0) return true; // inferred size
+    }
+
+    return type.kind == tak::TYPE_KIND_PROCEDURE && type.pointer_depth < 1;
+}
+
+static bool
+member_already_exists(const std::vector<tak::MemberData>* members, const std::string& member_name) {
+    for(const auto& member : *members) {
+        if(member.name == member_name) return true;
+    }
+
+    return false;
+}
+
+
 tak::AstNode*
 tak::parse_structdef(Parser& parser, Lexer& lxr) {
 
@@ -34,7 +59,6 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
         assert(replace != nullptr);
         if(replace->is_placeholder) {
             replace->is_placeholder = false;
-            replace->members.clear();
         } else {
             lxr.raise_error("Naming conflict: this type already exists.");
             return nullptr;
@@ -64,11 +88,10 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
 
     //
     // Parse out each struct member.
-    // TODO: currently this will not catch nested identical structs within members of members.
     //
 
     lxr.advance(2);
-    std::vector<MemberData>* members = parser.lookup_type_members(type_name);
+    std::vector<MemberData>* members = replace == nullptr ? parser.lookup_type_members(type_name) : &replace->members;
 
     while(lxr.current() != TOKEN_RBRACE) {
 
@@ -77,11 +100,11 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
             return nullptr;
         }
 
-        auto name     = std::string(lxr.current().value);
-        bool is_const = false;
-
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
+
+        auto name     = std::string(lxr.current().value);
+        bool is_const = false;
 
 
         lxr.advance(1);
@@ -98,33 +121,23 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
             return nullptr;
         }
 
-        if(const auto type = tak::parse_type(parser, lxr)) {
-            if(type->kind == TYPE_KIND_PROCEDURE && type->pointer_depth < 1) {
-                lxr.raise_error("Procedures cannot be used as struct members.", curr_pos, line);
+
+        if(const auto type = parse_type(parser, lxr)) {
+            if(is_type_invalid_as_member(type_name, *type)) {
+                lxr.raise_error("Invalid type for a struct member.", curr_pos, line);
                 return nullptr;
             }
 
-            if(auto* member_name = std::get_if<std::string>(&type->name)) {
-                if(*member_name == type_name && type->pointer_depth < 1) {
-                    lxr.raise_error("A struct cannot contain itself.", curr_pos, line);
-                    return nullptr;
-                }
-            }
-
-            for(const uint32_t length : type->array_lengths) {
-                if(length == 0) {
-                    lxr.raise_error("A struct cannot contain an array with an inferred size (e.g. '[]').", curr_pos, line);
-                    return nullptr;
-                }
+            if(member_already_exists(members, name)) {
+                lxr.raise_error("Member with this name already exists.", curr_pos, line);
+                return nullptr;
             }
 
             members->emplace_back(MemberData(name, *type));
             members->back().type.flags |= is_const ? TYPE_CONSTANT | TYPE_DEFAULT_INIT : TYPE_DEFAULT_INIT;
-
         } else {
             return nullptr;
         }
-
 
         if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
             lxr.advance(1);

@@ -141,6 +141,7 @@ tak::parse_keyword(Parser &parser, Lexer &lxr) {
         case TOKEN_KW_DEFER_IF:   return parse_defer_if(parser, lxr);
         case TOKEN_KW_SIZEOF:     return parse_sizeof(parser, lxr);
         case TOKEN_KW_NULLPTR:    return parse_nullptr(lxr);
+        case TOKEN_KW_COMPOSE:    return parse_compose(parser, lxr);
         default: break;
     }
 

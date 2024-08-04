@@ -326,26 +326,31 @@ tak::lexer_display_token_data(const Token& tok) {
 }
 
 std::vector<std::string>
-tak::split_struct_member_path(std::string path) {
+tak::split_string(std::string str, const char delim) {
 
-    if(path.empty() || path.front() != '.') {
-        panic(fmt("split_struct_member_path: malformed path value: {}", path));
+    if(str.empty()) {
+        panic("split_string: empty input.");
     }
 
-    path.erase(0, 1);
-    path += '.';
+    if(str.front() == delim) {
+        str.erase(0, 1);
+    }
+    
+    if(!str.empty() && str.back() != delim) {
+        str += delim;
+    }
 
     std::vector<std::string> chunks;
     size_t start = 0;
-    size_t dot   = path.find('.');
+    size_t dot   = str.find(delim);
 
     while(dot != std::string::npos) {
         if(dot > start) {
-            chunks.emplace_back(path.substr(start, dot - start));
+            chunks.emplace_back(str.substr(start, dot - start));
         }
 
         start = dot + 1;
-        dot = path.find('.', start);
+        dot = str.find(delim, start);
     }
 
     return chunks;

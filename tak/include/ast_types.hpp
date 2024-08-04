@@ -11,6 +11,8 @@
 #include <var_types.hpp>
 #include <token.hpp>
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace tak {
 
     enum node_t : uint16_t {
@@ -43,6 +45,7 @@ namespace tak {
         NODE_ENUM_DEFINITION,
         NODE_SUBSCRIPT,
         NODE_NAMESPACEDECL,
+        NODE_COMPOSEDECL,
         NODE_CAST,
         NODE_TYPE_ALIAS,
         NODE_MEMBER_ACCESS,
@@ -51,7 +54,7 @@ namespace tak {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct AstNode {
-        node_t               type   = NODE_NONE;
+        node_t                   type   = NODE_NONE;
         std::optional<AstNode*>  parent = std::nullopt;
         size_t                   pos    = 0;
 
@@ -205,7 +208,7 @@ namespace tak {
     };
 
     struct AstBlock final : AstNode {
-        std::vector<AstNode*> body;
+        std::vector<AstNode*> children;
 
         ~AstBlock() override;
         AstBlock() : AstNode(NODE_BLOCK) {}
@@ -255,6 +258,14 @@ namespace tak {
 
         ~AstNamespaceDecl() override;
         AstNamespaceDecl() : AstNode(NODE_NAMESPACEDECL) {}
+    };
+
+    struct AstComposeDecl final : AstNode {
+        std::string            type_name;
+        std::vector<AstNode*>  children;
+
+        ~AstComposeDecl() override;
+        AstComposeDecl() : AstNode(NODE_COMPOSEDECL) {}
     };
 
     struct AstCast final : AstNode {

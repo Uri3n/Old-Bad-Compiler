@@ -68,6 +68,20 @@ tak::convert_float_lit_to_type(const AstSingletonLiteral* node) {
     return type;
 }
 
+tak::TypeData
+tak::to_lvalue(const TypeData& type) {
+    TypeData lval = type;
+    lval.flags   &= ~TYPE_RVALUE;
+    return lval;
+}
+
+tak::TypeData
+tak::to_rvalue(const TypeData& type) {
+    TypeData rval = type;
+    rval.flags   |= TYPE_RVALUE;
+    return rval;
+}
+
 
 bool
 tak::type_promote_non_concrete(TypeData& left, const TypeData& right) {
@@ -237,7 +251,7 @@ tak::get_addressed_type(const TypeData& type) {
 std::optional<tak::TypeData>
 tak::get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, Parser& parser) {
 
-    const auto   member_chunks = split_struct_member_path(member_path);
+    const auto   member_chunks = split_string(member_path, '.');
     const auto*  member_data   = parser.lookup_type_members(base_type_name);
     size_t       index         = 0;
 
@@ -251,20 +265,27 @@ tak::get_struct_member_type_data(const std::string& member_path, const std::stri
 
         assert(member_data != nullptr);
         for(const auto& member : *members) {
-            if(member.name == member_chunks[index]) {
-                if(index + 1 >= member_chunks.size()) {
-                    return member.type;
-                }
-
-                if(const auto* struct_name = std::get_if<std::string>(&member.type.name)) {
-                    ++index;
-                    if(parser.type_exists(*struct_name) && member.type.array_lengths.empty() && member.type.pointer_depth < 2) {
-                        return recurse(parser.lookup_type_members(*struct_name));
-                    }
-                }
-
-                break;
+            if(member.name != member_chunks[index]) {
+                continue;
             }
+
+            if(index + 1 >= member_chunks.size()) {
+                if(member.type.sym_ref != INVALID_SYMBOL_INDEX) {
+                    auto* sym         = parser.lookup_unique_symbol(member.type.sym_ref);
+                    sym->type.sym_ref = sym->symbol_index;
+                    return sym->type;
+                }
+                return member.type;
+            }
+
+            if(const auto* struct_name = std::get_if<std::string>(&member.type.name)) {
+                ++index;
+                if(parser.type_exists(*struct_name) && member.type.array_lengths.empty() && member.type.pointer_depth < 2) {
+                    return recurse(parser.lookup_type_members(*struct_name));
+                }
+            }
+
+            break;
         }
 
         return std::nullopt;

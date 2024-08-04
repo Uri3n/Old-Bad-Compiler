@@ -48,11 +48,11 @@ tak::Lexer::_raise_error_impl(const std::string& message, size_t file_position, 
     filler.resize(full_line.size());
     whitespace.resize(offset);
 
-    std::fill(filler.begin(), filler.end(), '_');
+    std::fill(filler.begin(), filler.end(), '~');
     std::fill(whitespace.begin(), whitespace.end(), ' ');
 
-    assert(offset + 1 < filler.size());
-    filler[offset + 1] = '^';
+    assert(offset < filler.size());
+    filler[offset] = '^';
 
     print("in {}{}", source_file_name_, !line ? std::string("") : ':' + std::to_string(line));
     print("{}\n{}", full_line, filler);

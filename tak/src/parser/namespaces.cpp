@@ -89,15 +89,12 @@ tak::Parser::get_canonical_sym_name(const std::string& name) {
 
 std::string
 tak::Parser::namespace_as_string() {
-
     std::string as_str = "\\";
-
     for(const auto& _namespace : namespace_stack_)
         as_str += _namespace + '\\';
 
     return as_str;
 }
-
 
 tak::AstNode*
 tak::parse_namespace(Parser& parser, Lexer& lxr) {
