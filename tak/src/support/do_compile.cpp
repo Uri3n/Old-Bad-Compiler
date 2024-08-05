@@ -18,7 +18,7 @@ check_leftover_placeholders(Parser& parser, Lexer& lexer) {
     static constexpr std::string_view msg = "Failed to resolve {} \"{}\", first usage is here.";
 
     for(const auto &[_, sym] : parser.sym_table_) {
-        if(sym.placeholder) {
+        if(sym.flags & SYM_PLACEHOLDER) {
             state = false;
             lexer.raise_error(fmt(msg, "symbol", sym.name), sym.src_pos, sym.line_number);
         }
@@ -71,8 +71,8 @@ do_check(Parser& parser, Lexer& lexer) {
     }
 
     if(ctx.error_count_ > 0) {
-        print("\n{}: BUILD FAILED", lexer.source_file_name_);
-        print("Finished with {} errors, {} warnings.", ctx.error_count_, ctx.warning_count_);
+        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("\n{}: BUILD FAILED", lexer.source_file_name_);
+        print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("Finished with {} errors, {} warnings.", ctx.error_count_, ctx.warning_count_);
         return false;
     }
 

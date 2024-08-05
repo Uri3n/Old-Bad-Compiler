@@ -48,7 +48,6 @@ tak::parse_type_alias(Parser& parser, Lexer& lxr) {
         return nullptr;
     }
 
-
     if(const auto type = parse_type(parser,lxr)) { // create the type alias.
         parser.create_type_alias(node->name, *type);
         state = true;
@@ -56,6 +55,57 @@ tak::parse_type_alias(Parser& parser, Lexer& lxr) {
     }
 
     return nullptr;
+}
+
+
+tak::AstNode*
+tak::parse_callconv(Parser& parser, Lexer& lxr) {
+
+    parser_assert(lxr.current().value == "callconv", "Expected \"callconv\".");
+    lxr.advance(1);
+
+    uint32_t sym_flag = SYM_FLAGS_NONE;
+
+    if(lxr.current() != TOKEN_STRING_LITERAL) {
+        lxr.raise_error("Expected calling convention.");
+        return nullptr;
+    }
+
+    if(lxr.current().value == "\"C\"") { // Only one for now. More can be added later.
+        sym_flag = SYM_CALLCONV_C;
+    } else {
+        lxr.raise_error("Unrecognized calling convention.");
+        return nullptr;
+    }
+
+
+    lxr.advance(1);
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    auto* node  = parse_expression(parser, lxr, false);
+    bool  state = false;
+
+    defer_if(!state, [&] {
+       delete node;
+    });
+
+
+    if(node == nullptr) {
+        return nullptr;
+    }
+
+    if(node->type != NODE_PROCDECL) {
+        lxr.raise_error("Expected procedure declaration after \"callconv\" statement.", curr_pos, line);
+        return nullptr;
+    }
+
+    const auto* pdecl = dynamic_cast<AstProcdecl*>(node);
+    auto*       sym   = parser.lookup_unique_symbol(pdecl->identifier->symbol_index);
+
+    sym->flags |= sym_flag;
+    state = true;
+    return node;
 }
 
 
@@ -69,7 +119,8 @@ tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
         lxr.raise_error("Expected directive name.");
     }
 
-    if(lxr.current().value == "alias") return parse_type_alias(parser, lxr);
+    if(lxr.current().value == "alias")    return parse_type_alias(parser, lxr);
+    if(lxr.current().value == "callconv") return parse_callconv(parser, lxr);
 
     //
     // Nothing else here for now.

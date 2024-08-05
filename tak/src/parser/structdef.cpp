@@ -29,7 +29,6 @@ member_already_exists(const std::vector<tak::MemberData>* members, const std::st
     return false;
 }
 
-
 tak::AstNode*
 tak::parse_structdef(Parser& parser, Lexer& lxr) {
 

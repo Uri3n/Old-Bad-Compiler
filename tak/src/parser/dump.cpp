@@ -26,7 +26,7 @@ display_fake_node(const std::string& name, std::string& node_title, uint32_t& de
 
     node_title.insert(0, "     ");
     if(!depth) {
-        node_title += "|- ";
+        node_title += "|_ ";
     }
 
     ++depth;
@@ -77,7 +77,6 @@ display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t dept
         ++depth;
     }
 
-
     if(!procdecl->parameters.empty()) {
         tak::print("{}Parameters", node_title);
         for(tak::AstNode* param : procdecl->parameters) {
@@ -92,7 +91,6 @@ display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t dept
         }
     }
 }
-
 
 static void
 display_node_binexpr(tak::AstNode* node, std::string& node_title, const uint32_t depth, tak::Parser& _) {
@@ -647,9 +645,10 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
         node_title += ' ';
 
     if(depth) {
-        node_title += "|- ";
+        node_title += "|_ ";
+    } else {
+        print("");
     }
-
 
     switch(node->type) {
         case NODE_VARDECL:            display_node_vardecl(node, node_title, depth, parser); break;
@@ -698,7 +697,7 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 void
 tak::Parser::dump_nodes() {
 
-    print("-- ABSTRACT SYNTAX TREE -- ");
+    print<TFG_NONE, TBG_NONE, TSTYLE_UNDERLINE | TSTYLE_BOLD>("-- ABSTRACT SYNTAX TREE -- ");
     for(const auto node : toplevel_decls_)
         display_node_data(node, 0, *this);
 
@@ -713,7 +712,8 @@ tak::Parser::dump_types() {
         return;
     }
 
-    print(" -- USER DEFINED TYPES -- ");
+    print<TFG_NONE, TBG_NONE, TSTYLE_UNDERLINE | TSTYLE_BOLD>(" -- USER DEFINED TYPES -- ");
+
     for(const auto &[name, type] : type_table_) {
         print("~ {}{} ~\n  Members:", name, type.is_placeholder ? " (Placeholder)" : "");
         for(size_t i = 0; i < type.members.size(); ++i) {
@@ -730,7 +730,7 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
 
     static constexpr std::string_view fmt_type =
         "{} - Symbol Type:   {}"
-        "\n{} - Flags:         {}"
+        "\n{} - Type Flags:    {}"
         "\n{} - Pointer Depth: {}"
         "\n{} - Matrix Depth:  {}"
         "\n{} - Array Lengths: {}"
@@ -747,9 +747,7 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
     const std::string flags = [&]() -> std::string {
         std::string _flags;
         if(type.flags & TYPE_CONSTANT)      _flags += "CONSTANT | ";
-        if(type.flags & TYPE_FOREIGN)       _flags += "FOREIGN | ";
         if(type.flags & TYPE_POINTER)       _flags += "POINTER | ";
-        if(type.flags & TYPE_GLOBAL)        _flags += "GLOBAL | ";
         if(type.flags & TYPE_ARRAY)         _flags += "ARRAY | ";
         if(type.flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
         if(type.flags & TYPE_UNINITIALIZED) _flags += "UNINITIALIZED | ";
@@ -847,20 +845,36 @@ void
 tak::Parser::dump_symbols() {
 
     static constexpr std::string_view fmt_sym =
-        "~ {}{} ~"
+        "~ {} ~"
         "\n - Symbol Index:  {}"
         "\n - Line Number:   {}"
         "\n - File Position: {}"
+        "\n - Symbol Flags:  {}"
         "\n{}"; //< type data
 
-    print(" -- SYMBOL TABLE -- ");
+    print<TFG_NONE, TBG_NONE, TSTYLE_BOLD | TSTYLE_UNDERLINE>(" -- SYMBOL TABLE -- ");
     for(const auto &[index, sym] : sym_table_) {
+
+        const std::string symflags = [&]() -> std::string {
+            std::string _symflags;
+            if(sym.flags & SYM_PLACEHOLDER) _symflags += "PLACEHOLDER | ";
+            if(sym.flags & SYM_GLOBAL)      _symflags += "GLOBAL | ";
+            if(sym.flags & SYM_FOREIGN)     _symflags += "FOREIGN | ";
+            if(sym.flags & SYM_CALLCONV_C)  _symflags += "CALLCONV_C | ";
+
+            if(_symflags.empty()) {
+                return "None";
+            }
+            _symflags.erase(_symflags.size() - 2);
+            return _symflags;
+        }();
+
         print(fmt_sym,
             sym.name,
-            sym.placeholder ? " (Placeholder)" : "",
             sym.symbol_index,
             sym.line_number,
             sym.src_pos,
+            symflags,
             format_type_data(sym.type)
         );
     }

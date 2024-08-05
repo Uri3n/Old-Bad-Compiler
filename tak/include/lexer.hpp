@@ -24,6 +24,8 @@ namespace tak {
     class Lexer {
     public:
 
+        typedef void (*token_func)(Lexer& lxr);
+
         std::vector<char>   src_;
         size_t              src_index_ = 0;
         uint32_t            curr_line_ = 1;
@@ -49,52 +51,46 @@ namespace tak {
 
         bool   init(const std::string& file_name);
 
+        static void token_skip(Lexer& lxr);
+        static void token_newline(Lexer& lxr);
+        static void token_semicolon(Lexer& lxr);
+        static void token_lparen(Lexer& lxr);
+        static void token_rparen(Lexer& lxr);
+        static void token_lbrace(Lexer& lxr);
+        static void token_rbrace(Lexer& lxr);
+        static void token_comma(Lexer& lxr);
+        static void token_hyphen(Lexer& lxr);
+        static void token_plus(Lexer& lxr);
+        static void token_asterisk(Lexer& lxr);
+        static void token_fwdslash(Lexer& lxr);
+        static void token_percent(Lexer& lxr);
+        static void token_equals(Lexer& lxr);
+        static void token_lessthan(Lexer& lxr);
+        static void token_greaterthan(Lexer& lxr);
+        static void token_ampersand(Lexer& lxr);
+        static void token_verticalline(Lexer& lxr);
+        static void token_exclamation(Lexer& lxr);
+        static void token_tilde(Lexer& lxr);
+        static void token_uparrow(Lexer& lxr);
+        static void token_quote(Lexer& lxr);
+        static void token_singlequote(Lexer& lxr);
+        static void token_lsquarebracket(Lexer& lxr);
+        static void token_rsquarebracket(Lexer& lxr);
+        static void token_questionmark(Lexer& lxr);
+        static void token_colon(Lexer& lxr);
+        static void token_dot(Lexer& lxr);
+        static void token_pound(Lexer& lxr);
+        static void token_at(Lexer& lxr);
+        static void token_null(Lexer& lxr);
+        static void token_backslash(Lexer& lxr);
+        static void infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals);
+
+        static Token token_hex_literal(Lexer& lxr);
+        static Token token_numeric_literal(Lexer& lxr);
+
         ~Lexer() = default;
         Lexer()  = default;
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    typedef void (*token_func)(Lexer& lxr);
-
-    void lexer_token_skip(Lexer& lxr);
-    void lexer_token_newline(Lexer& lxr);
-    void lexer_token_semicolon(Lexer& lxr);
-    void lexer_token_lparen(Lexer& lxr);
-    void lexer_token_rparen(Lexer& lxr);
-    void lexer_token_lbrace(Lexer& lxr);
-    void lexer_token_rbrace(Lexer& lxr);
-    void lexer_token_comma(Lexer& lxr);
-    void lexer_token_hyphen(Lexer& lxr);
-    void lexer_token_plus(Lexer& lxr);
-    void lexer_token_asterisk(Lexer& lxr);
-    void lexer_token_fwdslash(Lexer& lxr);
-    void lexer_token_percent(Lexer& lxr);
-    void lexer_token_equals(Lexer& lxr);
-    void lexer_token_lessthan(Lexer& lxr);
-    void lexer_token_greaterthan(Lexer& lxr);
-    void lexer_token_ampersand(Lexer& lxr);
-    void lexer_token_verticalline(Lexer& lxr);
-    void lexer_token_exclamation(Lexer& lxr);
-    void lexer_token_tilde(Lexer& lxr);
-    void lexer_token_uparrow(Lexer& lxr);
-    void lexer_token_quote(Lexer& lxr);
-    void lexer_token_singlequote(Lexer& lxr);
-    void lexer_token_lsquarebracket(Lexer& lxr);
-    void lexer_token_rsquarebracket(Lexer& lxr);
-    void lexer_token_questionmark(Lexer& lxr);
-    void lexer_token_colon(Lexer& lxr);
-    void lexer_token_dot(Lexer& lxr);
-    void lexer_token_pound(Lexer& lxr);
-    void lexer_token_at(Lexer& lxr);
-    void lexer_token_backtick(Lexer& lxr);
-    void lexer_token_null(Lexer& lxr);
-    void lexer_token_backslash(Lexer& lxr);
-    void lexer_infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals);
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    Token token_hex_literal(Lexer& lxr);
-    Token token_numeric_literal(Lexer& lxr);
-}
+}      //namespace tak
 #endif //LEXER_HPP

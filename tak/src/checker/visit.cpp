@@ -281,7 +281,7 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     assert(sym->type.flags & TYPE_INFERRED);
     assert(decl->init_value.has_value());
 
-    std::optional<tak::TypeData> assigned_t;
+    std::optional<TypeData> assigned_t;
 
 
     if((*decl->init_value)->type == NODE_BRACED_EXPRESSION) {
@@ -301,10 +301,7 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     }
 
 
-    if(sym->type.flags & TYPE_GLOBAL)   assigned_t->flags |= TYPE_GLOBAL;
-    if(sym->type.flags & TYPE_CONSTANT) assigned_t->flags |= TYPE_CONSTANT;
-    if(sym->type.flags & TYPE_FOREIGN)  assigned_t->flags |= TYPE_FOREIGN;
-
+    if(sym->type.flags   & TYPE_CONSTANT)     assigned_t->flags |= TYPE_CONSTANT;
     if(assigned_t->flags & TYPE_RVALUE)       assigned_t->flags &= ~TYPE_RVALUE;
     if(assigned_t->flags & TYPE_NON_CONCRETE) assigned_t->flags &= ~TYPE_NON_CONCRETE;
 
@@ -584,8 +581,8 @@ tak::visit_ret(const AstRet* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
 
-    const AstNode*     itr  = node;
-    const AstProcdecl* proc = nullptr;
+    const AstNode*      itr  = node;
+    const AstProcdecl*  proc = nullptr;
     const Symbol*       sym  = nullptr;
 
     do {
@@ -652,7 +649,10 @@ tak::visit_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
     const auto* base_type_name = std::get_if<std::string>(&target_t->name);
     assert(base_type_name != nullptr);
 
-    if(const auto member_type = get_struct_member_type_data(node->path, *base_type_name, ctx.parser_)) {
+    if(auto member_type = get_struct_member_type_data(node->path, *base_type_name, ctx.parser_)) {
+        if(target_t->flags & TYPE_CONSTANT) {
+            member_type->flags |= TYPE_CONSTANT;
+        }
         return *member_type;
     }
 

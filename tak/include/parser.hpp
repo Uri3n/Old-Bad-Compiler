@@ -150,6 +150,7 @@ namespace tak {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     AstNode* parse_type_alias(Parser& parser, Lexer& lxr);
+    AstNode* parse_callconv(Parser& parser, Lexer& lxr);
     AstNode* parse_compiler_directive(Parser& parser, Lexer& lxr);
     AstNode* parse_defer(Parser& parser, Lexer& lxr);
     AstNode* parse_defer_if(Parser& parser, Lexer& lxr);

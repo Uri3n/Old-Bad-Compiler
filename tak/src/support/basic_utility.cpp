@@ -209,6 +209,7 @@ tak::get_escaped_char_via_real(const char real) {
         case 'r':  return '\r';
         case '\'': return '\'';
         case '\\': return '\\';
+        case '`':  return '`';
         case '"':  return '"';
         case 't':  return '\t';
         case '0':  return '\0';
@@ -219,8 +220,10 @@ tak::get_escaped_char_via_real(const char real) {
 std::optional<std::string>
 tak::remove_escaped_chars(const std::string_view& str) {
 
+    assert(!str.empty());
     std::string buffer;
-    size_t      index = 0;
+    size_t      index  = 0;
+    const bool  is_raw = str.front() == '`';
 
     while(index < str.size()) {
 
@@ -241,8 +244,10 @@ tak::remove_escaped_chars(const std::string_view& str) {
             buffer += str.substr(utf8_begin, index - utf8_begin);
         }
         else if(str[index] == '\\') {
-            if(index + 1 >= str.size()) {
-                return std::nullopt;
+            if(is_raw && str[index + 1] != '`') { // @Unsafe MAYBE unsafe, not bounds checking
+                buffer += str[index];
+                ++index;
+                continue;
             }
 
             if(const auto escaped = get_escaped_char_via_real(str[index + 1])) {

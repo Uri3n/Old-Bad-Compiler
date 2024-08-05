@@ -272,7 +272,6 @@ tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
         const auto real = remove_escaped_chars(lxr.current().value);
         if(!real) {
             lxr.raise_error("String contains one or more invalid escaped characters.");
-            delete node;
             return nullptr;
         }
 

@@ -45,7 +45,14 @@ add_executable(tak src/main.cpp
         include/checker.hpp
         include/panic.hpp
         include/support.hpp
+        src/support/io.cpp
 )
+
+if(WIN32)
+    target_compile_definitions(tak PRIVATE TAK_WINDOWS)
+else()
+    target_compile_definitions(tak PRIVATE TAK_UNIX)
+endif()
 
 target_compile_definitions(tak PRIVATE TAK_DEBUG)
 target_include_directories(tak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

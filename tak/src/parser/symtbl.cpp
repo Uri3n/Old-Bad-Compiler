@@ -54,7 +54,7 @@ tak::Parser::create_placeholder_symbol(const std::string& name, const size_t src
 
     auto& sym        = sym_table_[curr_sym_index_];
     sym.name         = name;
-    sym.placeholder  = true;
+    sym.flags        = SYM_PLACEHOLDER;
     sym.symbol_index = curr_sym_index_;
     sym.src_pos      = src_index;
     sym.line_number  = line_number;

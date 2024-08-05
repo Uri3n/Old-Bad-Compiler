@@ -99,7 +99,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    auto           type     = tak::parse_type(parser, lxr);
+    auto           type     = parse_type(parser, lxr);
 
     if(!type) {
         return nullptr;
@@ -158,7 +158,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
         decl->pos        = lxr.current().src_pos;
 
         sym->type.flags |= TYPE_CONSTANT;
-        sym->type.flags |= TYPE_GLOBAL;
+        sym->flags      |= SYM_GLOBAL;
 
         decl->identifier->symbol_index = sym->symbol_index;
         decl->identifier->parent       = decl;

@@ -34,17 +34,23 @@ namespace tak {
     enum type_flags : uint64_t {
         TYPE_FLAGS_NONE     = 0ULL,
         TYPE_CONSTANT       = 1ULL,
-        TYPE_FOREIGN        = 1ULL << 1,
-        TYPE_POINTER        = 1ULL << 2,
-        TYPE_GLOBAL         = 1ULL << 3,
-        TYPE_ARRAY          = 1ULL << 4,
-        TYPE_PROCARG        = 1ULL << 5,
-        TYPE_DEFAULT_INIT   = 1ULL << 6,
-        TYPE_INFERRED       = 1ULL << 7,
-        TYPE_NON_CONCRETE   = 1ULL << 8,
-        TYPE_RVALUE         = 1ULL << 9,
-        TYPE_UNINITIALIZED  = 1ULL << 10,
-        TYPE_PROC_METHOD    = 1ULL << 11,
+        TYPE_POINTER        = 1ULL << 1,
+        TYPE_ARRAY          = 1ULL << 2,
+        TYPE_PROCARG        = 1ULL << 3,
+        TYPE_DEFAULT_INIT   = 1ULL << 4,
+        TYPE_INFERRED       = 1ULL << 5,
+        TYPE_NON_CONCRETE   = 1ULL << 6,
+        TYPE_RVALUE         = 1ULL << 7,
+        TYPE_UNINITIALIZED  = 1ULL << 8,
+        TYPE_PROC_METHOD    = 1ULL << 9,
+    };
+
+    enum sym_flags : uint32_t {
+        SYM_FLAGS_NONE  = 0UL,
+        SYM_FOREIGN     = 1UL,
+        SYM_PLACEHOLDER = 1UL << 1,
+        SYM_GLOBAL      = 1UL << 2,
+        SYM_CALLCONV_C  = 1UL << 3,
     };
 
     enum type_kind_t : uint8_t {
@@ -90,12 +96,12 @@ namespace tak {
 
     struct Symbol {
         uint32_t symbol_index  = INVALID_SYMBOL_INDEX;
+        uint32_t flags         = SYM_FLAGS_NONE;
         uint32_t line_number   = 0;
         size_t   src_pos       = 0;
 
         std::string name;
         TypeData    type;
-        bool        placeholder = false;
 
         ~Symbol() = default;
         Symbol()  = default;

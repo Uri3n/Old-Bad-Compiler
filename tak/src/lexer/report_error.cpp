@@ -54,9 +54,10 @@ tak::Lexer::_raise_error_impl(const std::string& message, size_t file_position, 
     assert(offset < filler.size());
     filler[offset] = '^';
 
-    print("in {}{}", source_file_name_, !line ? std::string("") : ':' + std::to_string(line));
-    print("{}\n{}", full_line, filler);
-    print("{}{}\n\n", whitespace, message);
+    print<TFG_NONE, TBG_NONE, TSTYLE_BOLD>("in {}{}", source_file_name_, !line ? std::string("") : ':' + std::to_string(line));
+    print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("{}", full_line);
+    print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("{}", filler);
+    print<TFG_RED, TBG_NONE, TSTYLE_NONE>("{}{}\n", whitespace, message);
 }
 
 void

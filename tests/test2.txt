@@ -1,21 +1,5 @@
 
-struct bar {
-  fucker :: bool;
+
+@callconv "C" proc1 :: proc(ting: bool) -> void^ {
+  ret nullptr;
 }
-
-struct foo {
- mem1: i8^; 
- mem2: bar;
-}
-
-print :: proc(msg :: i8^) -> void {}
-
-
-main :: proc() -> i32 {
- myvar : bool = true; 
- second : f32[3]; 
-
- defer_if true, print("hello world"); 
-
- ret 0;
-} 

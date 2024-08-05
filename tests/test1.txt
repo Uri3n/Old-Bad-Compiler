@@ -1,18 +1,23 @@
-struct Array {
-   buffer : void^;
-   length : u64;
+
+compose Array {
+  z : u64 = 0;
+  get_new :: proc(self : Array^) -> Array^ {
+    
+  }  
+}
+
+compose Array 
+change_length :: proc(self: Array^, length :: u64, msg : i8^) -> bool {
+    self.length = length;
 }
 
 
-compose Array {
-  change_length :: proc(self: Array^, length :: u64, msg : i8^) -> bool {
-    self.length = length;
-  }
-  
-  get_new :: proc(self: Array^) -> Array^ {}  
-
-  x : i32 = 1;
+struct Array {
+  length : u64;
+  buffer : void^;
 }
 
 myvar : Array;
-second  := myvar.change_length(300, "test");
+myvar.length = 100;
+
+second := myvar.change_length(300, "test");

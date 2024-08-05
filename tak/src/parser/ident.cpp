@@ -48,7 +48,7 @@ tak::parse_identifier(Parser& parser, Lexer& lxr) {
             return nullptr;
         }
 
-        return tak::parse_decl(parser, lxr);
+        return parse_decl(parser, lxr);
     }
 
 
