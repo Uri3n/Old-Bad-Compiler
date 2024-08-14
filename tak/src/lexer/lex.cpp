@@ -8,10 +8,10 @@
 void
 tak::Lexer::advance(const uint32_t amnt) {
 
-    if(current_ == TOKEN_END_OF_FILE || current_ == TOKEN_ILLEGAL) {
+    if(src_index_ >= src_.size()) {
+        current_ = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src_.size() - 1, "\\0"};
         return;
     }
-
 
     static std::unordered_map<char, token_func> token_map =
     {
@@ -67,7 +67,6 @@ tak::Lexer::advance(const uint32_t amnt) {
     }
 }
 
-
 tak::Token&
 tak::Lexer::current() {
     if(current_ == TOKEN_NONE) { // if the lexer was just created current will be TOKEN_NONE initially
@@ -77,14 +76,12 @@ tak::Lexer::current() {
     return current_;
 }
 
-
 tak::Token
 tak::Lexer::peek(const uint32_t amnt) {
 
     if(current_ == TOKEN_NONE) {
         advance(1);
     }
-
 
     const uint32_t line_tmp   = this->curr_line_;
     const size_t   index_tmp  = this->src_index_;

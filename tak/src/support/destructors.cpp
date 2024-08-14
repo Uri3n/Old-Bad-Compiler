@@ -39,7 +39,7 @@ tak::AstElse::~AstElse() {
 }
 
 tak::AstProcdecl::~AstProcdecl() {
-    for(AstNode const* node : body) {
+    for(AstNode const* node : children) {
         delete node;
     }
 
@@ -151,10 +151,6 @@ tak::AstSwitch::~AstSwitch() {
     delete target;
 }
 
-tak::AstComposeDecl::~AstComposeDecl() {
-
-}
-
 tak::AstNamespaceDecl::~AstNamespaceDecl() {
     for(AstNode const* node : children) {
         delete node;
@@ -180,4 +176,9 @@ tak::Parser::~Parser() {
     for(AstNode const* node : toplevel_decls_) {
         delete node;
     }
+}
+
+tak::EntityTable::~EntityTable() {
+    for(const auto& pair : sym_table_)  delete pair.second;
+    for(const auto& pair : type_table_) delete pair.second;
 }

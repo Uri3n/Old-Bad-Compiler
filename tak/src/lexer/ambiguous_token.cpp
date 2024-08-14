@@ -120,7 +120,6 @@ tak::Lexer::infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, tok
         {"defer_if", TOKEN_KW_DEFER_IF},
         {"sizeof",   TOKEN_KW_SIZEOF},
         {"nullptr",  TOKEN_KW_NULLPTR},
-        {"compose",  TOKEN_KW_COMPOSE},
         {"fallthrough", TOKEN_KW_FALLTHROUGH},
         {"namespace", TOKEN_KW_NAMESPACE},
     };

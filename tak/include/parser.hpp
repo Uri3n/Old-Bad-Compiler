@@ -5,22 +5,19 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 #include <ast_types.hpp>
-#include <unordered_map>
+#include <entity_table.hpp>
 #include <lexer.hpp>
 #include <io.hpp>
-#include <panic.hpp>
 #include <cstdlib>
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define parser_assert(condition, msg) if(!(condition)) {                        \
-    print("PARSER ASSERT FAILED :: FILE: {}, LINE: {}", __FILE__, __LINE__ );   \
-    print(msg);                                                                 \
-    exit(1);                                                                    \
-}                                                                               \
+#define parser_assert(condition, msg) if(!(condition)) {        \
+    tak::print("PARSER ASSERTION \"{}\" FAILED.", #condition);  \
+    panic(msg);                                                 \
+}                                                               \
 
-#define VALID_SUBEXPRESSION(node_type)             \
+#define NODE_VALID_SUBEXPRESSION(node_type)        \
  (node_type == tak::NODE_CALL                      \
     || node_type == tak::NODE_IDENT                \
     || node_type == tak::NODE_BINEXPR              \
@@ -34,25 +31,17 @@
     || node_type == tak::NODE_SIZEOF               \
 )                                                  \
 
-#define VALID_AT_TOPLEVEL(node_type)               \
+#define NODE_VALID_AT_TOPLEVEL(node_type)          \
    (node_type == tak::NODE_VARDECL                 \
     || node_type == tak::NODE_STRUCT_DEFINITION    \
     || node_type == tak::NODE_NAMESPACEDECL        \
-    || node_type == tak::NODE_COMPOSEDECL          \
     || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_INCLUDE_STMT         \
     || node_type == tak::NODE_ENUM_DEFINITION      \
     || node_type == tak::NODE_TYPE_ALIAS           \
 )                                                  \
 
-#define VALID_WITHIN_COMPOSE(node_type)            \
-   (node_type == tak::NODE_VARDECL                 \
-    || node_type == tak::NODE_STRUCT_DEFINITION    \
-    || node_type == tak::NODE_PROCDECL             \
-    || node_type == tak::NODE_ENUM_DEFINITION      \
-    || node_type == tak::NODE_TYPE_ALIAS           \
-)                                                  \
-
-#define EXPR_NEVER_NEEDS_TERMINAL(node_type)       \
+#define NODE_EXPR_NEVER_NEEDS_TERMINAL(node_type)  \
    (node_type == tak::NODE_PROCDECL                \
     || node_type == tak::NODE_BRANCH               \
     || node_type == tak::NODE_IF                   \
@@ -62,7 +51,6 @@
     || node_type == tak::NODE_PROCDECL             \
     || node_type == tak::NODE_SWITCH               \
     || node_type == tak::NODE_NAMESPACEDECL        \
-    || node_type == tak::NODE_COMPOSEDECL          \
     || node_type == tak::NODE_BLOCK                \
     || node_type == tak::NODE_STRUCT_DEFINITION    \
     || node_type == tak::NODE_ENUM_DEFINITION      \
@@ -72,68 +60,31 @@
 
 namespace tak {
 
+    enum include_state_t : uint8_t {
+        INCLUDE_STATE_PENDING = 0,
+        INCLUDE_STATE_DONE    = 1,
+    };
+
+    struct IncludedFile {
+        std::string     name;
+        include_state_t state;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     class Parser {
     public:
-
-        uint32_t curr_sym_index_ = INVALID_SYMBOL_INDEX;
-        uint16_t inside_parenthesized_expression_ = 0;
-
-        std::vector<std::string> namespace_stack_;
-        std::vector<AstNode*>    toplevel_decls_;
-
-        std::vector<std::unordered_map<std::string, uint32_t>> scope_stack_;
-        std::unordered_map<uint32_t, Symbol>                   sym_table_;
-        std::unordered_map<std::string, UserType>              type_table_;
-        std::unordered_map<std::string, TypeData>              type_aliases_;
-
-        void push_scope();
-        void pop_scope();
-
-        bool scoped_symbol_exists(const std::string& name);
-        bool scoped_symbol_exists_at_current_scope(const std::string& name);
-
-
-        Symbol*  lookup_unique_symbol(uint32_t symbol_index);
-        Symbol*  create_symbol(
-            const std::string& name,
-            size_t src_index,
-            uint32_t line_number,
-            type_kind_t sym_type,
-            uint64_t sym_flags,
-            const std::optional<TypeData>& data = std::nullopt
-        );
-
-        uint32_t create_placeholder_symbol(
-            const std::string& name,
-            size_t src_index,
-            uint32_t line_number
-        );
-
+        uint16_t                  inside_parenthesized_expression_ = 0;
+        std::vector<IncludedFile> included_files_;
+        std::vector<AstNode*>     toplevel_decls_;
+        EntityTable               tbl_;
 
         void dump_symbols();
         void dump_nodes();
         void dump_types();
 
-        bool enter_namespace(const std::string& name);
-        bool namespace_exists(const std::string& name);
-        void leave_namespace();
-        std::string namespace_as_string();
-
-        std::string get_canonical_name(std::string name, bool is_symbol);
-        std::string get_canonical_type_name(const std::string& name);
-        std::string get_canonical_sym_name(const std::string& name);
-
-        bool create_type(const std::string& name, std::vector<MemberData>&& type_data);
-        bool create_placeholder_type(const std::string& name, size_t pos, uint32_t line);
-        bool type_exists(const std::string& name);
-
-        std::vector<MemberData>* lookup_type_members(const std::string& name);
-        UserType*                lookup_type(const std::string& name);
-
-        uint32_t lookup_scoped_symbol(const std::string& name);
-        TypeData lookup_type_alias(const std::string& name);
-        bool     create_type_alias(const std::string& name, const TypeData& data);
-        bool     type_alias_exists(const std::string& name);
+        Parser(const Parser&)            = delete;
+        Parser& operator=(const Parser&) = delete;
 
         Parser() = default;
         ~Parser();
@@ -142,6 +93,7 @@ namespace tak {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     void display_node_data(AstNode* node, uint32_t depth, Parser& parser);
+    bool parse_proc_signature_and_body(Symbol* proc,  AstProcdecl* node, Parser& parser, Lexer& lxr);
     std::string format_type_data(const TypeData& type, uint16_t num_tabs = 0);
     std::optional<TypeData> parse_type(Parser& parser, Lexer& lxr);
     std::optional<std::vector<uint32_t>> parse_array_data(Lexer& lxr);
@@ -151,6 +103,7 @@ namespace tak {
 
     AstNode* parse_type_alias(Parser& parser, Lexer& lxr);
     AstNode* parse_callconv(Parser& parser, Lexer& lxr);
+    AstNode* parse_include(Parser& parser, Lexer& lxr);
     AstNode* parse_compiler_directive(Parser& parser, Lexer& lxr);
     AstNode* parse_defer(Parser& parser, Lexer& lxr);
     AstNode* parse_defer_if(Parser& parser, Lexer& lxr);
@@ -182,7 +135,6 @@ namespace tak {
     AstNode* parse_singleton_literal(Parser& parser, Lexer& lxr);
     AstNode* parse_braced_expression(Parser& parser, Lexer& lxr);
     AstNode* parse_namespace(Parser& parser, Lexer& lxr);
-    AstNode* parse_compose(Parser& parser, Lexer& lxr);
     AstNode* parse_enumdef(Parser& parser, Lexer& lxr);
     AstNode* parse_nullptr(Lexer& lxr);
     AstNode* parse_parenthesized_expression(Parser& parser, Lexer& lxr);

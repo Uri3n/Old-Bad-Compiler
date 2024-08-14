@@ -4,9 +4,7 @@
 
 #define CURRENT_TEST "tests/test1.txt"
 
-
 bool do_compile(const std::string& source_file_name);
-
 
 void
 handle_uncaught_exception() {

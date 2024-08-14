@@ -132,7 +132,7 @@ tak::is_type_coercion_permissible(TypeData& left, const TypeData& right) {
         return false;
     }
 
-    if(left.flags & TYPE_NON_CONCRETE) {
+    if(left.flags & TYPE_NON_CONCRETE && !(left.flags & TYPE_POINTER) && !PRIMITIVE_IS_FLOAT(*left_t)) {
         return type_promote_non_concrete(left, right);
     }
 
@@ -260,7 +260,15 @@ tak::is_type_arithmetic_eligible(const TypeData& type, const token_t _operator) 
             || _operator == TOKEN_SUBEQ;
     }
 
-    return type.kind == TYPE_KIND_VARIABLE || (type.pointer_depth == 1 && type.kind == TYPE_KIND_STRUCT);
+    else if(primitive_ptr == nullptr) {
+        return false;
+    }
+
+    if(PRIMITIVE_IS_FLOAT(*primitive_ptr)) {
+        return _operator != TOKEN_MOD && _operator != TOKEN_MODEQ;
+    }
+
+    return true;
 }
 
 bool
@@ -270,29 +278,12 @@ tak::can_operator_be_applied_to(const token_t _operator, const TypeData& type) {
         return false;
     }
 
-    if(_operator == TOKEN_VALUE_ASSIGNMENT) {
-        return !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    }
-
-    if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) {
-        return is_type_arithmetic_eligible(type, _operator) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    }
-
-    if(TOKEN_OP_IS_ARITHMETIC(_operator)) {
-        return is_type_arithmetic_eligible(type, _operator);
-    }
-
-    if(TOKEN_OP_IS_BW_ASSIGN(_operator)) {
-        return is_type_bwop_eligible(type) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    }
-
-    if(TOKEN_OP_IS_BITWISE(_operator)) {
-        return is_type_bwop_eligible(type);
-    }
-
-    if(TOKEN_OP_IS_LOGICAL(_operator)) {
-        return is_type_lop_eligible(type);
-    }
+    if(_operator == TOKEN_VALUE_ASSIGNMENT) return !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
+    if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) return is_type_arithmetic_eligible(type, _operator) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
+    if(TOKEN_OP_IS_ARITHMETIC(_operator))   return is_type_arithmetic_eligible(type, _operator);
+    if(TOKEN_OP_IS_BW_ASSIGN(_operator))    return is_type_bwop_eligible(type) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
+    if(TOKEN_OP_IS_BITWISE(_operator))      return is_type_bwop_eligible(type);
+    if(TOKEN_OP_IS_LOGICAL(_operator))      return is_type_lop_eligible(type);
 
     panic("can_operator_be_applied_to: no condition reached.");
 }

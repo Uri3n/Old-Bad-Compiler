@@ -62,21 +62,24 @@ tak::var_t_to_string(const var_t type) {
 }
 
 std::string
-tak::typedata_to_str_msg(const TypeData& type) {
+tak::typedata_to_str_msg(const TypeData& type, const bool include_qualifiers, const bool include_postfixes) {
 
     std::string buffer;
-    bool is_proc = false;
+    bool is_proc    = false;
+    bool _is_struct = false;
 
-    if(type.flags & TYPE_INFERRED) return "Invalid Type";
-    if(type.flags & TYPE_CONSTANT) buffer += "const ";
-    if(type.flags & TYPE_RVALUE)   buffer += "rvalue ";
-
+    if(include_qualifiers) {
+        if(type.flags & TYPE_INFERRED) return "Invalid Type";
+        if(type.flags & TYPE_CONSTANT) buffer += "const ";
+        if(type.flags & TYPE_RVALUE)   buffer += "rvalue ";
+    }
 
     if(const auto* is_primitive = std::get_if<var_t>(&type.name)) {
         buffer += var_t_to_string(*is_primitive);
     }
     else if(const auto* is_struct = std::get_if<std::string>(&type.name)) {
         buffer += *is_struct;
+        _is_struct = true;
     }
     else {
         is_proc = true;
@@ -84,18 +87,31 @@ tak::typedata_to_str_msg(const TypeData& type) {
     }
 
 
-    if(type.flags & TYPE_POINTER) {
-        for(uint16_t i = 0; i < type.pointer_depth; i++) {
-            buffer += '^';
+    if(_is_struct && type.parameters != nullptr) {
+        buffer += '[';
+        for(const auto& param : *type.parameters) {
+            buffer += typedata_to_str_msg(param) + ',';
+        }
+
+        if(buffer.back() == ',') buffer.pop_back();
+        buffer += ']';
+    }
+
+    if(include_postfixes) {
+        if(type.flags & TYPE_POINTER) {
+            for(uint16_t i = 0; i < type.pointer_depth; i++) {
+                buffer += '^';
+            }
+        }
+
+        if(type.flags & TYPE_ARRAY) {
+            for(size_t i = 0 ; i < type.array_lengths.size(); i++) {
+                if(!type.array_lengths[i]) buffer += "[]";
+                else buffer += fmt("[{}]", type.array_lengths[i]);
+            }
         }
     }
 
-    if(type.flags & TYPE_ARRAY) {
-        for(size_t i = 0 ; i < type.array_lengths.size(); i++) {
-            if(!type.array_lengths[i]) buffer += "[]";
-            else buffer += fmt("[{}]", type.array_lengths[i]);
-        }
-    }
 
     if(is_proc) {
         buffer += '(';

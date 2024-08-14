@@ -39,7 +39,7 @@ tak::parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, cons
     // For these expressions we should not check for a terminal no matter what.
     //
 
-    if(EXPR_NEVER_NEEDS_TERMINAL(expr->type)) {
+    if(NODE_EXPR_NEVER_NEEDS_TERMINAL(expr->type)) {
         state = true;
         return expr;
     }
@@ -132,6 +132,8 @@ tak::parse_keyword(Parser &parser, Lexer &lxr) {
         case TOKEN_KW_WHILE:      return parse_while(parser, lxr);
         case TOKEN_KW_FOR:        return parse_for(parser, lxr);
         case TOKEN_KW_STRUCT:     return parse_structdef(parser, lxr);
+        case TOKEN_KW_CONT:       return parse_cont(lxr);
+        case TOKEN_KW_BRK:        return parse_brk(lxr);
         case TOKEN_KW_NAMESPACE:  return parse_namespace(parser, lxr);
         case TOKEN_KW_DO:         return parse_dowhile(parser, lxr);
         case TOKEN_KW_BLK:        return parse_block(parser, lxr);
@@ -141,7 +143,6 @@ tak::parse_keyword(Parser &parser, Lexer &lxr) {
         case TOKEN_KW_DEFER_IF:   return parse_defer_if(parser, lxr);
         case TOKEN_KW_SIZEOF:     return parse_sizeof(parser, lxr);
         case TOKEN_KW_NULLPTR:    return parse_nullptr(lxr);
-        case TOKEN_KW_COMPOSE:    return parse_compose(parser, lxr);
         default: break;
     }
 
@@ -163,7 +164,7 @@ tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
     auto* expr              = parse_expression(parser, lxr, true);
 
     if(expr == nullptr) return nullptr;
-    if(!VALID_SUBEXPRESSION(expr->type)) {
+    if(!NODE_VALID_SUBEXPRESSION(expr->type)) {
         lxr.raise_error("This expression cannot be used within parentheses.", curr_pos, line);
         delete expr;
         return nullptr;
@@ -183,14 +184,12 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
         return nullptr;
     }
 
-    auto* node  = new AstCast();
+    auto* node  = new AstCast(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     bool  state = false;
-    node->pos   = lxr.current().src_pos;
 
     defer_if(!state, [&] {
        delete node;
     });
-
 
 
     //
@@ -206,7 +205,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
         return nullptr;
 
     node->target->parent = node;
-    if(!VALID_SUBEXPRESSION(node->target->type)) {
+    if(!NODE_VALID_SUBEXPRESSION(node->target->type)) {
         lxr.raise_error("Invalid expression used as cast target.", curr_pos, line);
         return nullptr;
     }
@@ -255,9 +254,8 @@ tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
     parser_assert(lxr.current().kind == KIND_LITERAL, "Expected literal.");
 
     bool  state        = false;
-    auto* node         = new AstSingletonLiteral();
+    auto* node         = new AstSingletonLiteral(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->literal_type = lxr.current().type;
-    node->pos          = lxr.current().src_pos;
 
     defer_if(!state, [&] {
         delete node;
@@ -315,10 +313,9 @@ tak::parse_nullptr(Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_NULLPTR, "Expected \"nullptr\" keyword.");
 
-    auto* node         = new AstSingletonLiteral();
+    auto* node         = new AstSingletonLiteral(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->literal_type = TOKEN_KW_NULLPTR;
     node->value        = std::string(lxr.current().value);
-    node->pos          = lxr.current().src_pos;
 
     lxr.advance(1);
     return node;
@@ -336,8 +333,7 @@ tak::parse_member_access(AstNode* target, Lexer& lxr) {
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
 
-    auto* node           = new AstMemberAccess();
-    node->pos            = curr_pos;
+    auto* node           = new AstMemberAccess(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->target         = target;
     node->target->parent = node;
 
@@ -370,8 +366,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
     const uint32_t line     = lxr.current().line;
 
     bool  state = false;
-    auto* node  = new AstSizeof();
-    node->pos   = curr_pos;
+    auto* node  = new AstSizeof(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
 
     defer_if(!state, [&] {
        delete node;
@@ -388,7 +383,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
         const uint32_t tmp_line   = lxr.curr_line_;
 
         if(const auto name = get_namespaced_identifier(lxr)) {
-            name_if_type = parser.get_canonical_type_name(*name);
+            name_if_type = parser.tbl_.get_canonical_type_name(*name);
         } else {
             return nullptr;
         }
@@ -397,7 +392,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
         lxr.src_index_ = tmp_pos;
         lxr.curr_line_ = tmp_line;
 
-        if(parser.type_exists(name_if_type) || parser.type_alias_exists(name_if_type)) {
+        if(parser.tbl_.type_exists(name_if_type) || parser.tbl_.type_alias_exists(name_if_type)) {
             if(const auto data = parse_type(parser,lxr)) {
                 node->target = *data;
             } else {
@@ -423,7 +418,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
             return nullptr;
         }
 
-        if(!VALID_SUBEXPRESSION(target->type)) {
+        if(!NODE_VALID_SUBEXPRESSION(target->type)) {
             lxr.raise_error("Invalid subexpression used within sizeof identifier.", curr_pos, line);
             return nullptr;
         }
@@ -443,8 +438,7 @@ tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
     parser_assert(lxr.current() == TOKEN_LBRACE, "Expected left-brace.");
 
     bool  state = false;
-    auto* node  = new AstBracedExpression();
-    node->pos   = lxr.current().src_pos;
+    auto* node  = new AstBracedExpression(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
 
     defer_if(!state, [&] {
         delete node;
@@ -462,7 +456,7 @@ tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
             return nullptr;
         }
 
-        if(!VALID_SUBEXPRESSION(node->members.back()->type)) {
+        if(!NODE_VALID_SUBEXPRESSION(node->members.back()->type)) {
             lxr.raise_error("Invalid subexpression within braced expression.", curr_pos, line);
             return nullptr;
         }
@@ -487,10 +481,8 @@ tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
     const size_t   src_pos = lxr.current().src_pos;
     const uint32_t line    = lxr.current().line;
 
-    auto* node      = new AstUnaryexpr();
+    auto* node      = new AstUnaryexpr(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->_operator = lxr.current().type;
-    node->pos       = src_pos;
-
 
     lxr.advance(1);
     node->operand = parse_expression(parser, lxr, true, true);
@@ -500,7 +492,7 @@ tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
     }
 
     const auto right_t = node->operand->type;
-    if(!VALID_SUBEXPRESSION(right_t)) {
+    if(!NODE_VALID_SUBEXPRESSION(right_t)) {
         lxr.raise_error("Unexpected expression following unary operator.", src_pos, line);
         delete node;
         return nullptr;
@@ -520,10 +512,12 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
     // Generate AST node.
     //
 
+    const size_t   begin_pos  = lxr.current().src_pos;
+    const uint32_t begin_line = lxr.current().line;
+
     bool  state           = false;
-    auto* node            = new AstCall();
+    auto* node            = new AstCall(begin_pos, begin_line, lxr.source_file_name_);
     node->target          = operand;
-    node->pos             = lxr.current().src_pos;
     node->target->parent  = node;
 
     defer_if(!state, [&] {
@@ -532,16 +526,61 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 
 
     //
-    // Parse the parameter list.
+    // Check for generics.
     //
 
+    auto*          ident = dynamic_cast<AstIdentifier*>(operand);
+    const Symbol*  sym   = ident == nullptr ? nullptr : parser.tbl_.lookup_unique_symbol(ident->symbol_index);
+
     lxr.advance(1);
+    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
+        if(sym == nullptr) {
+            lxr.raise_error("This does not take generic parameters.");
+            return nullptr;
+        }
+
+        lxr.advance(1);
+        std::vector<TypeData> types;
+        while(lxr.current() != TOKEN_RSQUARE_BRACKET) {
+            if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
+                lxr.raise_error("Expected generic type.");
+                return nullptr;
+            }
+
+            if(const auto type = parse_type(parser, lxr)) {
+                types.emplace_back(*type);
+            } else {
+                return nullptr;
+            }
+
+            if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
+                lxr.advance(1);
+            }
+        }
+
+        if(types.empty()) {
+            lxr.raise_error("Empty generic parameters are not allowed.");
+            return nullptr;
+        }
+
+        auto* new_sym        = parser.tbl_.create_generic_proc_permutation(sym, std::move(types));
+        new_sym->file        = lxr.source_file_name_;
+        new_sym->line_number = begin_line;
+        ident->symbol_index  = new_sym->symbol_index;
+
+        lxr.advance(1);
+    }
+
+
+    //
+    // Parse out value parameters.
+    //
+
     if(lxr.current() == TOKEN_RPAREN) {
         lxr.advance(1);
         state = true;
         return node;
     }
-
 
     const uint16_t old_paren_index = parser.inside_parenthesized_expression_++;
     while(old_paren_index < parser.inside_parenthesized_expression_) {
@@ -549,14 +588,13 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
 
-
         auto* expr = parse_expression(parser, lxr, true);
         if(expr == nullptr) {
             return nullptr;
         }
 
         const auto _type = expr->type;
-        if(!VALID_SUBEXPRESSION(_type)) {
+        if(!NODE_VALID_SUBEXPRESSION(_type)) {
             lxr.raise_error("Invalid subexpression within call.", curr_pos, line);
             return nullptr;
         }
@@ -575,7 +613,6 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
         }
     }
 
-
     state = true;
     return node;
 }
@@ -589,8 +626,7 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
 
 
     bool  state    = false;
-    auto* binexpr  = new AstBinexpr();
-    binexpr->pos   = lxr.current().src_pos;
+    auto* binexpr  = new AstBinexpr(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
 
     defer_if(!state, [&] {
         delete binexpr;
@@ -614,7 +650,7 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
     binexpr->right_op->parent = binexpr;
     const auto right_t        = binexpr->right_op->type;
 
-    if(!VALID_SUBEXPRESSION(right_t)) {
+    if(!NODE_VALID_SUBEXPRESSION(right_t)) {
         lxr.raise_error("Unexpected expression following binary operator.", src_pos, line);
         return nullptr;
     }
@@ -643,9 +679,8 @@ tak::parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
 
-    auto* node            = new AstSubscript();
+    auto* node            = new AstSubscript(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->operand         = operand;
-    node->pos             = lxr.current().src_pos;
     node->operand->parent = node;
     node->value           = parse_expression(parser, lxr, true);
 
@@ -658,7 +693,7 @@ tak::parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
     if(node->value == nullptr)
         return nullptr;
 
-    if(!VALID_SUBEXPRESSION(node->value->type) || lxr.current() != TOKEN_RSQUARE_BRACKET) {
+    if(!NODE_VALID_SUBEXPRESSION(node->value->type) || lxr.current() != TOKEN_RSQUARE_BRACKET) {
         lxr.raise_error("Invalid expression within subscript operator.", curr_pos, line);
         return nullptr;
     }

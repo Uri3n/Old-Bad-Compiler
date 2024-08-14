@@ -23,7 +23,7 @@ namespace tak {
     std::string token_to_string(token_t type);
     std::string token_type_to_string(token_t type);
     std::string token_kind_to_string(token_kind kind);
-    std::string typedata_to_str_msg(const TypeData& type);
+    std::string typedata_to_str_msg(const TypeData& type, bool include_qualifiers = true, bool include_postfixes = true);
     void  lexer_display_token_data(const Token& tok);
     uint16_t var_t_to_size_bytes(var_t type);
     uint16_t precedence_of(token_t _operator);

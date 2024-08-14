@@ -7,19 +7,19 @@
 #include <limits>
 #include <cstdint>
 #include <cassert>
+#include <map>
 #include <string>
 #include <utility>
 #include <typeindex>
 #include <parser.hpp>
+#include <semantic_error_handler.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAX_ERROR_COUNT 45
 #define NODE_NEEDS_VISITING(node_type)           \
-   (node_type != tak::NODE_BRK                   \
-    && node_type != tak::NODE_STRUCT_DEFINITION  \
+   (node_type != tak::NODE_STRUCT_DEFINITION     \
     && node_type != tak::NODE_ENUM_DEFINITION    \
-    && node_type != tak::NODE_CONT               \
+    && node_type != tak::NODE_INCLUDE_STMT       \
     && node_type != tak::NODE_TYPE_ALIAS         \
 )                                                \
 
@@ -29,16 +29,10 @@ namespace tak {
 
     class CheckerContext {
     public:
+        EntityTable&  tbl_;
+        SemanticErrorHandler errs_;
 
-        uint32_t error_count_   = 0;
-        uint32_t warning_count_ = 0;
-        Lexer&   lxr_;
-        Parser&  parser_;
-
-        void raise_error(const std::string& message, size_t position);
-        void raise_warning(const std::string& message, size_t position);
-
-        explicit CheckerContext(Lexer& lxr, Parser& parser) : lxr_(lxr), parser_(parser) {}
+        explicit CheckerContext(EntityTable& entities) : tbl_(entities) {}
         ~CheckerContext() = default;
     };
 
@@ -79,7 +73,6 @@ namespace tak {
     std::optional<TypeData> visit_for(const AstFor* node, CheckerContext& ctx);
     std::optional<TypeData> visit_binexpr(AstBinexpr* node, CheckerContext& ctx);
     std::optional<TypeData> visit_namespacedecl(const AstNamespaceDecl* node, CheckerContext& ctx);
-    std::optional<TypeData> visit_composedecl(const AstComposeDecl* node, CheckerContext& ctx);
     std::optional<TypeData> visit_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx);
     std::optional<TypeData> visit_identifier(const AstIdentifier* node, CheckerContext& ctx);
     std::optional<TypeData> visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx);
@@ -87,7 +80,8 @@ namespace tak {
     std::optional<TypeData> visit_sizeof(const AstSizeof* node, CheckerContext& ctx);
     std::optional<TypeData> visit_defer_if(const AstDeferIf* node, CheckerContext& ctx);
     std::optional<TypeData> visit_defer(const AstDefer* node, CheckerContext& ctx);
-    std::optional<TypeData> get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, Parser& parser);
+    std::optional<TypeData> visit_brk_or_cont(const AstNode* node, CheckerContext& ctx);
+    std::optional<TypeData> get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, EntityTable& tbl);
     std::optional<TypeData> get_dereferenced_type(const TypeData& type);
     std::optional<TypeData> get_addressed_type(const TypeData& type);
     std::optional<TypeData> get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx);

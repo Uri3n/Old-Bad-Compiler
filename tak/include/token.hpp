@@ -86,7 +86,6 @@
     X(KW_NAMESPACE, "namespace")     \
     X(KW_DEFER, "defer")             \
     X(KW_DEFER_IF, "defer_if")       \
-    X(KW_COMPOSE, "compose")         \
     X(KW_PROC, "proc")               \
     X(KW_BLK, "block")               \
     X(KW_CAST, "cast")               \
@@ -187,7 +186,6 @@
     || token_type == tak::TOKEN_CONDITIONAL_NOT    \
 )                                                  \
 
-
 namespace tak {
 
     #define X(NAME, STR_UNUSED) TOKEN_##NAME,
@@ -210,7 +208,7 @@ namespace tak {
         size_t     src_pos = 0;
 
         std::string_view value;
-        uint32_t         line = 0;
+        uint32_t         line = 1;
 
         bool operator==(const token_t other) const  {return other == type;}
         bool operator==(const Token& other)  const  {return other.type == this->type;}

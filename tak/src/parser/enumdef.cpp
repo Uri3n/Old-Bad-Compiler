@@ -30,7 +30,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_KW_ENUM, "Expected \"enum\" keyword.");
 
-    if(parser.scope_stack_.size() > 1) {
+    if(parser.tbl_.scope_stack_.size() > 1) {
         lxr.raise_error("Enum definition at non-global scope.");
         return nullptr;
     }
@@ -46,38 +46,34 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
     //
 
     bool state       = false;
-    auto* node       = new AstEnumdef();
-    node->_namespace = new AstNamespaceDecl();
-    node->alias      = new AstTypeAlias();
+    auto* node       = new AstEnumdef(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
+    node->_namespace = new AstNamespaceDecl(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
+    node->alias      = new AstTypeAlias(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
 
     node->_namespace->parent = node;
     node->alias->parent      = node;
-    node->alias->name        = parser.namespace_as_string() + std::string(lxr.current().value);
-
-    node->pos               = lxr.current().src_pos;
-    node->_namespace->pos   = lxr.current().src_pos;
-    node->alias->pos        = lxr.current().src_pos;
+    node->alias->name        = parser.tbl_.namespace_as_string() + std::string(lxr.current().value);
 
 
     //
     // Enter enum as namespace
     //
 
-    if(parser.namespace_exists(std::string(lxr.current().value))
-        || parser.type_alias_exists(node->alias->name)
-        || parser.type_exists(node->alias->name)
+    if(parser.tbl_.namespace_exists(std::string(lxr.current().value))
+        || parser.tbl_.type_alias_exists(node->alias->name)
+        || parser.tbl_.type_exists(node->alias->name)
     ) {
         lxr.raise_error("Naming conflict: a namespace, type alias, or struct has the same name as this enum.");
         delete node;
         return nullptr;
     }
 
-    parser.enter_namespace(std::string(lxr.current().value));
-    node->_namespace->full_path = parser.namespace_as_string();
+    parser.tbl_.enter_namespace(std::string(lxr.current().value));
+    node->_namespace->full_path = parser.tbl_.namespace_as_string();
 
     defer([&] {
         if(!state) { delete node; }
-        parser.leave_namespace();
+        parser.tbl_.leave_namespace();
     });
 
 
@@ -110,7 +106,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
         return nullptr;
     }
 
-    parser.create_type_alias(node->alias->name, *type);
+    parser.tbl_.create_type_alias(node->alias->name, *type);
 
 
     //
@@ -136,13 +132,13 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
             lxr.raise_error("Expected identifier.");
         }
 
-        auto member_name = parser.namespace_as_string() + std::string(lxr.current().value);
-        if(parser.scoped_symbol_exists_at_current_scope(member_name)) {
+        auto member_name = parser.tbl_.namespace_as_string() + std::string(lxr.current().value);
+        if(parser.tbl_.scoped_symbol_exists_at_current_scope(member_name)) {
             lxr.raise_error("Redeclaration of enum member.");
             return nullptr;
         }
 
-        if(parser.namespace_exists(std::string(lxr.current().value))) {
+        if(parser.tbl_.namespace_exists(std::string(lxr.current().value))) {
             lxr.raise_error("Enum member has the same name as a namespace it is declared in.");
             return nullptr;
         }
@@ -152,17 +148,15 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
         // Create a symbol for the enum member.
         //
 
-        auto* sym        = parser.create_symbol(member_name, lxr.current().src_pos, lxr.current().line, TYPE_KIND_VARIABLE, TYPE_FLAGS_NONE, *type);
-        auto* decl       = new AstVardecl();
-        decl->identifier = new AstIdentifier();
-        decl->pos        = lxr.current().src_pos;
+        auto* sym = parser.tbl_.create_symbol(
+            member_name, lxr.source_file_name_, lxr.current().src_pos, lxr.current().line, TYPE_KIND_VARIABLE, TYPE_FLAGS_NONE, *type);
 
-        sym->type.flags |= TYPE_CONSTANT;
-        sym->flags      |= SYM_GLOBAL;
-
+        auto* decl                     = new AstVardecl(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
+        decl->identifier               = new AstIdentifier(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
+        sym->type.flags               |= TYPE_CONSTANT;
+        sym->flags                    |= ENTITY_GLOBAL;
         decl->identifier->symbol_index = sym->symbol_index;
         decl->identifier->parent       = decl;
-        decl->identifier->pos          = lxr.current().src_pos;
 
         node->_namespace->children.emplace_back(decl);
 
@@ -172,10 +166,9 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
         //
 
         lxr.advance(1);
-        decl->init_value  = new AstSingletonLiteral();
+        decl->init_value  = new AstSingletonLiteral(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
         auto* lit         = dynamic_cast<AstSingletonLiteral*>(*decl->init_value);
         lit->parent       = decl;
-        lit->pos          = lxr.current().src_pos;
 
         if(lxr.current() == TOKEN_VALUE_ASSIGNMENT) {
 

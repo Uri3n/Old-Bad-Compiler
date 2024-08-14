@@ -48,7 +48,7 @@ namespace tak {
     void try_enable_windows_virtual_terminal_sequences(); // Enables Windows virtual terminal escape sequences
     void term_set_fg(termcolor_fg_t foreground);          // Sets the terminal foreground color.
     void term_set_bg(termcolor_bg_t background);          // Sets the terminal background color.
-    void term_set_style(uint16_t style_mask);              // Sets the terminal text style (underline, bold, etc).
+    void term_set_style(uint16_t style_mask);             // Sets the terminal text style (underline, bold, etc).
     void term_reset();                                    // Resets any escape sequences applied.
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -61,16 +61,15 @@ tak::parse_identifier(Parser& parser, Lexer& lxr) {
     }
 
     uint32_t   sym_index      = 0;
-    const auto canonical_name = parser.get_canonical_sym_name(*name);
+    const auto canonical_name = parser.tbl_.get_canonical_sym_name(*name);
 
-    if(sym_index = parser.lookup_scoped_symbol(canonical_name); sym_index == INVALID_SYMBOL_INDEX) {
-        sym_index = parser.create_placeholder_symbol(canonical_name, curr_pos, line);
+    if(sym_index = parser.tbl_.lookup_scoped_symbol(canonical_name); sym_index == INVALID_SYMBOL_INDEX) {
+        sym_index = parser.tbl_.create_placeholder_symbol(canonical_name, lxr.source_file_name_, curr_pos, line);
         assert(sym_index != INVALID_SYMBOL_INDEX);
     }
 
-    auto* ident         = new AstIdentifier();
+    auto* ident         = new AstIdentifier(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     ident->symbol_index = sym_index;
-    ident->pos          = curr_pos;
 
     lxr.advance(1);
     return ident;

@@ -500,7 +500,7 @@ tak::Lexer::token_quote(Lexer &lxr) {
     while(true) {
 
         if(lxr.current_char() == '\0') {
-            _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
+            _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, string_start, "\\0"};
             break;
         }
 
@@ -554,7 +554,7 @@ tak::Lexer::token_singlequote(Lexer &lxr) {
 
     switch(lxr.current_char()) {
         case '\0':
-            _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
+            _current = Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, "\\0"};
             break;
 
         case '\'':

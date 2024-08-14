@@ -82,7 +82,6 @@ tak::to_rvalue(const TypeData& type) {
     return rval;
 }
 
-
 bool
 tak::type_promote_non_concrete(TypeData& left, const TypeData& right) {
 
@@ -164,6 +163,9 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
 
     if(!contained_t || is_type_invalid_in_inferred_context(*contained_t)) {
         return std::nullopt;
+    } if(contained_t->flags & TYPE_ARRAY && node->members[0]->type != NODE_BRACED_EXPRESSION) {
+        ctx.errs_.raise_error("Array type is invalid in this context.", node->members[0]);
+        return std::nullopt;
     }
 
 
@@ -180,6 +182,9 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
         } else {
             const auto element_t = visit_node(node->members[i], ctx);
             if(!element_t || !is_type_coercion_permissible(*contained_t, *element_t)) {
+                return std::nullopt;
+            } if(element_t->flags & TYPE_ARRAY) {
+                ctx.errs_.raise_error("Array type is invalid in this context.", node->members[i]);
                 return std::nullopt;
             }
         }
@@ -249,49 +254,44 @@ tak::get_addressed_type(const TypeData& type) {
 
 
 std::optional<tak::TypeData>
-tak::get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, Parser& parser) {
+tak::get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, EntityTable& tbl) {
 
     const auto   member_chunks = split_string(member_path, '.');
-    const auto*  member_data   = parser.lookup_type_members(base_type_name);
+    const auto*  type_data     = tbl.lookup_type(base_type_name);
     size_t       index         = 0;
 
-    if(member_chunks.empty() || member_data == nullptr) {
+    if(member_chunks.empty() || type_data == nullptr) {
         return std::nullopt;
     }
 
 
-    std::function<std::optional<TypeData>(decltype(member_data))> recurse;
-    recurse = [&](const decltype(member_data) members) -> std::optional<TypeData> {
+    std::function<std::optional<TypeData>(decltype(type_data))> recurse;
+    recurse = [&](const decltype(type_data) type) -> std::optional<TypeData> {
 
-        assert(member_data != nullptr);
-        for(const auto& member : *members) {
-            if(member.name != member_chunks[index]) {
-                continue;
+        assert(type != nullptr);
+        const auto mem_itr = std::find_if(type->members.begin(), type->members.end(), [&](const MemberData& member) {
+            return member.name == member_chunks[index];
+        });
+
+        if(index + 1 >= member_chunks.size()) {
+            if(mem_itr != type->members.end()) {
+                return mem_itr->type;
             }
+        }
 
-            if(index + 1 >= member_chunks.size()) {
-                if(member.type.sym_ref != INVALID_SYMBOL_INDEX) {
-                    auto* sym         = parser.lookup_unique_symbol(member.type.sym_ref);
-                    sym->type.sym_ref = sym->symbol_index;
-                    return sym->type;
-                }
-                return member.type;
-            }
-
-            if(const auto* struct_name = std::get_if<std::string>(&member.type.name)) {
+        else if(mem_itr != type->members.end()) {
+            if(const auto* struct_name = std::get_if<std::string>(&mem_itr->type.name)) {
                 ++index;
-                if(parser.type_exists(*struct_name) && member.type.array_lengths.empty() && member.type.pointer_depth < 2) {
-                    return recurse(parser.lookup_type_members(*struct_name));
+                if(tbl.type_exists(*struct_name) && mem_itr->type.array_lengths.empty() && mem_itr->type.pointer_depth < 2) {
+                    return recurse(tbl.lookup_type(*struct_name));
                 }
             }
-
-            break;
         }
 
         return std::nullopt;
     };
 
-    return recurse(member_data);
+    return recurse(type_data);
 }
 
 
@@ -302,13 +302,13 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     assert(type.kind == TYPE_KIND_STRUCT);
 
     if(type.flags & TYPE_RVALUE) {
-        ctx.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", typedata_to_str_msg(type)), expr->pos);
+        ctx.errs_.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", typedata_to_str_msg(type)), expr);
         return;
     }
 
     const std::string* name = std::get_if<std::string>(&type.name);
     assert(name != nullptr);
-    std::vector<MemberData>* members = ctx.parser_.lookup_type_members(*name);
+    std::vector<MemberData>* members = ctx.tbl_.lookup_type_members(*name);
     assert(members != nullptr);
 
 
@@ -317,11 +317,11 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     //
 
     if(members->size() != expr->members.size()) {
-        ctx.raise_error(fmt("Number of elements within braced expression ({}) does not match the struct type {} ({} members).",
+        ctx.errs_.raise_error(fmt("Number of elements within braced expression ({}) does not match the struct type {} ({} members).",
             expr->members.size(),
             typedata_to_str_msg(type),
             members->size()),
-            expr->pos
+            expr
         );
 
         return;
@@ -333,23 +333,43 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     //
 
     for(size_t i = 0; i < members->size(); i++) {
-        if((*members)[i].type.kind == TYPE_KIND_STRUCT && expr->members[i]->type == NODE_BRACED_EXPRESSION) {
+        if(members->at(i).type.flags & TYPE_ARRAY)
+        {
+            if(expr->members[i]->type != NODE_BRACED_EXPRESSION) {
+                ctx.errs_.raise_error(fmt("Element {} in braced expression is invalid.", i + 1), expr);
+                continue;
+            }
+
+            const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx);
+            if(!array_t) {
+                ctx.errs_.raise_error(fmt("Element {} in braced expression is invalid.", i + 1), expr);
+                continue;
+            }
+
+            if(!are_array_types_equivalent(members->at(i).type, *array_t)) {
+                ctx.errs_.raise_error(fmt("Element {} in braced expression: array of type {} is not equivalent to {}.",
+                    i + 1, typedata_to_str_msg(*array_t), typedata_to_str_msg(members->at(i).type)), expr);
+            }
+            continue;
+        }
+
+        if(members->at(i).type.kind == TYPE_KIND_STRUCT && expr->members[i]->type == NODE_BRACED_EXPRESSION) {
             assign_bracedexpr_to_struct((*members)[i].type, dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx);
             continue;
         }
 
         const auto element_t = visit_node(expr->members[i], ctx);
         if(!element_t) {
-            ctx.raise_error(fmt("Could not deduce type of element {} in braced expression.", i + 1), expr->members[i]->pos);
+            ctx.errs_.raise_error(fmt("Could not deduce type of element {} in braced expression.", i + 1), expr);
             continue;
         }
 
-        if(!is_type_coercion_permissible((*members)[i].type, *element_t)) {
-            ctx.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
+        if(!is_type_coercion_permissible(members->at(i).type, *element_t)) {
+            ctx.errs_.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
                 i + 1,
-                typedata_to_str_msg((*members)[i].type),
+                typedata_to_str_msg(members->at(i).type),
                 typedata_to_str_msg(*element_t)),
-                expr->members[i]->pos
+                expr
             );
         }
     }

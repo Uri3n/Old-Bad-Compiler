@@ -1,23 +1,6 @@
+//@include "test2.txt";
 
-compose Array {
-  z : u64 = 0;
-  get_new :: proc(self : Array^) -> Array^ {
-    
-  }  
-}
-
-compose Array 
-change_length :: proc(self: Array^, length :: u64, msg : i8^) -> bool {
-    self.length = length;
-}
-
-
-struct Array {
-  length : u64;
-  buffer : void^;
-}
-
-myvar : Array;
-myvar.length = 100;
-
-second := myvar.change_length(300, "test");
+myvar : i32 = 3;
+idk := myvar % 20;
+myptr : i8^ = cast(&myvar, i8);
+++myptr;

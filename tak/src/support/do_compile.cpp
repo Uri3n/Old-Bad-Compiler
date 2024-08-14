@@ -6,54 +6,57 @@
 #include <lexer.hpp>
 #include <parser.hpp>
 #include <checker.hpp>
-#include <exception>
+#include <postparser.hpp>
+#include <codegen.hpp>
 
 using namespace tak;
 
 
 static bool
-check_leftover_placeholders(Parser& parser, Lexer& lexer) {
+get_next_include(Parser& parser, Lexer& lexer) {
 
-    bool state = true;
-    static constexpr std::string_view msg = "Failed to resolve {} \"{}\", first usage is here.";
+    const auto next_include = std::find_if(parser.included_files_.begin(), parser.included_files_.end(), [](const IncludedFile& f) {
+        return f.state == INCLUDE_STATE_PENDING;
+    });
 
-    for(const auto &[_, sym] : parser.sym_table_) {
-        if(sym.flags & SYM_PLACEHOLDER) {
-            state = false;
-            lexer.raise_error(fmt(msg, "symbol", sym.name), sym.src_pos, sym.line_number);
-        }
+    if(next_include == parser.included_files_.end()) {
+        return false;
     }
 
-    for(const auto &[name, type] : parser.type_table_) {
-        if(type.is_placeholder) {
-            state = false;
-            lexer.raise_error(fmt(msg, "type", name), type.pos_first_used, type.line_first_used);
-        }
+    if(!lexer.init(next_include->name)) {
+        return false;
     }
 
-    return state;
-}
+    next_include->state = INCLUDE_STATE_DONE;
+    return true;
+ }
+
 
 static bool
 do_parse(Parser& parser, Lexer& lexer) {
 
     AstNode* toplevel_decl = nullptr;
-
-    if(parser.scope_stack_.empty()) {
-        parser.push_scope(); // global scope
+    if(parser.tbl_.scope_stack_.empty()) {
+        parser.tbl_.push_scope(); // global scope
     }
 
     do {
-        toplevel_decl = parse_expression(parser, lexer, false);
-        if(toplevel_decl == nullptr) {
-            break;
+        while(true) {
+            toplevel_decl = parse_expression(parser, lexer, false);
+            if(toplevel_decl == nullptr) {
+                break;
+            }
+            // TODO: verify valid at toplevel
+            parser.toplevel_decls_.emplace_back(toplevel_decl);
         }
-        // TODO: verify valid at toplevel
-        parser.toplevel_decls_.emplace_back(toplevel_decl);
-    } while(true);
 
-    parser.pop_scope();
-    if(lexer.current() != TOKEN_END_OF_FILE || !check_leftover_placeholders(parser, lexer)) {
+        if(lexer.current() != TOKEN_END_OF_FILE) {
+            return false;
+        }
+
+    } while(get_next_include(parser, lexer));
+
+    if(!postparse_verify(parser, lexer)) {
         return false;
     }
 
@@ -61,18 +64,19 @@ do_parse(Parser& parser, Lexer& lexer) {
 }
 
 static bool
-do_check(Parser& parser, Lexer& lexer) {
+do_check(Parser& parser, const std::string& original_file_name) {
 
-    CheckerContext ctx(lexer, parser);
+    CheckerContext ctx(parser.tbl_);
     for(const auto& decl : parser.toplevel_decls_) {
         if(NODE_NEEDS_VISITING(decl->type)) {
             visit_node(decl, ctx);
         }
     }
 
-    if(ctx.error_count_ > 0) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("\n{}: BUILD FAILED", lexer.source_file_name_);
-        print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("Finished with {} errors, {} warnings.", ctx.error_count_, ctx.warning_count_);
+    ctx.errs_.emit();
+    if(ctx.errs_.failed()) {
+        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("\n{}: BUILD FAILED", original_file_name);
+        print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("Finished with {} errors, {} warnings.", ctx.errs_.error_count_, ctx.errs_.warning_count_);
         return false;
     }
 
@@ -86,10 +90,19 @@ do_check(Parser& parser, Lexer& lexer) {
 }
 
 static bool
+do_codegen(Parser& parser, const std::string& llvm_mod_name) {
+
+    llvm::LLVMContext ctx;
+    llvm::Module(llvm_mod_name, ctx);
+
+    return true;
+}
+
+static bool
 do_create_ast(Parser& parser, const std::string& source_file_name) {
 
     Lexer lexer;
-    return lexer.init(source_file_name) && do_parse(parser, lexer) && do_check(parser, lexer);
+    return lexer.init(source_file_name) && do_parse(parser, lexer) && do_check(parser, source_file_name);
 }
 
 bool
@@ -97,5 +110,6 @@ do_compile(const std::string& source_file_name) {
 
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
+
     return true;
 }

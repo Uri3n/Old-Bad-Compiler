@@ -23,7 +23,6 @@ namespace tak {
 
     class Lexer {
     public:
-
         typedef void (*token_func)(Lexer& lxr);
 
         std::vector<char>   src_;
@@ -44,10 +43,14 @@ namespace tak {
         bool   is_current_utf8_begin();
         void   skip_utf8_sequence();
 
-        void   _raise_error_impl(const std::string& message, size_t file_position, uint32_t line);
+        void   _raise_error_impl(const std::string& message, size_t file_position, uint32_t line, bool warning = false);
         void   raise_error(const std::string& message);
         void   raise_error(const std::string& message, size_t file_position, uint32_t line);
         void   raise_error(const std::string& message, size_t file_position);
+        void   raise_warning(const std::string& message);
+        void   raise_warning(const std::string& message, size_t file_position, uint32_t line);
+        void   raise_warning(const std::string& message, size_t file_position);
+
 
         bool   init(const std::string& file_name);
 
@@ -87,6 +90,9 @@ namespace tak {
 
         static Token token_hex_literal(Lexer& lxr);
         static Token token_numeric_literal(Lexer& lxr);
+
+        Lexer(const Lexer&)            = delete;
+        Lexer& operator=(const Lexer&) = delete;
 
         ~Lexer() = default;
         Lexer()  = default;

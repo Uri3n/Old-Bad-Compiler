@@ -45,10 +45,10 @@ namespace tak {
         NODE_ENUM_DEFINITION,
         NODE_SUBSCRIPT,
         NODE_NAMESPACEDECL,
-        NODE_COMPOSEDECL,
         NODE_CAST,
         NODE_TYPE_ALIAS,
         NODE_MEMBER_ACCESS,
+        NODE_INCLUDE_STMT,
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,10 +56,17 @@ namespace tak {
     struct AstNode {
         node_t                   type   = NODE_NONE;
         std::optional<AstNode*>  parent = std::nullopt;
-        size_t                   pos    = 0;
+        std::string file;
+        size_t      src_pos = 0;
+        uint32_t    line    = 1;
 
         virtual ~AstNode() = default;
-        explicit AstNode(const node_t type) : type(type) {}
+        explicit AstNode(
+            const node_t type,
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : type(type), file(file), src_pos(src_pos), line(line) {}
     };
 
     struct AstSingletonLiteral final : AstNode {
@@ -67,14 +74,22 @@ namespace tak {
         token_t     literal_type = TOKEN_NONE;
 
         ~AstSingletonLiteral() override = default;
-        AstSingletonLiteral() : AstNode(NODE_SINGLETON_LITERAL) {}
+        AstSingletonLiteral(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_SINGLETON_LITERAL, src_pos, line, file) {}
     };
 
     struct AstBracedExpression final : AstNode {
         std::vector<AstNode*> members;
 
         ~AstBracedExpression() override;
-        AstBracedExpression() : AstNode(NODE_BRACED_EXPRESSION) {}
+        AstBracedExpression(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_BRACED_EXPRESSION, src_pos, line, file) {}
     };
 
     struct AstBinexpr final : AstNode {
@@ -83,7 +98,11 @@ namespace tak {
         AstNode* right_op  = nullptr;
 
         ~AstBinexpr() override;
-        AstBinexpr() : AstNode(NODE_BINEXPR) {}
+        AstBinexpr(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_BINEXPR, src_pos, line, file) {}
     };
 
     struct AstIf final : AstNode {
@@ -91,14 +110,22 @@ namespace tak {
         AstNode*              condition = nullptr;
 
         ~AstIf() override;
-        AstIf() : AstNode(NODE_IF) {}
+        AstIf(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_IF, src_pos, line, file) {}
     };
 
     struct AstElse final : AstNode {
         std::vector<AstNode*> body;
 
         ~AstElse() override;
-        AstElse() : AstNode(NODE_ELSE) {}
+        AstElse(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_ELSE, src_pos, line, file) {}
     };
 
     struct AstBranch final : AstNode {
@@ -106,7 +133,11 @@ namespace tak {
         std::optional<AstElse*> _else = std::nullopt;     // can be null!
 
         ~AstBranch() override;
-        AstBranch() : AstNode(NODE_BRANCH) {}
+        AstBranch(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_BRANCH, src_pos, line, file) {}
     };
 
     struct AstCase final : AstNode {
@@ -115,14 +146,22 @@ namespace tak {
         std::vector<AstNode*> body;
 
         ~AstCase() override;
-        AstCase() : AstNode(NODE_CASE) {}
+        AstCase(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_CASE, src_pos, line, file) {}
     };
 
     struct AstDefault final : AstNode {                  // default case in switches.
         std::vector<AstNode*> body;
 
         ~AstDefault() override;
-        AstDefault() : AstNode(NODE_DEFAULT) {}
+        AstDefault(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_DEFAULT, src_pos, line, file) {}
     };
 
     struct AstSwitch final : AstNode {
@@ -131,14 +170,22 @@ namespace tak {
         std::vector<AstCase*> cases;
 
         ~AstSwitch() override;
-        AstSwitch() : AstNode(NODE_SWITCH) {}
+        AstSwitch(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_SWITCH, src_pos, line, file) {}
     };
 
     struct AstIdentifier final : AstNode {
         uint32_t symbol_index = 0;                         // INVALID_SYMBOL_INDEX
 
         ~AstIdentifier() override = default;
-        AstIdentifier() : AstNode(NODE_IDENT) {}
+        AstIdentifier(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_IDENT, src_pos, line, file) {}
     };
 
     struct AstMemberAccess final : AstNode {
@@ -146,7 +193,11 @@ namespace tak {
         std::string path;
 
         ~AstMemberAccess() override;
-        AstMemberAccess() : AstNode(NODE_MEMBER_ACCESS) {}
+        AstMemberAccess(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_MEMBER_ACCESS, src_pos, line, file) {}
     };
 
     struct AstVardecl final : AstNode {
@@ -154,23 +205,35 @@ namespace tak {
         std::optional<AstNode*> init_value = std::nullopt; // Can be null!
 
         ~AstVardecl() override;
-        AstVardecl() : AstNode(NODE_VARDECL) {}
+        AstVardecl(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_VARDECL, src_pos, line, file) {}
     };
 
     struct AstProcdecl final : AstNode {
         AstIdentifier*           identifier = nullptr;
         std::vector<AstVardecl*> parameters;
-        std::vector<AstNode*>    body;
+        std::vector<AstNode*>    children;
 
         ~AstProcdecl() override;
-        AstProcdecl() : AstNode(NODE_PROCDECL) {}
+        AstProcdecl(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_PROCDECL, src_pos, line, file) {}
     };
 
     struct AstStructdef final : AstNode {
         std::string name;
 
         ~AstStructdef() override = default;
-        AstStructdef() : AstNode(NODE_STRUCT_DEFINITION) {}
+        AstStructdef(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_STRUCT_DEFINITION, src_pos, line, file) {}
     };
 
     struct AstCall final : AstNode {
@@ -178,7 +241,11 @@ namespace tak {
         std::vector<AstNode*> arguments;                   // Can be empty, if the procedure is "paramless".
 
         ~AstCall() override;
-        AstCall() : AstNode(NODE_CALL) {}
+        AstCall(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_CALL, src_pos, line, file) {}
     };
 
     struct AstFor final : AstNode {
@@ -188,7 +255,11 @@ namespace tak {
         std::optional<AstNode*> update    = std::nullopt;
 
         ~AstFor() override;
-        AstFor() : AstNode(NODE_FOR) {}
+        AstFor(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_FOR, src_pos, line, file) {}
     };
 
     struct AstUnaryexpr final : AstNode {
@@ -196,7 +267,11 @@ namespace tak {
         AstNode* operand    = nullptr;
 
         ~AstUnaryexpr() override;
-        AstUnaryexpr() : AstNode(NODE_UNARYEXPR) {}
+        AstUnaryexpr(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_UNARYEXPR, src_pos, line, file) {}
     };
 
     struct AstWhile final : AstNode {
@@ -204,21 +279,33 @@ namespace tak {
         std::vector<AstNode*> body;
 
         ~AstWhile() override;
-        AstWhile() : AstNode(NODE_WHILE) {}
+        AstWhile(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_WHILE, src_pos, line, file) {}
     };
 
     struct AstBlock final : AstNode {
         std::vector<AstNode*> children;
 
         ~AstBlock() override;
-        AstBlock() : AstNode(NODE_BLOCK) {}
+        AstBlock(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_BLOCK, src_pos, line, file) {}
     };
 
     struct AstDefer final : AstNode {
         AstNode* call = nullptr;                      // Should always be AstCall under the hood.
 
         ~AstDefer() override;
-        AstDefer() : AstNode(NODE_DEFER) {}
+        AstDefer(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_DEFER, src_pos, line, file) {}
     };
 
     struct AstDeferIf final : AstNode {
@@ -226,14 +313,22 @@ namespace tak {
         AstNode* condition = nullptr;
 
         ~AstDeferIf() override;
-        AstDeferIf() : AstNode(NODE_DEFER_IF) {}
+        AstDeferIf(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_DEFER_IF, src_pos, line, file) {}
     };
 
     struct AstSizeof final : AstNode {
         std::variant<TypeData, AstNode*> target = nullptr;
 
         ~AstSizeof() override;
-        AstSizeof() : AstNode(NODE_SIZEOF) {}
+        AstSizeof(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_SIZEOF, src_pos, line, file) {}
     };
 
     struct AstDoWhile final : AstNode {
@@ -241,7 +336,11 @@ namespace tak {
         std::vector<AstNode*> body;
 
         ~AstDoWhile() override;
-        AstDoWhile() : AstNode(NODE_DOWHILE) {}
+        AstDoWhile(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_DOWHILE, src_pos, line, file) {}
     };
 
     struct AstSubscript final : AstNode {
@@ -249,7 +348,11 @@ namespace tak {
         AstNode* value   = nullptr;                   // The index value.
 
         ~AstSubscript() override;
-        AstSubscript() : AstNode(NODE_SUBSCRIPT) {}
+        AstSubscript(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_SUBSCRIPT, src_pos, line, file) {}
     };
 
     struct AstNamespaceDecl final : AstNode {
@@ -257,15 +360,11 @@ namespace tak {
         std::vector<AstNode*>  children;
 
         ~AstNamespaceDecl() override;
-        AstNamespaceDecl() : AstNode(NODE_NAMESPACEDECL) {}
-    };
-
-    struct AstComposeDecl final : AstNode {
-        std::string            type_name;
-        std::vector<AstNode*>  children;
-
-        ~AstComposeDecl() override;
-        AstComposeDecl() : AstNode(NODE_COMPOSEDECL) {}
+        AstNamespaceDecl(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_NAMESPACEDECL, src_pos, line, file) {}
     };
 
     struct AstCast final : AstNode {
@@ -273,21 +372,44 @@ namespace tak {
         TypeData type;
 
         ~AstCast() override;
-        AstCast() : AstNode(NODE_CAST) {}
+        AstCast(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_CAST, src_pos, line, file) {}
     };
 
     struct AstRet final : AstNode {
         std::optional<AstNode*> value = std::nullopt; // can be null!
 
         ~AstRet() override;
-        AstRet() : AstNode(NODE_RET) {}
+        AstRet(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_RET, src_pos, line, file) {}
     };
 
     struct AstTypeAlias final : AstNode {
         std::string name;
 
         ~AstTypeAlias() override = default;
-        AstTypeAlias() : AstNode(NODE_TYPE_ALIAS) {}
+        AstTypeAlias(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_TYPE_ALIAS, src_pos, line, file) {}
+    };
+
+    struct AstIncludeStmt final : AstNode {
+        std::string name;
+
+        ~AstIncludeStmt() override = default;
+        AstIncludeStmt(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_INCLUDE_STMT, src_pos, line, file) {}
     };
 
     struct AstEnumdef final : AstNode {
@@ -295,17 +417,29 @@ namespace tak {
         AstTypeAlias*     alias      = nullptr;
 
         ~AstEnumdef() override;
-        AstEnumdef() : AstNode(NODE_ENUM_DEFINITION) {}
+        AstEnumdef(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_ENUM_DEFINITION, src_pos, line, file) {}
     };
 
     struct AstCont final : AstNode {
         ~AstCont() override = default;
-        AstCont() : AstNode(NODE_CONT) {}
+        AstCont(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_CONT, src_pos, line, file) {}
     };
 
     struct AstBrk final : AstNode {
         ~AstBrk() override = default;
-        AstBrk() : AstNode(NODE_BRK) {}
+        AstBrk(
+            const size_t src_pos,
+            const uint32_t line,
+            const std::string& file
+        ) : AstNode(NODE_BRK, src_pos, line, file) {}
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

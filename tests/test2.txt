@@ -1,5 +1,6 @@
 
-
-@callconv "C" proc1 :: proc(ting: bool) -> void^ {
-  ret nullptr;
+struct bar {
+   mem1 : u8^;
+   mem2: i32;
 }
+

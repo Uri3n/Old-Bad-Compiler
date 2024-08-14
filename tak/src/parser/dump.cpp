@@ -57,9 +57,8 @@ static void
 display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t depth, tak::Parser& _) {
 
     const auto* procdecl = dynamic_cast<tak::AstProcdecl*>(node);
-
     if(procdecl == nullptr) {
-        node_title += " !! INVALID NODE TYPE";
+        node_title += "(ProcDecl) !! INVALID NODE TYPE";
         tak::print("{}", node_title);
         return;
     }
@@ -68,7 +67,7 @@ display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t dept
     tak::print("{}Procedure Declaration", node_title);
     display_node_data(procdecl->identifier, depth + 1, _);
 
-    if(!procdecl->parameters.empty() || !procdecl->body.empty()) {
+    if(!procdecl->parameters.empty() || !procdecl->children.empty()) {
         node_title.insert(0, "     ");
         if(!depth) {
             node_title += "|- ";
@@ -84,9 +83,9 @@ display_node_procdecl(tak::AstNode* node, std::string& node_title, uint32_t dept
         }
     }
 
-    if(!procdecl->body.empty()) {
+    if(!procdecl->children.empty()) {
         tak::print("{}Procedure Body", node_title);
-        for(tak::AstNode* child : procdecl->body) {
+        for(tak::AstNode* child : procdecl->children) {
             display_node_data(child, depth + 1, _);
         }
     }
@@ -138,7 +137,7 @@ display_node_identifier(tak::AstNode* node, std::string& node_title, tak::Parser
         return;
     }
 
-    const tak::Symbol* sym_ptr = parser.lookup_unique_symbol(ident->symbol_index);
+    const tak::Symbol* sym_ptr = parser.tbl_.lookup_unique_symbol(ident->symbol_index);
     if(sym_ptr == nullptr) {
         node_title += tak::fmt("(Ident) (Sym Index {}) !! NOT IN SYMBOL TABLE", ident->symbol_index);
         tak::print("{}", node_title);
@@ -579,7 +578,22 @@ display_node_type_alias(tak::AstNode* node, const std::string& node_title, tak::
     tak::print("{}{}: Type Alias Definition, Expands To {}",
         node_title,
         alias->name,
-        typedata_to_str_msg(parser.lookup_type_alias(alias->name))
+        typedata_to_str_msg(parser.tbl_.lookup_type_alias(alias->name))
+    );
+}
+
+static void
+display_node_include_stmt(tak::AstNode* node, const std::string& node_title) {
+
+    const auto* include = dynamic_cast<tak::AstIncludeStmt*>(node);
+    if(include == nullptr) {
+        tak::print("{} (Include Statement) !! INVALID NODE TYPE", node_title);
+        return;
+    }
+
+    tak::print("{}@Include: {}",
+        node_title,
+        include->name
     );
 }
 
@@ -616,21 +630,6 @@ display_node_sizeof(tak::AstNode* node, std::string& node_title, uint32_t depth,
     }
     else {
         display_fake_node("?? Bad variant type", node_title, depth);
-    }
-}
-
-static void
-display_node_composedecl(tak::AstNode* node, const std::string& node_title, const uint32_t depth, tak::Parser& _) {
-
-    const auto* compose = dynamic_cast<tak::AstComposeDecl*>(node);
-    if(compose == nullptr) {
-        tak::print("{} (Type Alias Definition) !! INVALID NODE TYPE", node_title);
-        return;
-    }
-
-    tak::print("{}Compose Block (For Type {})", node_title, compose->type_name);
-    for(tak::AstNode* child : compose->children) {
-        display_node_data(child, depth + 1, _);
     }
 }
 
@@ -673,7 +672,6 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
         case NODE_FOR:                display_node_for(node, node_title, depth, parser); break;
         case NODE_SUBSCRIPT:          display_node_subscript(node, node_title, depth, parser); break;
         case NODE_NAMESPACEDECL:      display_node_namespacedecl(node, node_title, depth, parser); break;
-        case NODE_COMPOSEDECL:        display_node_composedecl(node, node_title, depth, parser); break;
         case NODE_BLOCK:              display_node_block(node, node_title, depth, parser); break;
         case NODE_DOWHILE:            display_node_dowhile(node, node_title, depth,parser); break;
         case NODE_CAST:               display_node_cast(node, node_title, depth, parser); break;
@@ -683,6 +681,7 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
         case NODE_DEFER_IF:           display_node_defer_if(node, node_title, depth, parser); break;
         case NODE_SIZEOF:             display_node_sizeof(node, node_title, depth, parser); break;
         case NODE_MEMBER_ACCESS:      display_node_member_access(node, node_title, depth, parser); break;
+        case NODE_INCLUDE_STMT:       display_node_include_stmt(node, node_title); break;
 
         case NODE_NONE:
             print("{}None", node_title);                            // Shouldn't ever happen...
@@ -697,7 +696,7 @@ tak::display_node_data(AstNode* node, const uint32_t depth, Parser& parser) {
 void
 tak::Parser::dump_nodes() {
 
-    print<TFG_NONE, TBG_NONE, TSTYLE_UNDERLINE | TSTYLE_BOLD>("-- ABSTRACT SYNTAX TREE -- ");
+    bold_underline("-- ABSTRACT SYNTAX TREE -- ");
     for(const auto node : toplevel_decls_)
         display_node_data(node, 0, *this);
 
@@ -707,18 +706,18 @@ tak::Parser::dump_nodes() {
 void
 tak::Parser::dump_types() {
 
-    if(type_table_.empty()) {
+    if(tbl_.type_table_.empty()) {
         print("No user-defined types exist.");
         return;
     }
 
-    print<TFG_NONE, TBG_NONE, TSTYLE_UNDERLINE | TSTYLE_BOLD>(" -- USER DEFINED TYPES -- ");
-
-    for(const auto &[name, type] : type_table_) {
-        print("~ {}{} ~\n  Members:", name, type.is_placeholder ? " (Placeholder)" : "");
-        for(size_t i = 0; i < type.members.size(); ++i) {
-            print("    {}. {}{}", i + 1, type.members[i].name, type.members[i].type.sym_ref ? " (Method, Symbol Ref)" : "");
-            print("{}", format_type_data(type.members[i].type, 1));
+    bold_underline(" -- USER DEFINED TYPES -- ");
+    for(const auto &[name, type] : tbl_.type_table_) {
+        bold("~ {}{} ~", name, type->flags & ENTITY_PLACEHOLDER ? " (Placeholder Type)" : "");
+        print("  Members:");
+        for(size_t i = 0; i < type->members.size(); ++i) {
+            print("    {}. {}", i + 1, type->members[i].name);
+            print("{}", format_type_data(type->members[i].type, 1));
         }
     }
 
@@ -751,6 +750,7 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
         if(type.flags & TYPE_ARRAY)         _flags += "ARRAY | ";
         if(type.flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
         if(type.flags & TYPE_UNINITIALIZED) _flags += "UNINITIALIZED | ";
+        if(type.flags & TYPE_NON_CONCRETE)  _flags += "NON_CONCRETE | ";
         if(type.flags & TYPE_DEFAULT_INIT)  _flags += "DEFAULT INITIALIZED | ";
         if(type.flags & TYPE_INFERRED)      _flags += "INFERRED";
 
@@ -787,7 +787,6 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
         if(type.return_type != nullptr) {
             return typedata_to_str_msg(*type.return_type);
         }
-
         return "N/A";
     }();
 
@@ -801,7 +800,6 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
             if(_params.size() > 2 && _params[_params.size()-2] == ',') {
                 _params.erase(_params.size()-2);
             }
-
             return _params;
         }
 
@@ -845,22 +843,26 @@ void
 tak::Parser::dump_symbols() {
 
     static constexpr std::string_view fmt_sym =
-        "~ {} ~"
+        "~ {}{} ~"
         "\n - Symbol Index:  {}"
         "\n - Line Number:   {}"
         "\n - File Position: {}"
+        "\n - Namespace:     {}"
         "\n - Symbol Flags:  {}"
         "\n{}"; //< type data
 
-    print<TFG_NONE, TBG_NONE, TSTYLE_BOLD | TSTYLE_UNDERLINE>(" -- SYMBOL TABLE -- ");
-    for(const auto &[index, sym] : sym_table_) {
+    bold_underline(" -- SYMBOL TABLE -- ");
+
+    for(const auto &[index, sym] : tbl_.sym_table_) {
 
         const std::string symflags = [&]() -> std::string {
             std::string _symflags;
-            if(sym.flags & SYM_PLACEHOLDER) _symflags += "PLACEHOLDER | ";
-            if(sym.flags & SYM_GLOBAL)      _symflags += "GLOBAL | ";
-            if(sym.flags & SYM_FOREIGN)     _symflags += "FOREIGN | ";
-            if(sym.flags & SYM_CALLCONV_C)  _symflags += "CALLCONV_C | ";
+            if(sym->flags & ENTITY_PLACEHOLDER) _symflags += "PLACEHOLDER | ";
+            if(sym->flags & ENTITY_GLOBAL)      _symflags += "GLOBAL | ";
+            if(sym->flags & ENTITY_FOREIGN)     _symflags += "FOREIGN | ";
+            if(sym->flags & ENTITY_CALLCONV_C)  _symflags += "CALLCONV_C | ";
+            if(sym->flags & ENTITY_GENPERM)     _symflags += "GENERIC_PERMUTATION |";
+            if(sym->flags & ENTITY_GENBASE)     _symflags += "GENERIC_BASE | ";
 
             if(_symflags.empty()) {
                 return "None";
@@ -869,13 +871,33 @@ tak::Parser::dump_symbols() {
             return _symflags;
         }();
 
+        const std::string generic_names = [&]() -> std::string {
+            if(sym->generic_type_names.empty()) {
+                return "";
+            }
+
+            std::string _generic_names = "[";
+            for(const auto& name : sym->generic_type_names) {
+                _generic_names += name + ',';
+            }
+
+            if(!_generic_names.empty() && _generic_names.back() == ',') {
+                _generic_names.erase(_generic_names.size()-1);
+            }
+
+            _generic_names += ']';
+            return _generic_names;
+        }();
+
         print(fmt_sym,
-            sym.name,
-            sym.symbol_index,
-            sym.line_number,
-            sym.src_pos,
+            sym->name,
+            generic_names,
+            sym->symbol_index,
+            sym->line_number,
+            sym->src_pos,
+            sym->_namespace,
             symflags,
-            format_type_data(sym.type)
+            format_type_data(sym->type)
         );
     }
 
