@@ -26,6 +26,7 @@
     X(RSQUARE_BRACKET, "]")          \
     X(COMMA, ",")                    \
     X(DOT, ".")                      \
+    X(THREE_DOTS, "...")             \
     X(QUESTION_MARK, "?")            \
     X(POUND, "#")                    \
     X(AT, "@")                       \

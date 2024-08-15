@@ -6,28 +6,16 @@
 
 
 static bool
-is_type_invalid_as_member(const std::string& struct_name, const tak::TypeData& type) {
-
-    const auto* name_ptr = std::get_if<std::string>(&type.name);
-    if(name_ptr != nullptr && *name_ptr == struct_name) {
-        return true;
-    }
-
+is_type_invalid_as_member(const tak::TypeData& type) {
     for(const uint32_t length : type.array_lengths) {
-        if(length == 0) return true; // inferred size
+        if(length == 0) return true; // inferred size, disallowed
     }
 
     return type.kind == tak::TYPE_KIND_PROCEDURE && type.pointer_depth < 1;
 }
 
-
-//
-// TODO: this doesn't actually work, because substructures can contain the struct and it won't catch it.
-//       figure this out later in the postparsing step...
-//
-
 static bool
-member_already_exists(const tak::UserType* type, const std::string& member_name) {
+member_name_already_exists(const tak::UserType* type, const std::string& member_name) {
     const auto mem_exists = std::find_if(type->members.begin(), type->members.end(), [&](const tak::MemberData& member) {
         return member.name == member_name;
     });
@@ -159,12 +147,12 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
         }
 
         else if(const auto type = parse_type(parser, lxr)) {
-            if(is_type_invalid_as_member(type_name, *type)) {
+            if(is_type_invalid_as_member(*type)) {
                 lxr.raise_error("Invalid type for a struct member.", curr_pos, line);
                 return nullptr;
             }
 
-            if(member_already_exists(new_type, name)) {
+            if(member_name_already_exists(new_type, name)) {
                 lxr.raise_error("Member with this name already exists.", curr_pos, line);
                 return nullptr;
             }

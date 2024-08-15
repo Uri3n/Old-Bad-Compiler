@@ -26,27 +26,10 @@ handle_uncaught_exception() {
 
 
 int main() {
-
     std::set_terminate(handle_uncaught_exception);
     if(!do_compile(CURRENT_TEST)) {
         return EXIT_FAILURE;
     }
-
-    /*
-    Lexer lxr;
-    if(!lxr.init(CURRENT_TEST)) {
-        return EXIT_FAILURE;
-    }
-
-    do {
-        lxr.advance(1);
-        lexer_display_token_data(lxr.current());
-    } while(lxr.current() != TOKEN_END_OF_FILE && lxr.current() != TOKEN_ILLEGAL);
-
-    if(lxr.current() == TOKEN_ILLEGAL) {
-        lxr.raise_error("Illegal token!", lxr.current().src_pos);
-    }
-    */
 
     return EXIT_SUCCESS;
 }

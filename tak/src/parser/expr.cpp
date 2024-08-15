@@ -6,7 +6,7 @@
 
 
 tak::AstNode*
-tak::parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, const bool parse_single) {
+tak::parse_expression(Parser& parser, Lexer& lxr, const bool nocheck_term, const bool parse_single) {
 
     const auto  curr  = lxr.current();
     AstNode*    expr  = nullptr;
@@ -94,7 +94,7 @@ tak::parse_expression(Parser& parser, Lexer& lxr, const bool subexpression, cons
         }
     }
 
-    if(subexpression || parse_single) {
+    if(nocheck_term || parse_single) {
         state = true;
         return expr;
     }
@@ -645,7 +645,6 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
     if(binexpr->right_op == nullptr) {
         return nullptr;
     }
-
 
     binexpr->right_op->parent = binexpr;
     const auto right_t        = binexpr->right_op->type;

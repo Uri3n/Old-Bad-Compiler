@@ -49,13 +49,11 @@ tak::parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
         const size_t   curr_pos  = lxr.current().src_pos;
         const uint32_t curr_line = lxr.current().line;
 
-
         lxr.advance(1);
         node->init_value = parse_expression(parser, lxr, true);
         if(*(node->init_value) == nullptr) {
             return nullptr;
         }
-
 
         const auto subexpr_type = (*node->init_value)->type;
         if(!NODE_VALID_SUBEXPRESSION(subexpr_type)) {
@@ -65,11 +63,6 @@ tak::parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
 
         state = true;
         return node;
-    }
-
-
-    if(proc->flags & ENTITY_GLOBAL) {
-        proc->type.flags &= ~TYPE_UNINITIALIZED;
     }
 
     proc->type.flags |= TYPE_DEFAULT_INIT;
@@ -233,6 +226,17 @@ tak::parse_proc_signature_and_body(Symbol* proc, AstProcdecl* node, Parser& pars
     lxr.advance(1);
     while(lxr.current() != TOKEN_RPAREN)
     {
+        if(lxr.current() == TOKEN_THREE_DOTS) {
+            proc->type.flags |= TYPE_PROC_VARARGS;
+            if(lxr.peek(1) != TOKEN_RPAREN) {
+                lxr.raise_error("Expected ')' after variadic argument specifier.");
+                return false;
+            }
+
+            lxr.advance(1);
+            break;
+        }
+
         if(lxr.current() != TOKEN_IDENTIFIER) {
             lxr.raise_error("Expected procedure parameter.");
             return false;
@@ -434,7 +438,6 @@ tak::parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
         const size_t   curr_pos  = lxr.current().src_pos;
         const uint32_t curr_line = lxr.current().line;
 
-
         lxr.advance(1);
         node->init_value = parse_expression(parser, lxr, true);
         if(*(node->init_value) == nullptr) {
@@ -449,10 +452,6 @@ tak::parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
 
         state = true;
         return node;
-    }
-
-    if(var->flags & ENTITY_GLOBAL) {
-        var->type.flags &= ~TYPE_UNINITIALIZED;
     }
 
     var->type.flags |= TYPE_DEFAULT_INIT;
@@ -502,11 +501,6 @@ tak::parse_usertype_decl(Symbol* sym, Parser& parser, Lexer& lxr) {
 
         (*node->init_value)->parent = node;
         return node;
-    }
-
-
-    if(sym->flags & ENTITY_GLOBAL) {
-        sym->type.flags &= ~TYPE_UNINITIALIZED;
     }
 
     sym->type.flags |= TYPE_DEFAULT_INIT;
@@ -612,10 +606,10 @@ tak::parse_decl(Parser& parser, Lexer& lxr) {
         if(replace != INVALID_SYMBOL_INDEX) {
             inferred_ptr              = parser.tbl_.lookup_unique_symbol(replace);
             inferred_ptr->type.kind   = TYPE_KIND_NONE;
-            inferred_ptr->type.flags  = typeflags | TYPE_INFERRED | TYPE_UNINITIALIZED;
+            inferred_ptr->type.flags  = typeflags | TYPE_INFERRED;
         } else {
             inferred_ptr = parser.tbl_.create_symbol(
-                name, lxr.source_file_name_, src_pos, line, TYPE_KIND_NONE, typeflags | TYPE_INFERRED | TYPE_UNINITIALIZED);
+                name, lxr.source_file_name_, src_pos, line, TYPE_KIND_NONE, typeflags | TYPE_INFERRED);
         }
 
         assert(inferred_ptr != nullptr);
@@ -647,7 +641,7 @@ tak::parse_decl(Parser& parser, Lexer& lxr) {
         proc_ptr->flags = symflags;
 
         if(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR) {
-            proc_ptr->type.flags |= TYPE_POINTER | TYPE_UNINITIALIZED;
+            proc_ptr->type.flags |= TYPE_POINTER;
             return parse_proc_ptr(proc_ptr, parser, lxr);
         }
 
@@ -662,10 +656,10 @@ tak::parse_decl(Parser& parser, Lexer& lxr) {
         if(replace != INVALID_SYMBOL_INDEX) {
             utype_ptr              = parser.tbl_.lookup_unique_symbol(replace);
             utype_ptr->type.kind   = TYPE_KIND_VARIABLE;
-            utype_ptr->type.flags  = typeflags | TYPE_UNINITIALIZED;
+            utype_ptr->type.flags  = typeflags;
         } else {
             utype_ptr = parser.tbl_.create_symbol(
-                name, lxr.source_file_name_, src_pos, line, TYPE_KIND_VARIABLE, typeflags | TYPE_UNINITIALIZED);
+                name, lxr.source_file_name_, src_pos, line, TYPE_KIND_VARIABLE, typeflags);
         }
 
         assert(utype_ptr != nullptr);
@@ -679,10 +673,10 @@ tak::parse_decl(Parser& parser, Lexer& lxr) {
     if(replace != INVALID_SYMBOL_INDEX) {
         var_ptr              = parser.tbl_.lookup_unique_symbol(replace);
         var_ptr->type.kind   = TYPE_KIND_VARIABLE;
-        var_ptr->type.flags  = typeflags | TYPE_UNINITIALIZED;
+        var_ptr->type.flags  = typeflags;
     } else {
         var_ptr = parser.tbl_.create_symbol(
-            name, lxr.source_file_name_, src_pos, line, TYPE_KIND_VARIABLE, typeflags | TYPE_UNINITIALIZED);
+            name, lxr.source_file_name_, src_pos, line, TYPE_KIND_VARIABLE, typeflags);
     }
 
     assert(var_ptr != nullptr);

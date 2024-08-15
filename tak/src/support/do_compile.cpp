@@ -92,10 +92,10 @@ do_check(Parser& parser, const std::string& original_file_name) {
 static bool
 do_codegen(Parser& parser, const std::string& llvm_mod_name) {
 
-    llvm::LLVMContext ctx;
-    llvm::Module(llvm_mod_name, ctx);
+    CodegenContext ctx(parser.tbl_, llvm_mod_name);
+    generate_struct_layouts(ctx);
 
-    return true;
+    return llvm_mod_name != "poopoo";
 }
 
 static bool
@@ -110,6 +110,7 @@ do_compile(const std::string& source_file_name) {
 
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
+    //if(!do_codegen(parser, source_file_name))    return false;
 
     return true;
 }

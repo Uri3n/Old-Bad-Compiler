@@ -54,7 +54,7 @@ namespace tak {
         TYPE_INFERRED       = 1ULL << 5,
         TYPE_NON_CONCRETE   = 1ULL << 6,
         TYPE_RVALUE         = 1ULL << 7,
-        TYPE_UNINITIALIZED  = 1ULL << 8,
+        TYPE_PROC_VARARGS   = 1ULL << 8,
     };
 
     enum entity_flags : uint32_t {
@@ -66,6 +66,7 @@ namespace tak {
         ENTITY_GENPERM         = 1UL << 4,
         ENTITY_GENBASE         = 1UL << 5,
         ENTITY_POSTP_NORECHECK = 1UL << 6,
+        ENTITY_INTERNAL        = 1UL << 7,
     };
 
     enum type_kind_t : uint8_t {

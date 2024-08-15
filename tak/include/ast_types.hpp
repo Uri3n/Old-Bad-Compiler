@@ -13,6 +13,47 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define NODE_VALID_SUBEXPRESSION(node_type)        \
+ (node_type == tak::NODE_CALL                      \
+    || node_type == tak::NODE_IDENT                \
+    || node_type == tak::NODE_BINEXPR              \
+    || node_type == tak::NODE_SINGLETON_LITERAL    \
+    || node_type == tak::NODE_UNARYEXPR            \
+    || node_type == tak::NODE_BRACED_EXPRESSION    \
+    || node_type == tak::NODE_CAST                 \
+    || node_type == tak::NODE_SUBSCRIPT            \
+    || node_type == tak::NODE_CAST                 \
+    || node_type == tak::NODE_MEMBER_ACCESS        \
+    || node_type == tak::NODE_SIZEOF               \
+)                                                  \
+
+#define NODE_VALID_AT_TOPLEVEL(node_type)          \
+   (node_type == tak::NODE_VARDECL                 \
+    || node_type == tak::NODE_STRUCT_DEFINITION    \
+    || node_type == tak::NODE_NAMESPACEDECL        \
+    || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_INCLUDE_STMT         \
+    || node_type == tak::NODE_ENUM_DEFINITION      \
+    || node_type == tak::NODE_TYPE_ALIAS           \
+)                                                  \
+
+#define NODE_EXPR_NEVER_NEEDS_TERMINAL(node_type)  \
+   (node_type == tak::NODE_PROCDECL                \
+    || node_type == tak::NODE_BRANCH               \
+    || node_type == tak::NODE_IF                   \
+    || node_type == tak::NODE_ELSE                 \
+    || node_type == tak::NODE_FOR                  \
+    || node_type == tak::NODE_WHILE                \
+    || node_type == tak::NODE_PROCDECL             \
+    || node_type == tak::NODE_SWITCH               \
+    || node_type == tak::NODE_NAMESPACEDECL        \
+    || node_type == tak::NODE_BLOCK                \
+    || node_type == tak::NODE_STRUCT_DEFINITION    \
+    || node_type == tak::NODE_ENUM_DEFINITION      \
+)                                                  \
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace tak {
 
     enum node_t : uint16_t {

@@ -147,23 +147,32 @@ tak::flip_sign(TypeData& type) {
 
 
 std::optional<tak::TypeData>
-tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx) {
+tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx, const bool only_literals) {
 
     assert(node != nullptr);
     if(node->members.empty()) {
         return std::nullopt;
     }
 
-    std::optional<TypeData> contained_t;
-    if(node->members[0]->type == NODE_BRACED_EXPRESSION) {
-        contained_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(node->members[0]), ctx);
-    } else {
-        contained_t = visit_node(node->members[0], ctx);
-    }
+    auto contained_t = [&]() -> std::optional<TypeData> {
+        if(node->members[0]->type == NODE_BRACED_EXPRESSION) {
+            return get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(node->members[0]), ctx, only_literals);
+        } else {
+            return visit_node(node->members[0], ctx);
+        }
+    }();
+
 
     if(!contained_t || is_type_invalid_in_inferred_context(*contained_t)) {
         return std::nullopt;
-    } if(contained_t->flags & TYPE_ARRAY && node->members[0]->type != NODE_BRACED_EXPRESSION) {
+    }
+
+    if(only_literals && !(contained_t->flags & TYPE_ARRAY) && node->members[0]->type != NODE_SINGLETON_LITERAL) {
+        ctx.errs_.raise_error("Only literals are permitted in this context.", node->members[0]);
+        return std::nullopt;
+    }
+
+    if(contained_t->flags & TYPE_ARRAY && node->members[0]->type != NODE_BRACED_EXPRESSION) {
         ctx.errs_.raise_error("Array type is invalid in this context.", node->members[0]);
         return std::nullopt;
     }
@@ -171,7 +180,7 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
 
     for(size_t i = 1; i < node->members.size(); i++) {
         if(node->members[i]->type == NODE_BRACED_EXPRESSION) {
-            const auto subarray_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(node->members[i]), ctx);
+            const auto subarray_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(node->members[i]), ctx, only_literals);
             if(!subarray_t) {
                 return std::nullopt;
             }
@@ -183,8 +192,15 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
             const auto element_t = visit_node(node->members[i], ctx);
             if(!element_t || !is_type_coercion_permissible(*contained_t, *element_t)) {
                 return std::nullopt;
-            } if(element_t->flags & TYPE_ARRAY) {
+            }
+
+            if(element_t->flags & TYPE_ARRAY) {
                 ctx.errs_.raise_error("Array type is invalid in this context.", node->members[i]);
+                return std::nullopt;
+            }
+
+            if(only_literals && node->members[i]->type != NODE_SINGLETON_LITERAL) {
+                ctx.errs_.raise_error("Only literals are permitted in this context.", node->members[i]);
                 return std::nullopt;
             }
         }
@@ -296,7 +312,7 @@ tak::get_struct_member_type_data(const std::string& member_path, const std::stri
 
 
 void
-tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx) {
+tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx, const bool only_literals) {
 
     assert(expr != nullptr);
     assert(type.kind == TYPE_KIND_STRUCT);
@@ -306,11 +322,8 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
         return;
     }
 
-    const std::string* name = std::get_if<std::string>(&type.name);
-    assert(name != nullptr);
-    std::vector<MemberData>* members = ctx.tbl_.lookup_type_members(*name);
-    assert(members != nullptr);
-
+    const std::string        name    = std::get<std::string>(type.name);
+    std::vector<MemberData>* members = ctx.tbl_.lookup_type_members(name);
 
     //
     // Validate that sizes are correct
@@ -340,7 +353,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
                 continue;
             }
 
-            const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx);
+            const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx, only_literals);
             if(!array_t) {
                 ctx.errs_.raise_error(fmt("Element {} in braced expression is invalid.", i + 1), expr);
                 continue;
@@ -354,7 +367,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
         }
 
         if(members->at(i).type.kind == TYPE_KIND_STRUCT && expr->members[i]->type == NODE_BRACED_EXPRESSION) {
-            assign_bracedexpr_to_struct((*members)[i].type, dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx);
+            assign_bracedexpr_to_struct((*members)[i].type, dynamic_cast<AstBracedExpression*>(expr->members[i]), ctx, only_literals);
             continue;
         }
 
@@ -364,13 +377,17 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
             continue;
         }
 
+        if(only_literals && expr->members[i]->type != NODE_SINGLETON_LITERAL) {
+            ctx.errs_.raise_error("Only literals are permitted in this context.", expr->members[i]);
+            continue;
+        }
+
         if(!is_type_coercion_permissible(members->at(i).type, *element_t)) {
             ctx.errs_.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
                 i + 1,
                 typedata_to_str_msg(members->at(i).type),
                 typedata_to_str_msg(*element_t)),
-                expr
-            );
+                expr->members[i]);
         }
     }
 }

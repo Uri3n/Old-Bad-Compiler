@@ -119,9 +119,10 @@ tak::typedata_to_str_msg(const TypeData& type, const bool include_qualifiers, co
             for(const auto& param : *type.parameters) {
                 buffer += typedata_to_str_msg(param) + ',';
             }
-
-            if(buffer.back() == ',') buffer.pop_back();
         }
+
+        if(type.flags & TYPE_PROC_VARARGS) buffer += "...";
+        if(buffer.back() == ',') buffer.pop_back();
 
         buffer += ')';
         buffer += " -> ";

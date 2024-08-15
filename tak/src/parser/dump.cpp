@@ -749,10 +749,10 @@ tak::format_type_data(const TypeData& type, const uint16_t num_tabs) {
         if(type.flags & TYPE_POINTER)       _flags += "POINTER | ";
         if(type.flags & TYPE_ARRAY)         _flags += "ARRAY | ";
         if(type.flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
-        if(type.flags & TYPE_UNINITIALIZED) _flags += "UNINITIALIZED | ";
         if(type.flags & TYPE_NON_CONCRETE)  _flags += "NON_CONCRETE | ";
         if(type.flags & TYPE_DEFAULT_INIT)  _flags += "DEFAULT INITIALIZED | ";
         if(type.flags & TYPE_INFERRED)      _flags += "INFERRED";
+        if(type.flags & TYPE_PROC_VARARGS)  _flags += "VARIADIC_ARGUMENTS | ";
 
         if(_flags.size() >= 2 && _flags[_flags.size()-2] == '|') {
             _flags.erase(_flags.size()-2);
@@ -860,6 +860,7 @@ tak::Parser::dump_symbols() {
             if(sym->flags & ENTITY_PLACEHOLDER) _symflags += "PLACEHOLDER | ";
             if(sym->flags & ENTITY_GLOBAL)      _symflags += "GLOBAL | ";
             if(sym->flags & ENTITY_FOREIGN)     _symflags += "FOREIGN | ";
+            if(sym->flags & ENTITY_INTERNAL)    _symflags += "INTERNAL | ";
             if(sym->flags & ENTITY_CALLCONV_C)  _symflags += "CALLCONV_C | ";
             if(sym->flags & ENTITY_GENPERM)     _symflags += "GENERIC_PERMUTATION |";
             if(sym->flags & ENTITY_GENBASE)     _symflags += "GENERIC_BASE | ";

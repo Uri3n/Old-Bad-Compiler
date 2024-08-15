@@ -17,7 +17,7 @@ tak::postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Pa
 
     perm->flags        = old->flags;
     perm->flags       &= ~ENTITY_GENBASE;
-    perm->type.flags  |= old->type.flags;
+    perm->type.flags  |= old->type.flags | ENTITY_INTERNAL;
     perm->src_pos      = old->src_pos;
     perm->line_number  = old->line_number;
     perm->file         = old->file;
@@ -27,6 +27,11 @@ tak::postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Pa
 
     if(old->file != lxr.source_file_name_) {
         assert(lxr.init(old->file));
+    }
+
+    if(old->flags & ENTITY_FOREIGN) {
+        lxr.raise_error("Generic procedures cannot be marked as external.", old->src_pos, old->line_number);
+        return false;
     }
 
     if(old->generic_type_names.size() != perm->type.parameters->size()) {

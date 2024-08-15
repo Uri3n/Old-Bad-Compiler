@@ -1,6 +1,22 @@
 //@include "test2.txt";
 
-myvar : i32 = 3;
-idk := myvar % 20;
-myptr : i8^ = cast(&myvar, i8);
-++myptr;
+struct bar {
+   mem1 : bool;
+   mem2 : i64;
+}
+
+struct foo {
+   mem1 : bool;
+   mem2 : i64[3];
+   mem3 : i32^^;
+}
+
+/*
+myfunc :: proc() -> void {
+    myvar = 4210;
+}
+*/
+
+@intern main :: proc() -> void {
+    
+}

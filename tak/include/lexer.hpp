@@ -35,7 +35,7 @@ namespace tak {
         Token& current();
         Token  peek(uint32_t amnt);
 
-        char   peek_char();
+        char   peek_char(uint32_t amnt = 1);
         char   current_char();
         void   advance_char(uint32_t amnt);
         void   advance_line();

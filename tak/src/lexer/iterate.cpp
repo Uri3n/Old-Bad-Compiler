@@ -17,12 +17,12 @@ tak::Lexer::advance_line() {
 }
 
 char
-tak::Lexer::peek_char() {
-    if(src_index_ + 1 >= src_.size()) {
+tak::Lexer::peek_char(const uint32_t amnt) {
+    if(src_index_ + amnt >= src_.size()) {
         return '\0';
     }
 
-    return src_[src_index_ + 1];
+    return src_[src_index_ + amnt];
 }
 
 bool

@@ -26,10 +26,27 @@ static auto visit_node_children(T node, tak::CheckerContext& ctx) -> std::option
 
 
 std::optional<tak::TypeData>
+tak::visit_procdecl(AstProcdecl* node, CheckerContext& ctx) {
+
+    assert(node != nullptr);
+    const auto* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
+
+    if(sym->flags & ENTITY_FOREIGN && sym->flags & ENTITY_INTERNAL) {
+        ctx.errs_.raise_error("Cannot create a procedure that is marked as both extern and intern.", node);
+    }
+
+    if(sym->flags & ENTITY_FOREIGN && !node->children.empty()) {
+        ctx.errs_.raise_error("Procedures marked as foreign should not have bodies defined here.", node);
+    }
+
+    return visit_node_children(node, ctx);
+}
+
+
+std::optional<tak::TypeData>
 tak::visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
     assert(node != nullptr);
-
     auto  left_t = visit_node(node->left_op, ctx);
     auto right_t = visit_node(node->right_op, ctx);
 
@@ -40,7 +57,7 @@ tak::visit_binexpr(AstBinexpr* node, CheckerContext& ctx) {
         && can_operator_be_applied_to(TOKEN_VALUE_ASSIGNMENT, *left_t)
     ) {
         assign_bracedexpr_to_struct(*left_t, dynamic_cast<AstBracedExpression*>(node->right_op), ctx);
-        left_t->flags |=  TYPE_RVALUE;
+        left_t->flags |= TYPE_RVALUE;
         return *left_t;
     }
 
@@ -185,7 +202,7 @@ tak::visit_identifier(const AstIdentifier* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    if(sym->type.flags & TYPE_INFERRED || sym->type.flags & TYPE_UNINITIALIZED) {
+    if(sym->type.flags & TYPE_INFERRED) {
         ctx.errs_.raise_error(fmt("Referencing uninitialized or invalid symbol \"{}\".", sym->name), node);
         return std::nullopt;
     }
@@ -238,14 +255,6 @@ tak::visit_singleton_literal(AstSingletonLiteral* node, CheckerContext& ctx) {
 }
 
 
-static void
-initialize_symbol(tak::Symbol* sym) {
-    if(sym->type.flags & tak::TYPE_UNINITIALIZED) {
-        sym->type.flags &= ~tak::TYPE_UNINITIALIZED;
-    }
-}
-
-
 std::optional<tak::TypeData>
 tak::checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
 
@@ -258,7 +267,7 @@ tak::checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContex
         return std::nullopt;
     }
 
-    const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx);
+    const auto array_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx, sym->flags & ENTITY_GLOBAL);
     if(!array_t) {
         ctx.errs_.raise_error("Could not deduce type of righthand expression.", decl);
         return std::nullopt;
@@ -277,7 +286,6 @@ tak::checker_handle_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContex
         sym->type.array_lengths[i] = array_t->array_lengths[i];
     }
 
-    initialize_symbol(sym);
     return sym->type;
 }
 
@@ -290,6 +298,7 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     assert(decl->init_value.has_value());
 
     std::optional<TypeData> assigned_t;
+    const bool only_lits = sym->flags & ENTITY_GLOBAL;
 
 
     //
@@ -297,13 +306,18 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     //
 
     if((*decl->init_value)->type == NODE_BRACED_EXPRESSION) {
-        assigned_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx);
+        assigned_t = get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(*decl->init_value), ctx, only_lits);
     } else {
         assigned_t = visit_node(*decl->init_value, ctx);
     }
 
     if(!assigned_t) {
         ctx.errs_.raise_error(fmt("Expression assigned to \"{}\" does not have a type.", sym->name), decl);
+        return std::nullopt;
+    }
+
+    if(only_lits && !(assigned_t->flags & TYPE_ARRAY) && (*decl->init_value)->type != NODE_SINGLETON_LITERAL) {
+        ctx.errs_.raise_error("Only literals are permitted in this context.", *decl->init_value);
         return std::nullopt;
     }
 
@@ -319,11 +333,9 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     //
 
     const var_t* is_prim  = std::get_if<var_t>(&assigned_t->name);
-    sym->type.flags      &= ~TYPE_UNINITIALIZED;
-    sym->type.flags      &= ~TYPE_INFERRED;
 
     if(is_prim != nullptr
-        && assigned_t->flags & TYPE_NON_CONCRETE
+        && assigned_t->flags   & TYPE_NON_CONCRETE
         && !(assigned_t->flags & TYPE_POINTER)
         && (PRIMITIVE_IS_INTEGRAL(*is_prim) || PRIMITIVE_IS_FLOAT(*is_prim))
     ){
@@ -341,6 +353,7 @@ tak::checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerCo
     // The only exception is when a const i8^ (string lit) is being assigned to the inferred declaration.
     //
 
+    sym->type.flags   &= ~TYPE_INFERRED;
     assigned_t->flags &= ~TYPE_CONSTANT;
     assigned_t->flags &= ~TYPE_NON_CONCRETE;
     assigned_t->flags &= ~TYPE_RVALUE;
@@ -360,10 +373,17 @@ tak::visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
     assert(node->identifier != nullptr);
 
     auto* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
-    assert(sym != nullptr);
+
+
+    if(sym->flags & ENTITY_INTERNAL && sym->flags & ENTITY_FOREIGN) {
+        ctx.errs_.raise_error("Variable is marked both as foreign and internal.", node);
+    }
+
+    if(sym->flags & ENTITY_FOREIGN && node->init_value.has_value()) {
+        ctx.errs_.raise_error("Declarations of foreign variables cannot be initialized.", node);
+    }
 
     if(!node->init_value) {
-        initialize_symbol(sym);
         assert(!(sym->type.flags & TYPE_INFERRED));
         if(sym->type.flags & TYPE_ARRAY && array_has_inferred_sizes(sym->type)) {
             ctx.errs_.raise_error("Arrays with inferred sizes (e.g. '[]') must be assigned when created.", node);
@@ -376,11 +396,14 @@ tak::visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
 
     if(sym->type.flags & TYPE_INFERRED) {
         return checker_handle_inferred_decl(sym, node, ctx);
-    } if(sym->type.flags & TYPE_ARRAY) {
+    }
+
+    if(sym->type.flags & TYPE_ARRAY) {
         return checker_handle_arraydecl(sym, node, ctx);
-    } if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.kind == TYPE_KIND_STRUCT) {
-        assign_bracedexpr_to_struct(sym->type, dynamic_cast<AstBracedExpression*>(*node->init_value), ctx);
-        initialize_symbol(sym);
+    }
+
+    if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.kind == TYPE_KIND_STRUCT) {
+        assign_bracedexpr_to_struct(sym->type, dynamic_cast<AstBracedExpression*>(*node->init_value), ctx, sym->flags & ENTITY_GLOBAL);
         return sym->type;
     }
 
@@ -391,7 +414,10 @@ tak::visit_vardecl(const AstVardecl* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    initialize_symbol(sym);
+    if(sym->flags & ENTITY_GLOBAL && (*node->init_value)->type != NODE_SINGLETON_LITERAL) {
+        ctx.errs_.raise_error("Globals must be initialized using literals.", node);
+    }
+
     if(!is_type_coercion_permissible(sym->type, *init_t)) {
         ctx.errs_.raise_error(fmt("Cannot assign variable \"{}\" of type {} to {}.",
             sym->name,
@@ -430,6 +456,67 @@ tak::visit_cast(const AstCast* node, CheckerContext& ctx) {
 }
 
 
+static std::optional<tak::TypeData>
+get_call_return_type(const tak::TypeData& called) {
+    if(called.return_type == nullptr) {
+        return std::nullopt;
+    }
+
+    if(!is_returntype_lvalue_eligible(*called.return_type)) { // convert to rvalue if necessary.
+        return to_rvalue(*called.return_type);
+    }
+
+    return *called.return_type;
+}
+
+
+static bool
+is_t_invalid_as_procarg(const tak::TypeData& type) {
+    return type.flags & tak::TYPE_ARRAY || (type.kind == tak::TYPE_KIND_PROCEDURE && !(type.flags & tak::TYPE_POINTER));
+}
+
+
+static std::optional<tak::TypeData>
+visit_variadic_call(const tak::AstCall* node, const tak::TypeData& called, tak::CheckerContext& ctx) {
+
+    assert(node != nullptr);
+    assert(called.kind == tak::TYPE_KIND_PROCEDURE);
+    assert(called.flags & tak::TYPE_PROC_VARARGS);
+
+    const auto     proc_t_str  = typedata_to_str_msg(called);
+    const uint32_t called_with = node->arguments.size();
+    const uint32_t receives    = called.parameters == nullptr ? 0 : called.parameters->size();
+
+    if(receives > called_with) {
+        ctx.errs_.raise_error(tak::fmt("Invalid number of arguments passed (requires at least {}).", receives), node);
+        return get_call_return_type(called);
+    }
+
+    for(size_t i = 0; i < node->arguments.size(); i++) {
+        const auto arg_t = visit_node(node->arguments[i], ctx);
+        if(!arg_t.has_value()) {
+            ctx.errs_.raise_error(tak::fmt("Cannot deduce type of argument {} in this call.", i + 1), node->arguments[i]);
+            continue;
+        }
+
+        if(is_t_invalid_as_procarg(*arg_t)) {
+            ctx.errs_.raise_error(tak::fmt("Type {} cannot be used as a procedure argument.", typedata_to_str_msg(*arg_t)), node->arguments[i]);
+            continue;
+        }
+
+        if(called.parameters != nullptr
+            && i < called.parameters->size()
+            && !is_type_coercion_permissible(called.parameters->at(i), *arg_t)
+        ) {
+            ctx.errs_.raise_error(tak::fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
+                i + 1, typedata_to_str_msg(*arg_t), typedata_to_str_msg(called.parameters->at(i))), node->arguments[i]);
+        }
+    }
+
+    return get_call_return_type(called);
+}
+
+
 std::optional<tak::TypeData>
 tak::visit_call(AstCall* node, CheckerContext& ctx) {
 
@@ -446,6 +533,10 @@ tak::visit_call(AstCall* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
+    if(target_t->flags & TYPE_PROC_VARARGS) {
+        return visit_variadic_call(node, *target_t, ctx);
+    }
+
 
     const auto     proc_t_str  = typedata_to_str_msg(*target_t);
     const uint32_t called_with = node->arguments.size();
@@ -459,55 +550,36 @@ tak::visit_call(AstCall* node, CheckerContext& ctx) {
             node
         );
 
-        if(target_t->return_type == nullptr) {
-            return std::nullopt;
-        }
-        if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
-            return to_rvalue(*target_t->return_type);
-        }
-
-        return *target_t->return_type;
+        return get_call_return_type(*target_t);
     }
-
 
     if(!called_with && !receives) {
-        if(target_t->return_type == nullptr) {
-            return std::nullopt;
-        }
-        if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
-            return to_rvalue(*target_t->return_type);
-        }
-
-        return *target_t->return_type;
+        return get_call_return_type(*target_t);
     }
-
 
     assert(target_t->parameters != nullptr);
     for(size_t i = 0; i < node->arguments.size(); i++) {
-        if(const auto arg_t = visit_node(node->arguments[i], ctx)) {
-            if(!is_type_coercion_permissible((*target_t->parameters)[i], *arg_t)) {
+        const auto arg_t = visit_node(node->arguments[i], ctx);
+        if(!arg_t) {
+            ctx.errs_.raise_error(fmt("Cannot deduce type of argument {} in this call.", i + 1), node->arguments[i]);
+            continue;
+        }
 
-                const std::string param_t_str = typedata_to_str_msg((*target_t->parameters)[i]);
-                const std::string arg_t_str   = typedata_to_str_msg(*arg_t);
+        if(is_t_invalid_as_procarg(*arg_t)) {
+            ctx.errs_.raise_error(fmt("Type {} cannot be used as a procedure argument.", typedata_to_str_msg(*arg_t)), node->arguments[i]);
+            continue;
+        }
 
-                ctx.errs_.raise_error(fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
-                    i + 1, arg_t_str, param_t_str), node->arguments[i]);
-            }
-        } else {
-            ctx.errs_.raise_error(fmt("Cannot deduce type of argument {} in this call.", i + 1), node);
+        if(!is_type_coercion_permissible(target_t->parameters->at(i), *arg_t)) {
+            const std::string param_t_str = typedata_to_str_msg(target_t->parameters->at(i));
+            const std::string arg_t_str   = typedata_to_str_msg(*arg_t);
+
+            ctx.errs_.raise_error(fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
+                i + 1, arg_t_str, param_t_str), node->arguments[i]);
         }
     }
 
-
-    if(target_t->return_type == nullptr) {
-        return std::nullopt;
-    }
-
-    if(!is_returntype_lvalue_eligible(*target_t->return_type)) {
-        return to_rvalue(*target_t->return_type);
-    }
-
-    return *target_t->return_type;
+    return get_call_return_type(*target_t);
 }
 
 
@@ -855,7 +927,7 @@ tak::visit_node(AstNode* node, CheckerContext& ctx) {
     switch(node->type) {
         case NODE_NAMESPACEDECL:     return visit_node_children(dynamic_cast<AstNamespaceDecl*>(node), ctx);
         case NODE_BLOCK:             return visit_node_children(dynamic_cast<AstBlock*>(node), ctx);
-        case NODE_PROCDECL:          return visit_node_children(dynamic_cast<AstProcdecl*>(node), ctx);
+        case NODE_PROCDECL:          return visit_procdecl(dynamic_cast<AstProcdecl*>(node), ctx);
         case NODE_VARDECL:           return visit_vardecl(dynamic_cast<AstVardecl*>(node), ctx);
         case NODE_BINEXPR:           return visit_binexpr(dynamic_cast<AstBinexpr*>(node), ctx);
         case NODE_UNARYEXPR:         return visit_unaryexpr(dynamic_cast<AstUnaryexpr*>(node), ctx);

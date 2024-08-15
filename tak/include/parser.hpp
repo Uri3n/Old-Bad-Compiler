@@ -17,45 +17,6 @@
     panic(msg);                                                 \
 }                                                               \
 
-#define NODE_VALID_SUBEXPRESSION(node_type)        \
- (node_type == tak::NODE_CALL                      \
-    || node_type == tak::NODE_IDENT                \
-    || node_type == tak::NODE_BINEXPR              \
-    || node_type == tak::NODE_SINGLETON_LITERAL    \
-    || node_type == tak::NODE_UNARYEXPR            \
-    || node_type == tak::NODE_BRACED_EXPRESSION    \
-    || node_type == tak::NODE_CAST                 \
-    || node_type == tak::NODE_SUBSCRIPT            \
-    || node_type == tak::NODE_CAST                 \
-    || node_type == tak::NODE_MEMBER_ACCESS        \
-    || node_type == tak::NODE_SIZEOF               \
-)                                                  \
-
-#define NODE_VALID_AT_TOPLEVEL(node_type)          \
-   (node_type == tak::NODE_VARDECL                 \
-    || node_type == tak::NODE_STRUCT_DEFINITION    \
-    || node_type == tak::NODE_NAMESPACEDECL        \
-    || node_type == tak::NODE_PROCDECL             \
-    || node_type == tak::NODE_INCLUDE_STMT         \
-    || node_type == tak::NODE_ENUM_DEFINITION      \
-    || node_type == tak::NODE_TYPE_ALIAS           \
-)                                                  \
-
-#define NODE_EXPR_NEVER_NEEDS_TERMINAL(node_type)  \
-   (node_type == tak::NODE_PROCDECL                \
-    || node_type == tak::NODE_BRANCH               \
-    || node_type == tak::NODE_IF                   \
-    || node_type == tak::NODE_ELSE                 \
-    || node_type == tak::NODE_FOR                  \
-    || node_type == tak::NODE_WHILE                \
-    || node_type == tak::NODE_PROCDECL             \
-    || node_type == tak::NODE_SWITCH               \
-    || node_type == tak::NODE_NAMESPACEDECL        \
-    || node_type == tak::NODE_BLOCK                \
-    || node_type == tak::NODE_STRUCT_DEFINITION    \
-    || node_type == tak::NODE_ENUM_DEFINITION      \
-)                                                  \
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
@@ -103,6 +64,7 @@ namespace tak {
 
     AstNode* parse_type_alias(Parser& parser, Lexer& lxr);
     AstNode* parse_callconv(Parser& parser, Lexer& lxr);
+    AstNode* parse_visibility_directive(Parser& parser, Lexer& lxr);
     AstNode* parse_include(Parser& parser, Lexer& lxr);
     AstNode* parse_compiler_directive(Parser& parser, Lexer& lxr);
     AstNode* parse_defer(Parser& parser, Lexer& lxr);
@@ -121,7 +83,7 @@ namespace tak {
     AstNode* parse_switch(Parser& parser, Lexer& lxr);
     AstNode* parse_structdef(Parser& parser, Lexer& lxr);
     AstNode* parse_member_access(AstNode* target, Lexer& lxr);
-    AstNode* parse_expression(Parser& parser, Lexer& lxr, bool subexpression, bool parse_single = false);
+    AstNode* parse_expression(Parser& parser, Lexer& lxr, bool nocheck_term, bool parse_single = false);
     AstNode* parse_identifier(Parser& parser, Lexer& lxr);
     AstNode* parse_unary_expression(Parser& parser, Lexer& lxr);
     AstNode* parse_decl(Parser& parser, Lexer& lxr);

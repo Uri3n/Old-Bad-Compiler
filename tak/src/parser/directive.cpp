@@ -186,11 +186,57 @@ tak::parse_include(Parser& parser, Lexer& lxr) {
 
 
 tak::AstNode*
+tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
+
+    parser_assert(lxr.current().value == "intern" || lxr.current().value == "extern",
+        "Expected visibility directive, \"intern\" or \"extern\".");
+
+
+    const size_t   pos   = lxr.current().src_pos;
+    const uint32_t line  = lxr.current().line;
+    const uint32_t flag  = lxr.current().value == "intern" ? ENTITY_INTERNAL : ENTITY_FOREIGN;
+
+    lxr.advance(1);
+    if(parser.tbl_.scope_stack_.size() > 1) {
+        lxr.raise_error("Cannot use this directive at non-global scope.");
+        return nullptr;
+    }
+
+    bool    state = false;
+    Symbol* sym   = nullptr;
+    auto*   node  = parse_expression(parser, lxr, true);
+
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+
+    if(node == nullptr) {
+        return nullptr;
+    }
+
+    if(const auto* vardecl = dynamic_cast<const AstVardecl*>(node)) {
+        sym = parser.tbl_.lookup_unique_symbol(vardecl->identifier->symbol_index);
+    } else if(const auto* procdecl = dynamic_cast<const AstProcdecl*>(node)) {
+        sym = parser.tbl_.lookup_unique_symbol(procdecl->identifier->symbol_index);
+    } else {
+        lxr.raise_error("Expected next expression to be a variable or procedure declaration.", pos, line);
+        return nullptr;
+    }
+
+    assert(sym != nullptr);
+    sym->flags |= flag;
+    state = true;
+    return node;
+}
+
+
+tak::AstNode*
 tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
 
     parser_assert(lxr.current() == TOKEN_AT, "Expected '@'.");
-    lxr.advance(1);
 
+    lxr.advance(1);
     if(lxr.current() != TOKEN_IDENTIFIER) {
         lxr.raise_error("Expected directive name.");
     }
@@ -198,6 +244,8 @@ tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
     if(lxr.current().value == "alias")    return parse_type_alias(parser, lxr);
     if(lxr.current().value == "callconv") return parse_callconv(parser, lxr);
     if(lxr.current().value == "include")  return parse_include(parser, lxr);
+    if(lxr.current().value == "intern")   return parse_visibility_directive(parser, lxr);
+    if(lxr.current().value == "extern")   return parse_visibility_directive(parser, lxr);
 
     lxr.raise_error("Invalid compiler directive.");
     return nullptr;

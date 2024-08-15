@@ -29,7 +29,7 @@ namespace tak {
 
     class CheckerContext {
     public:
-        EntityTable&  tbl_;
+        EntityTable&         tbl_;
         SemanticErrorHandler errs_;
 
         explicit CheckerContext(EntityTable& entities) : tbl_(entities) {}
@@ -53,7 +53,7 @@ namespace tak {
     bool flip_sign(TypeData& type);
     bool are_array_types_equivalent(const TypeData& first, const TypeData& second);
     bool array_has_inferred_sizes(const TypeData& type);
-    void assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx);
+    void assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression* expr, CheckerContext& ctx, bool only_literals = false);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -62,7 +62,7 @@ namespace tak {
     std::optional<TypeData> checker_handle_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx);
     std::optional<TypeData> visit_member_access(const AstMemberAccess* node, CheckerContext& ctx);
     std::optional<TypeData> visit_vardecl(const AstVardecl* node, CheckerContext& ctx);
-    std::optional<TypeData> visit_procdecl(const AstProcdecl* node, CheckerContext& ctx);
+    std::optional<TypeData> visit_procdecl(AstProcdecl* node, CheckerContext& ctx);
     std::optional<TypeData> visit_call(AstCall* node, CheckerContext& ctx);
     std::optional<TypeData> visit_switch(const AstSwitch* node, CheckerContext& ctx);
     std::optional<TypeData> visit_cast(const AstCast* node, CheckerContext& ctx);
@@ -84,7 +84,7 @@ namespace tak {
     std::optional<TypeData> get_struct_member_type_data(const std::string& member_path, const std::string& base_type_name, EntityTable& tbl);
     std::optional<TypeData> get_dereferenced_type(const TypeData& type);
     std::optional<TypeData> get_addressed_type(const TypeData& type);
-    std::optional<TypeData> get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx);
+    std::optional<TypeData> get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& ctx, bool only_literals = false);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

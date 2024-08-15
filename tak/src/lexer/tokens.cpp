@@ -629,12 +629,15 @@ tak::Lexer::token_colon(Lexer &lxr) {
 }
 
 void
-tak::Lexer::token_dot(Lexer &lxr) {
+tak::Lexer::token_dot(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
 
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
+    } else if(lxr.peek_char(1) == '.' && lxr.peek_char(2) == '.'){
+        _current = Token{TOKEN_THREE_DOTS, KIND_UNSPECIFIC, index, {&src[index], 3}};
+        lxr.advance_char(3);
     } else {
         _current = Token{TOKEN_DOT, KIND_PUNCTUATOR, index, {&src[index], 1}};
         lxr.advance_char(1);

@@ -216,7 +216,18 @@ parse_proctype_postfixes(tak::TypeData& data, tak::Parser& parser, tak::Lexer& l
     lxr.advance(1);
     data.parameters = std::make_shared<std::vector<tak::TypeData>>();
 
-    while(lxr.current() != tak::TOKEN_RPAREN) {
+    while(lxr.current() != tak::TOKEN_RPAREN)
+    {
+        if(lxr.current() == tak::TOKEN_THREE_DOTS) {
+            data.flags |= tak::TYPE_PROC_VARARGS;
+            if(lxr.peek(1) != tak::TOKEN_RPAREN) {
+                lxr.raise_error("Expected ')' after variadic argument specifier.");
+                return false;
+            }
+
+            lxr.advance(1);
+            break;
+        }
 
         if(lxr.current().kind != tak::KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
             lxr.raise_error("Expected type identifier.");
