@@ -7,7 +7,7 @@
 
 tak::AstNode*
 tak::parse_cont(Lexer& lxr) {
-    parser_assert(lxr.current() == TOKEN_KW_CONT, "expected \"cont\" keyword.");
+    assert(lxr.current() == TOKEN_KW_CONT);
 
     auto* node = new AstCont(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     lxr.advance(1);
@@ -17,7 +17,7 @@ tak::parse_cont(Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_brk(Lexer& lxr) {
-    parser_assert(lxr.current() == TOKEN_KW_BRK, "expected \"brk\" keyword.");
+    assert(lxr.current() == TOKEN_KW_BRK);
 
     auto* node = new AstBrk(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     lxr.advance(1);
@@ -27,7 +27,7 @@ tak::parse_brk(Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_branch(Parser &parser, Lexer &lxr) {
-    parser_assert(lxr.current() == TOKEN_KW_IF, "Expected \"if\" keyword.");
+    assert(lxr.current() == TOKEN_KW_IF);
 
     bool  state = false;
     auto* node  = new AstBranch(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -46,7 +46,7 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
 
         auto* if_stmt      = new AstIf(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
         if_stmt->parent    = node;
-        if_stmt->condition = parse_expression(parser, lxr, true);
+        if_stmt->condition = parse(parser, lxr, true);
 
 
         //
@@ -66,13 +66,13 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
         if(lxr.current() == TOKEN_LBRACE) {
             lxr.advance(1);
             while(lxr.current() != TOKEN_RBRACE) {
-                if_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+                if_stmt->body.emplace_back(parse(parser, lxr, false));
                 if(if_stmt->body.back() == nullptr) return nullptr;
                 if_stmt->body.back()->parent = if_stmt;
             }
             lxr.advance(1);
         } else {
-            if_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+            if_stmt->body.emplace_back(parse(parser, lxr, false));
             if(if_stmt->body.back() == nullptr) return nullptr;
             if_stmt->body.back()->parent = if_stmt;
         }
@@ -97,13 +97,13 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
         if(lxr.current() == TOKEN_LBRACE) {
             lxr.advance(1);
             while(lxr.current() != TOKEN_RBRACE) {
-                else_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+                else_stmt->body.emplace_back(parse(parser, lxr, false));
                 if(else_stmt->body.back() == nullptr) return nullptr;
                 else_stmt->body.back()->parent = else_stmt;
             }
             lxr.advance(1);
         } else {
-            else_stmt->body.emplace_back(parse_expression(parser, lxr, false));
+            else_stmt->body.emplace_back(parse(parser, lxr, false));
             if(else_stmt->body.back() == nullptr) return nullptr;
             else_stmt->body.back()->parent = else_stmt;
         }
@@ -119,7 +119,7 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
 tak::AstCase*
 tak::parse_case(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH, "Unexpected keyword.");
+    assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH);
     parser.tbl_.push_scope();
 
 
@@ -137,7 +137,7 @@ tak::parse_case(Parser& parser, Lexer& lxr) {
 
 
     lxr.advance(1);
-    node->value = dynamic_cast<AstSingletonLiteral*>(parse_expression(parser, lxr, true));
+    node->value = dynamic_cast<AstSingletonLiteral*>(parse(parser, lxr, true));
 
     if(node->value == nullptr
         || node->value->literal_type == TOKEN_STRING_LITERAL
@@ -160,7 +160,7 @@ tak::parse_case(Parser& parser, Lexer& lxr) {
 
     lxr.advance(1);
     while(lxr.current() != TOKEN_RBRACE) {
-        node->body.emplace_back(parse_expression(parser, lxr, false));
+        node->body.emplace_back(parse(parser, lxr, false));
         if(node->body.back() == nullptr) return nullptr;
         node->body.back()->parent = node;
     }
@@ -175,7 +175,7 @@ tak::parse_case(Parser& parser, Lexer& lxr) {
 tak::AstDefault*
 tak::parse_default(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_DEFAULT, "Expected \"default\" keyword.");
+    assert(lxr.current() == TOKEN_KW_DEFAULT);
     parser.tbl_.push_scope();
 
 
@@ -202,7 +202,7 @@ tak::parse_default(Parser& parser, Lexer& lxr) {
 
     lxr.advance(1);
     while(lxr.current() != TOKEN_RBRACE) {
-        const auto& child = node->body.emplace_back(parse_expression(parser, lxr, false));
+        const auto& child = node->body.emplace_back(parse(parser, lxr, false));
         if(child == nullptr) {
             return nullptr;
         }
@@ -219,7 +219,7 @@ tak::parse_default(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_switch(Parser &parser, Lexer &lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_SWITCH, "Expected \"switch\" keyword.");
+    assert(lxr.current() == TOKEN_KW_SWITCH);
     lxr.advance(1);
 
 
@@ -228,7 +228,7 @@ tak::parse_switch(Parser &parser, Lexer &lxr) {
 
     bool  state  = false;
     auto* node   = new AstSwitch(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
-    node->target = parse_expression(parser, lxr, true);
+    node->target = parse(parser, lxr, true);
 
     defer_if(!state, [&] {
         delete node;
@@ -315,7 +315,7 @@ tak::parse_switch(Parser &parser, Lexer &lxr) {
 tak::AstNode*
 tak::parse_ret(Parser &parser, Lexer &lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_RET, "Expected \"ret\" keyword.");
+    assert(lxr.current() == TOKEN_KW_RET);
 
     auto* node = new AstRet(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     lxr.advance(1);
@@ -323,7 +323,7 @@ tak::parse_ret(Parser &parser, Lexer &lxr) {
         return node;
     }
 
-    node->value = parse_expression(parser, lxr, true);
+    node->value = parse(parser, lxr, true);
     if(node->value == nullptr) {
         delete node;
         return nullptr;
@@ -343,7 +343,7 @@ tak::parse_ret(Parser &parser, Lexer &lxr) {
 tak::AstNode*
 tak::parse_while(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_WHILE, "Expected \"while\" keyword.");
+    assert(lxr.current() == TOKEN_KW_WHILE);
 
     lxr.advance(1);
     parser.tbl_.push_scope();
@@ -361,7 +361,7 @@ tak::parse_while(Parser& parser, Lexer& lxr) {
     });
 
 
-    node->condition = parse_expression(parser, lxr, true);
+    node->condition = parse(parser, lxr, true);
     if(node->condition == nullptr)
         return nullptr;
 
@@ -379,7 +379,7 @@ tak::parse_while(Parser& parser, Lexer& lxr) {
 
     lxr.advance(1);
     while(lxr.current() != TOKEN_RBRACE) {
-        node->body.emplace_back(parse_expression(parser, lxr, false));
+        node->body.emplace_back(parse(parser, lxr, false));
         if(node->body.back() == nullptr) {
             return nullptr;
         }
@@ -396,7 +396,7 @@ tak::parse_while(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_block(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_BLK, "Expected \"blk\" keyword.");
+    assert(lxr.current() == TOKEN_KW_BLK);
 
     if(lxr.peek(1) != TOKEN_LBRACE) {
         lxr.raise_error("Expected '{' after \"blk\" keyword (start of scope block).");
@@ -415,7 +415,7 @@ tak::parse_block(Parser& parser, Lexer& lxr) {
     parser.tbl_.push_scope();
     lxr.advance(2);
     while(lxr.current() != TOKEN_RBRACE) {
-        node->children.emplace_back(parse_expression(parser, lxr, false));
+        node->children.emplace_back(parse(parser, lxr, false));
         if(node->children.back() == nullptr)
             return nullptr;
 
@@ -431,7 +431,7 @@ tak::parse_block(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_defer_if(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_DEFER_IF, "Expected \"defer_if\" keyword.");
+    assert(lxr.current() == TOKEN_KW_DEFER_IF);
     lxr.advance(1);
 
     const size_t   curr_pos = lxr.current().src_pos;
@@ -439,7 +439,7 @@ tak::parse_defer_if(Parser& parser, Lexer& lxr) {
 
     bool  state     = false;
     auto* node      = new AstDeferIf(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
-    node->condition = parse_expression(parser, lxr, true);
+    node->condition = parse(parser, lxr, true);
 
     defer_if(!state, [&] {
         delete node;
@@ -461,7 +461,7 @@ tak::parse_defer_if(Parser& parser, Lexer& lxr) {
     }
 
     lxr.advance(1);
-    node->call = parse_expression(parser, lxr, true);
+    node->call = parse(parser, lxr, true);
     if(node->call == nullptr) {
         return nullptr;
     }
@@ -483,7 +483,7 @@ tak::parse_defer_if(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_defer(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_DEFER, "Expected \"defer\" keyword.");
+    assert(lxr.current() == TOKEN_KW_DEFER);
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
@@ -497,7 +497,7 @@ tak::parse_defer(Parser& parser, Lexer& lxr) {
 
 
     lxr.advance(1);
-    node->call = parse_expression(parser, lxr, true);
+    node->call = parse(parser, lxr, true);
     if(node->call == nullptr)
         return nullptr;
 
@@ -515,7 +515,7 @@ tak::parse_defer(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_dowhile(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_DO, "Expected \"do\" keyword.");
+    assert(lxr.current() == TOKEN_KW_DO);
 
     if(lxr.peek(1) != TOKEN_LBRACE) {
         lxr.raise_error("Expected '{' after \"do\" (start of do-while body).");
@@ -535,7 +535,7 @@ tak::parse_dowhile(Parser& parser, Lexer& lxr) {
     parser.tbl_.push_scope();
 
     while(lxr.current() != TOKEN_RBRACE) {
-        node->body.emplace_back(parse_expression(parser,lxr,false));
+        node->body.emplace_back(parse(parser,lxr,false));
         if(node->body.back() == nullptr) return nullptr;
         node->body.back()->parent = node;
     }
@@ -549,7 +549,7 @@ tak::parse_dowhile(Parser& parser, Lexer& lxr) {
     lxr.advance(2);
     const size_t curr_pos = lxr.current().src_pos;
     const uint32_t line   = lxr.current().line;
-    node->condition       = parse_expression(parser,lxr,true);
+    node->condition       = parse(parser,lxr,true);
 
     if(node->condition == nullptr)
         return nullptr;
@@ -568,7 +568,7 @@ tak::parse_dowhile(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_for(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_FOR, "Expected \"for\" keyword.");
+    assert(lxr.current() == TOKEN_KW_FOR);
 
     lxr.advance(1);
     parser.tbl_.push_scope();
@@ -596,7 +596,7 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
         curr_pos = lxr.current().src_pos;
         line     = lxr.current().line;
 
-        node->init = parse_expression(parser, lxr, true);
+        node->init = parse(parser, lxr, true);
         if(*node->init == nullptr) {
             return nullptr;
         }
@@ -628,7 +628,7 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
         curr_pos = lxr.current().src_pos;
         line     = lxr.current().line;
 
-        node->condition = parse_expression(parser, lxr, true);
+        node->condition = parse(parser, lxr, true);
         if(*node->condition == nullptr) {
             return nullptr;
         }
@@ -657,7 +657,7 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
         curr_pos = lxr.current().src_pos;
         line     = lxr.current().line;
 
-        node->update = parse_expression(parser, lxr, true);
+        node->update = parse(parser, lxr, true);
         if(*node->update == nullptr) {
             return nullptr;
         }
@@ -683,7 +683,7 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
 
     lxr.advance(1);
     while(lxr.current() != TOKEN_RBRACE) {
-        node->body.emplace_back(parse_expression(parser, lxr, false));
+        node->body.emplace_back(parse(parser, lxr, false));
         if(node->body.back() == nullptr) return nullptr;
         node->body.back()->parent = node;
     }

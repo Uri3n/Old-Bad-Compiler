@@ -15,38 +15,106 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define NODE_NEEDS_GENERATING(node_type)      \
-   (node_type != tak::NODE_STRUCT_DEFINITION  \
-    && node_type != tak::NODE_INCLUDE_STMT    \
-    && node_Type != tak::NODE_TYPE_ALIAS      \
-)                                             \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
 
+    struct WrappedIRValue {
+        llvm::Value* value = nullptr;
+        TypeData tak_type;
+
+        static std::shared_ptr<WrappedIRValue> create(
+            llvm::Value* value = nullptr,
+            const std::optional<TypeData>& tak_type = std::nullopt
+        );
+
+        ~WrappedIRValue() = default;
+        WrappedIRValue()  = default;
+    };
+
+    struct IRCastingContext {
+        llvm::Type* llvm_t = nullptr;
+        TypeData    tak_t;
+
+        ~IRCastingContext() = default;
+        IRCastingContext(llvm::Type* const llvm_t, const TypeData &tak_t)
+            : llvm_t(llvm_t), tak_t(tak_t) {}
+    };
+
     class CodegenContext {
     public:
-        EntityTable& tbl_;           // Reference to the Tak entity table for this source file
-        llvm::LLVMContext llvm_ctx_; // LLVM context
-        llvm::Module mod_;           // LLVM module, same name as source file
+        EntityTable&      tbl_;         // Reference to the Tak entity table for this source file.
+        llvm::LLVMContext llvm_ctx_;    // LLVM context.
+        llvm::Module      mod_;         // LLVM module, same name as source file.
+        llvm::IRBuilder<> builder_;     // LLVM IRBuilder, helper class for generating IR.
+
+        std::optional<IRCastingContext>             casting_context_;   // casting context
+        std::vector<std::vector<llvm::BasicBlock*>> deferred_blocks_;   // calls for defer statements
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        struct {
+            llvm::BasicBlock* cond  = nullptr;
+            llvm::BasicBlock* after = nullptr;
+            llvm::BasicBlock* merge = nullptr;
+        } curr_loop_;
+
+        struct {
+            std::unordered_map<std::string, WrappedIRValue> named_values;
+            llvm::Function* func = nullptr;
+        } curr_proc_;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        bool casting_context_exists();
+        void set_casting_context(llvm::Type* llvm_t, const TypeData& tak_t);
+        void delete_casting_context();
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        void leave_curr_proc();
+        void leave_curr_loop();
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         ~CodegenContext() = default;
         explicit CodegenContext(EntityTable& tbl, const std::string& module_name)
-            : tbl_(tbl), llvm_ctx_(), mod_(module_name, llvm_ctx_) {}
+            : tbl_(tbl), llvm_ctx_(), mod_(module_name, llvm_ctx_), builder_(llvm_ctx_) {}
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     llvm::Type* generate_proc_signature(CodegenContext& ctx, const TypeData& type);
-    llvm::Type* generate_primitive(CodegenContext& ctx, var_t prim);
+    llvm::Type* generate_primitive_type(CodegenContext& ctx, primitive_t prim);
     llvm::Type* generate_type(CodegenContext& ctx, const TypeData& type);
     llvm::StructType* create_struct_type_if_not_exists(CodegenContext& ctx, const std::string& name);
-    void generate_struct_layouts(CodegenContext& ctx);
 
-    llvm::Value* generate_node(const AstNode* node, llvm::Module& mod, llvm::LLVMContext& ctx);
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void generate_struct_layouts(CodegenContext& ctx);
+    void generate_procedure_signatures(CodegenContext& ctx);
+    void generate_global_placeholders(CodegenContext& ctx);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    llvm::Constant* generate_global_string_constant(CodegenContext& ctx, const AstSingletonLiteral* node);
+    llvm::Constant* generate_constant_array(CodegenContext& ctx, const AstBracedExpression* node, llvm::ArrayType* llvm_t);
+    llvm::Constant* generate_constant_struct(CodegenContext& ctx, const AstBracedExpression* node, const UserType* utype, llvm::StructType* llvm_t);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::shared_ptr<WrappedIRValue> generate_singleton_literal(AstSingletonLiteral* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_global_struct(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_global_array(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_global_primitive(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_vardecl_global(const AstVardecl* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_vardecl(const AstVardecl* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_procdecl(const AstProcdecl* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate(const AstNode* node, CodegenContext& ctx);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 
 #endif //CODEGEN_HPP

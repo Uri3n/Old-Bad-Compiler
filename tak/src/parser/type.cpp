@@ -8,10 +8,9 @@
 std::optional<std::vector<uint32_t>>
 tak::parse_array_data(Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['");
+    assert(lxr.current() == TOKEN_LSQUARE_BRACKET);
     std::vector<uint32_t> lengths;
-
-
+    
     while(lxr.current() == TOKEN_LSQUARE_BRACKET) {
         lxr.advance(1);
 
@@ -55,7 +54,7 @@ tak::parse_array_data(Lexer& lxr) {
 static bool
 parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr) {
 
-    parser_assert(TOKEN_IDENT_START(lxr.current().type), "Expected ident");
+    assert(TOKEN_IDENT_START(lxr.current().type));
 
     const size_t   curr_pos  = lxr.current().src_pos;
     const uint32_t curr_line = lxr.current().line;
@@ -129,10 +128,10 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
         }
     }
 
-    if(parser.tbl_.type_exists(typedata_to_str_msg(data))) {
+    if(parser.tbl_.type_exists(tak::TypeData::to_string(data))) {
         data.parameters.reset();
         data.parameters = nullptr;
-        data.name = typedata_to_str_msg(data);
+        data.name = tak::TypeData::to_string(data);
     }
 
     state = true;
@@ -143,15 +142,15 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
 static bool
 parse_primitive_type(tak::TypeData& data, tak::Lexer& lxr) {
 
-    parser_assert(lxr.current().kind == tak::KIND_TYPE_IDENTIFIER, "Expected primitive type ident.");
+    assert(lxr.current().kind == tak::KIND_TYPE_IDENTIFIER);
 
-    tak::var_t     _var_t    = tak::VAR_NONE;
+    tak::primitive_t     _var_t    = tak::PRIMITIVE_NONE;
     const size_t   curr_pos  = lxr.current().src_pos;
     const uint32_t curr_line = lxr.current().line;
 
 
     if(lxr.current() == tak::TOKEN_KW_VOID) {
-        _var_t = tak::VAR_VOID;
+        _var_t = tak::PRIMITIVE_VOID;
         if(lxr.peek(1) != tak::TOKEN_BITWISE_XOR_OR_PTR) {
             lxr.raise_error("Use of \"void\" as non pointer type.");
             return false;
@@ -159,14 +158,14 @@ parse_primitive_type(tak::TypeData& data, tak::Lexer& lxr) {
     }
     else {
         _var_t = token_to_var_t(lxr.current().type);
-        if(_var_t == tak::VAR_NONE) {
+        if(_var_t == tak::PRIMITIVE_NONE) {
             lxr.raise_error("Invalid type specifier.", curr_pos, curr_line);
             return false;
         }
     }
 
     data.name = _var_t;
-    data.kind = tak::TYPE_KIND_VARIABLE;
+    data.kind = tak::TYPE_KIND_PRIMITIVE;
     return true;
 }
 
@@ -198,7 +197,7 @@ parse_type_postfixes(tak::TypeData& data, tak::Lexer& lxr) {
 static bool
 parse_proctype_postfixes(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr) {
 
-    parser_assert(lxr.current() == tak::TOKEN_LPAREN, "Expected '('");
+    assert(lxr.current() == tak::TOKEN_LPAREN);
 
     //
     // Disallow non-pointer procedure types
@@ -279,8 +278,7 @@ parse_proctype_postfixes(tak::TypeData& data, tak::Parser& parser, tak::Lexer& l
 std::optional<tak::TypeData>
 tak::parse_type(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || TOKEN_IDENT_START(lxr.current().type), "Expected type.");
-
+    assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || TOKEN_IDENT_START(lxr.current().type));
     TypeData data; // < returning this
 
     //

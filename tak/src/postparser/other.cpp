@@ -4,6 +4,7 @@
 
 #include <postparser.hpp>
 
+
 bool
 tak::postparse_check_leftover_placeholders(Parser& parser) {
 
@@ -82,6 +83,7 @@ tak::postparse_delete_garbage_objects(Parser& parser) {
 
     return true;
 }
+
 
 bool
 tak::postparse_verify(Parser& parser, Lexer& lxr) {

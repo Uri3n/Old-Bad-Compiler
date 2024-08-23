@@ -7,18 +7,18 @@
 
 static bool
 type_is_valid_as_enumeration(const tak::TypeData& type) {
-    if(auto* _var_t = std::get_if<tak::var_t>(&type.name)) {
-        return (*_var_t == tak::VAR_I8
-            || *_var_t ==  tak::VAR_U8
-            || *_var_t ==  tak::VAR_I16
-            || *_var_t ==  tak::VAR_U16
-            || *_var_t ==  tak::VAR_I32
-            || *_var_t ==  tak::VAR_U32
-            || *_var_t ==  tak::VAR_I64
-            || *_var_t ==  tak::VAR_U64)
+    if(auto* _var_t = std::get_if<tak::primitive_t>(&type.name)) {
+        return (*_var_t == tak::PRIMITIVE_I8
+            || *_var_t ==  tak::PRIMITIVE_U8
+            || *_var_t ==  tak::PRIMITIVE_I16
+            || *_var_t ==  tak::PRIMITIVE_U16
+            || *_var_t ==  tak::PRIMITIVE_I32
+            || *_var_t ==  tak::PRIMITIVE_U32
+            || *_var_t ==  tak::PRIMITIVE_I64
+            || *_var_t ==  tak::PRIMITIVE_U64)
             && (type.array_lengths.empty()
             && type.pointer_depth == 0
-            && type.kind == tak::TYPE_KIND_VARIABLE);
+            && type.kind == tak::TYPE_KIND_PRIMITIVE);
     }
 
     return false;
@@ -28,7 +28,7 @@ type_is_valid_as_enumeration(const tak::TypeData& type) {
 tak::AstNode*
 tak::parse_enumdef(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_ENUM, "Expected \"enum\" keyword.");
+    assert(lxr.current() == TOKEN_KW_ENUM);
 
     if(parser.tbl_.scope_stack_.size() > 1) {
         lxr.raise_error("Enum definition at non-global scope.");
@@ -149,7 +149,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
         //
 
         auto* sym = parser.tbl_.create_symbol(
-            member_name, lxr.source_file_name_, lxr.current().src_pos, lxr.current().line, TYPE_KIND_VARIABLE, TYPE_FLAGS_NONE, *type);
+            member_name, lxr.source_file_name_, lxr.current().src_pos, lxr.current().line, TYPE_KIND_PRIMITIVE, TYPE_FLAGS_NONE, *type);
 
         auto* decl                     = new AstVardecl(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
         decl->identifier               = new AstIdentifier(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -181,7 +181,7 @@ tak::parse_enumdef(Parser& parser, Lexer& lxr) {
             lit->value        = std::string(lxr.current().value);
             lit->literal_type = lxr.current().type;
 
-            if(const auto to_int = lexer_token_lit_to_int(lxr.current())) {
+            if(const auto to_int = Token::lit_to_int(lxr.current())) {
                 enum_index = *to_int;
             } else {
                 lxr.raise_error("Invalid numeric literal.");

@@ -6,6 +6,7 @@
 #define TOKEN_HPP
 #include <cstdint>
 #include <string_view>
+#include <optional>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -138,6 +139,15 @@
      || token_type == tak::TOKEN_NAMESPACE_ACCESS  \
 )                                                  \
 
+#define TOKEN_OP_IS_VALID_PTR_ARITH(token_type)    \
+   (token_type == tak::TOKEN_PLUS                  \
+    || token_type == tak::TOKEN_PLUSEQ             \
+    || token_type == tak::TOKEN_SUB                \
+    || token_type == tak::TOKEN_SUBEQ              \
+    || token_type == tak::TOKEN_INCREMENT          \
+    || token_type == tak::TOKEN_DECREMENT          \
+)                                                  \
+
 #define TOKEN_OP_IS_ARITHMETIC(token_type)         \
    (token_type == tak::TOKEN_PLUS                  \
     || token_type == tak::TOKEN_PLUSEQ             \
@@ -188,7 +198,6 @@
 )                                                  \
 
 namespace tak {
-
     #define X(NAME, STR_UNUSED) TOKEN_##NAME,
         enum token_t : uint32_t {
             TOKEN_LIST
@@ -209,7 +218,14 @@ namespace tak {
         size_t     src_pos = 0;
 
         std::string_view value;
-        uint32_t         line = 1;
+        uint32_t line  = 1;
+
+        static void                  dump(const Token& tok);
+        static std::string           to_string(token_t tok);
+        static std::string           type_to_string(token_t tok);
+        static std::string           kind_to_string(token_kind kind);
+        static uint16_t              precedence_of(token_t _operator);
+        static std::optional<size_t> lit_to_int(const Token& tok);
 
         bool operator==(const token_t other) const  {return other == type;}
         bool operator==(const Token& other)  const  {return other.type == this->type;}

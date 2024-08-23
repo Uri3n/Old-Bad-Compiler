@@ -6,9 +6,9 @@
 
 
 template<typename T>
-concept arithmetic = std::integral<T> || std::floating_point<T>;
+concept is_arithmetic = std::integral<T> || std::floating_point<T>;
 
-template<arithmetic T, arithmetic J>
+template<is_arithmetic T, is_arithmetic J>
 static bool is_t_within_range(J val) {
     return val >= std::numeric_limits<T>::min() && val <= std::numeric_limits<T>::max();
 }
@@ -25,8 +25,8 @@ tak::convert_int_lit_to_type(const AstSingletonLiteral* node) {
     TypeData type;
 
     type.flags = TYPE_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
-    type.kind  = TYPE_KIND_VARIABLE;
-    type.name  = VAR_U64;
+    type.kind  = TYPE_KIND_PRIMITIVE;
+    type.name  = PRIMITIVE_U64;
 
     try {
         actual = std::stoll(node->value);
@@ -34,9 +34,9 @@ tak::convert_int_lit_to_type(const AstSingletonLiteral* node) {
         panic("convert_int_lit_to_concrete: exception converting string -> i64.");
     }
 
-    if(is_t_within_range<uint8_t>(actual))       type.name = VAR_U8;
-    else if(is_t_within_range<uint16_t>(actual)) type.name = VAR_U16;
-    else if(is_t_within_range<uint32_t>(actual)) type.name = VAR_U32;
+    if(is_t_within_range<uint8_t>(actual))       type.name = PRIMITIVE_U8;
+    else if(is_t_within_range<uint16_t>(actual)) type.name = PRIMITIVE_U16;
+    else if(is_t_within_range<uint32_t>(actual)) type.name = PRIMITIVE_U32;
 
     return type;
 }
@@ -53,8 +53,8 @@ tak::convert_float_lit_to_type(const AstSingletonLiteral* node) {
     TypeData type;
 
     type.flags = TYPE_CONSTANT | TYPE_NON_CONCRETE | TYPE_RVALUE;
-    type.kind  = TYPE_KIND_VARIABLE;
-    type.name  = VAR_F64;
+    type.kind  = TYPE_KIND_PRIMITIVE;
+    type.name  = PRIMITIVE_F64;
 
     try {
         actual = std::stod(node->value);
@@ -63,86 +63,9 @@ tak::convert_float_lit_to_type(const AstSingletonLiteral* node) {
     }
 
     if(is_t_within_range<float>(actual))
-        type.name = VAR_F32;
+        type.name = PRIMITIVE_F32;
 
     return type;
-}
-
-tak::TypeData
-tak::to_lvalue(const TypeData& type) {
-    TypeData lval = type;
-    lval.flags   &= ~TYPE_RVALUE;
-    return lval;
-}
-
-tak::TypeData
-tak::to_rvalue(const TypeData& type) {
-    TypeData rval = type;
-    rval.flags   |= TYPE_RVALUE;
-    return rval;
-}
-
-bool
-tak::type_promote_non_concrete(TypeData& left, const TypeData& right) {
-
-    const auto* pleft_t  = std::get_if<var_t>(&left.name);
-    const auto* pright_t = std::get_if<var_t>(&right.name);
-    bool is_signed       = false;
-
-    assert(left.flags & TYPE_NON_CONCRETE);
-    assert(left.pointer_depth == 0    && right.pointer_depth == 0);
-    assert(left.array_lengths.empty() && right.array_lengths.empty());
-    assert(pleft_t != nullptr         && pright_t != nullptr);
-
-
-    if(PRIMITIVE_IS_SIGNED(*pleft_t) || PRIMITIVE_IS_SIGNED(*pright_t)) {
-        is_signed = true;
-    }
-
-    if(var_t_to_size_bytes(*pright_t) > var_t_to_size_bytes(*pleft_t)) {
-        left = right;
-    }
-
-
-    if(is_signed) {
-        switch(std::get<var_t>(left.name)) {
-            case VAR_U8:   left.name = VAR_I8;  break;
-            case VAR_U16:  left.name = VAR_I16; break;
-            case VAR_U32:  left.name = VAR_I32; break;
-            case VAR_U64:  left.name = VAR_I64; break;
-            default: break;
-        }
-    }
-
-    return true;
-}
-
-
-bool
-tak::flip_sign(TypeData& type) {
-
-    assert(type.pointer_depth == 0);
-    assert(type.array_lengths.empty());
-    assert(type.kind == TYPE_KIND_VARIABLE);
-
-    const auto* ptype = std::get_if<var_t>(&type.name);
-    assert(ptype != nullptr);
-
-    switch(*ptype) {
-        case VAR_U8:  type.name = VAR_I8;  break;
-        case VAR_I8:  type.name = VAR_U8;  break;
-        case VAR_U16: type.name = VAR_I16; break;
-        case VAR_I16: type.name = VAR_U16; break;
-        case VAR_U32: type.name = VAR_I32; break;
-        case VAR_I32: type.name = VAR_U32; break;
-        case VAR_U64: type.name = VAR_I64; break;
-        case VAR_I64: type.name = VAR_U64; break;
-        case VAR_BOOLEAN: return false;
-        case VAR_VOID:    return false;
-        default: break;
-    }
-
-    return true;
 }
 
 
@@ -158,12 +81,12 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
         if(node->members[0]->type == NODE_BRACED_EXPRESSION) {
             return get_bracedexpr_as_array_t(dynamic_cast<AstBracedExpression*>(node->members[0]), ctx, only_literals);
         } else {
-            return visit_node(node->members[0], ctx);
+            return evaluate(node->members[0], ctx);
         }
     }();
 
 
-    if(!contained_t || is_type_invalid_in_inferred_context(*contained_t)) {
+    if(!contained_t || TypeData::is_invalid_in_inferred_context(*contained_t)) {
         return std::nullopt;
     }
 
@@ -185,12 +108,12 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
                 return std::nullopt;
             }
 
-            if(!(contained_t->flags & TYPE_ARRAY) || !are_array_types_equivalent(*contained_t, *subarray_t)) {
+            if(!(contained_t->flags & TYPE_ARRAY) || !TypeData::are_arrays_equivalent(*contained_t, *subarray_t)) {
                 return std::nullopt;
             }
         } else {
-            const auto element_t = visit_node(node->members[i], ctx);
-            if(!element_t || !is_type_coercion_permissible(*contained_t, *element_t)) {
+            const auto element_t = evaluate(node->members[i], ctx);
+            if(!element_t || !TypeData::is_coercion_permissible(*contained_t, *element_t)) {
                 return std::nullopt;
             }
 
@@ -209,63 +132,6 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
     contained_t->flags |= TYPE_ARRAY;
     contained_t->array_lengths.insert(contained_t->array_lengths.begin(), node->members.size());
     return contained_t;
-}
-
-
-std::optional<tak::TypeData>
-tak::get_dereferenced_type(const TypeData& type) {
-
-    TypeData deref_t = type;
-
-    if(deref_t.flags & TYPE_ARRAY) {
-        assert(!deref_t.array_lengths.empty());
-        deref_t.array_lengths.pop_back();
-
-        if(deref_t.array_lengths.empty()) {
-            deref_t.flags &= ~TYPE_ARRAY;
-        }
-    }
-    else if(deref_t.flags & TYPE_POINTER) {
-        assert(deref_t.pointer_depth > 0);
-        --deref_t.pointer_depth;
-
-        if(!deref_t.pointer_depth) {
-            deref_t.flags &= ~TYPE_POINTER;
-        }
-    }
-    else {
-        return std::nullopt;
-    }
-
-
-    if(deref_t.kind == TYPE_KIND_PROCEDURE && !(deref_t.flags & TYPE_POINTER)) {
-        return std::nullopt;
-    }
-    if(const auto* is_primitive = std::get_if<var_t>(&deref_t.name)) {
-        if(*is_primitive == VAR_VOID && !(deref_t.flags & TYPE_POINTER)) {
-            return std::nullopt;
-        }
-    }
-    if(deref_t.flags & TYPE_RVALUE) {
-        deref_t.flags &= ~TYPE_RVALUE;
-    }
-
-    return deref_t;
-}
-
-
-std::optional<tak::TypeData>
-tak::get_addressed_type(const TypeData& type) {
-
-    if(type.flags & TYPE_ARRAY || type.flags & TYPE_RVALUE) {
-        return std::nullopt;
-    }
-
-    TypeData addressed_t = type;
-
-    ++addressed_t.pointer_depth;
-    addressed_t.flags |= TYPE_POINTER | TYPE_RVALUE;
-    return addressed_t;
 }
 
 
@@ -318,7 +184,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     assert(type.kind == TYPE_KIND_STRUCT);
 
     if(type.flags & TYPE_RVALUE) {
-        ctx.errs_.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", typedata_to_str_msg(type)), expr);
+        ctx.errs_.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", TypeData::to_string(type)), expr);
         return;
     }
 
@@ -332,14 +198,13 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     if(members->size() != expr->members.size()) {
         ctx.errs_.raise_error(fmt("Number of elements within braced expression ({}) does not match the struct type {} ({} members).",
             expr->members.size(),
-            typedata_to_str_msg(type),
+            TypeData::to_string(type),
             members->size()),
             expr
         );
 
         return;
     }
-
 
     //
     // Match all members
@@ -359,9 +224,9 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
                 continue;
             }
 
-            if(!are_array_types_equivalent(members->at(i).type, *array_t)) {
+            if(!TypeData::are_arrays_equivalent(members->at(i).type, *array_t)) {
                 ctx.errs_.raise_error(fmt("Element {} in braced expression: array of type {} is not equivalent to {}.",
-                    i + 1, typedata_to_str_msg(*array_t), typedata_to_str_msg(members->at(i).type)), expr);
+                    i + 1, TypeData::to_string(*array_t), TypeData::to_string(members->at(i).type)), expr);
             }
             continue;
         }
@@ -371,7 +236,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
             continue;
         }
 
-        const auto element_t = visit_node(expr->members[i], ctx);
+        const auto element_t = evaluate(expr->members[i], ctx);
         if(!element_t) {
             ctx.errs_.raise_error(fmt("Could not deduce type of element {} in braced expression.", i + 1), expr);
             continue;
@@ -382,12 +247,13 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
             continue;
         }
 
-        if(!is_type_coercion_permissible(members->at(i).type, *element_t)) {
+        if(!TypeData::is_coercion_permissible(members->at(i).type, *element_t)) {
             ctx.errs_.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
                 i + 1,
-                typedata_to_str_msg(members->at(i).type),
-                typedata_to_str_msg(*element_t)),
-                expr->members[i]);
+                TypeData::to_string(members->at(i).type),
+                TypeData::to_string(*element_t)),
+                expr->members[i]
+            );
         }
     }
 }

@@ -12,13 +12,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define parser_assert(condition, msg) if(!(condition)) {        \
-    tak::print("PARSER ASSERTION \"{}\" FAILED.", #condition);  \
-    panic(msg);                                                 \
-}                                                               \
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace tak {
 
     enum include_state_t : uint8_t {
@@ -40,9 +33,7 @@ namespace tak {
         std::vector<AstNode*>     toplevel_decls_;
         EntityTable               tbl_;
 
-        void dump_symbols();
         void dump_nodes();
-        void dump_types();
 
         Parser(const Parser&)            = delete;
         Parser& operator=(const Parser&) = delete;
@@ -55,13 +46,13 @@ namespace tak {
 
     void display_node_data(AstNode* node, uint32_t depth, Parser& parser);
     bool parse_proc_signature_and_body(Symbol* proc,  AstProcdecl* node, Parser& parser, Lexer& lxr);
-    std::string format_type_data(const TypeData& type, uint16_t num_tabs = 0);
     std::optional<TypeData> parse_type(Parser& parser, Lexer& lxr);
     std::optional<std::vector<uint32_t>> parse_array_data(Lexer& lxr);
     std::optional<std::string> get_namespaced_identifier(Lexer& lxr);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    AstNode* parse(Parser& parser, Lexer& lxr, bool nocheck_term, bool parse_single = false);
     AstNode* parse_type_alias(Parser& parser, Lexer& lxr);
     AstNode* parse_callconv(Parser& parser, Lexer& lxr);
     AstNode* parse_visibility_directive(Parser& parser, Lexer& lxr);
@@ -83,7 +74,6 @@ namespace tak {
     AstNode* parse_switch(Parser& parser, Lexer& lxr);
     AstNode* parse_structdef(Parser& parser, Lexer& lxr);
     AstNode* parse_member_access(AstNode* target, Lexer& lxr);
-    AstNode* parse_expression(Parser& parser, Lexer& lxr, bool nocheck_term, bool parse_single = false);
     AstNode* parse_identifier(Parser& parser, Lexer& lxr);
     AstNode* parse_unary_expression(Parser& parser, Lexer& lxr);
     AstNode* parse_decl(Parser& parser, Lexer& lxr);

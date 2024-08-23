@@ -8,10 +8,23 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <var_types.hpp>
+#include <typedata.hpp>
 #include <token.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define NODE_NEEDS_EVALUATING(node_type)           \
+   (node_type != tak::NODE_STRUCT_DEFINITION       \
+    && node_type != tak::NODE_ENUM_DEFINITION      \
+    && node_type != tak::NODE_INCLUDE_STMT         \
+    && node_type != tak::NODE_TYPE_ALIAS           \
+)                                                  \
+
+#define NODE_NEEDS_GENERATING(node_type)           \
+   (node_type != tak::NODE_TYPE_ALIAS              \
+    && node_type != tak::NODE_INCLUDE_STMT         \
+    && node_type != tak::NODE_STRUCT_DEFINITION    \
+)                                                  \
 
 #define NODE_VALID_SUBEXPRESSION(node_type)        \
  (node_type == tak::NODE_CALL                      \

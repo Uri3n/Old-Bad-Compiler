@@ -2,10 +2,11 @@
 // Created by Diago on 2024-08-11.
 //
 
-#ifndef ERROR_HANDLER_HPP
-#define ERROR_HANDLER_HPP
+#ifndef SEMANTIC_ERROR_HANDLER_HPP
+#define SEMANTIC_ERROR_HANDLER_HPP
 #include <lexer.hpp>
 #include <ast_types.hpp>
+#include <entity_table.hpp>
 #include <map>
 #include <io.hpp>
 
@@ -45,4 +46,4 @@ namespace tak {
     };
 }
 
-#endif //ERROR_HANDLER_HPP
+#endif //SEMANTIC_ERROR_HANDLER_HPP

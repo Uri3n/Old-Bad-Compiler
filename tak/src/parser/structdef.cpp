@@ -26,7 +26,7 @@ member_name_already_exists(const tak::UserType* type, const std::string& member_
 tak::AstNode*
 tak::parse_structdef(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_STRUCT, "Expected \"struct\" keyword.");
+    assert(lxr.current() == TOKEN_KW_STRUCT);
 
     if(parser.tbl_.scope_stack_.size() > 1) {
         lxr.raise_error("Struct definition at non-global scope.");

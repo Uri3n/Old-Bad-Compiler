@@ -17,6 +17,13 @@ myfunc :: proc() -> void {
 }
 */
 
-@intern main :: proc() -> void {
+@extern this_takes_ptr :: proc(ptr : i32^) -> void;
+
+main :: proc() -> void {
+    my_integer : i32 = 100;
+    my_ptr : i32^ = &my_integer;
+    my_ptr = my_ptr += 3;
     
+    this_takes_ptr(3);
+
 }

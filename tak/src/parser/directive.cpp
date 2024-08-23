@@ -8,7 +8,7 @@
 tak::AstNode*
 tak::parse_type_alias(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().value == "alias", "Expected \"@alias\" directive.");
+    assert(lxr.current().value == "alias");
 
     if(parser.tbl_.scope_stack_.size() > 1) {
         lxr.raise_error("Type alias definition at non-global scope.");
@@ -59,7 +59,7 @@ tak::parse_type_alias(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_callconv(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().value == "callconv", "Expected \"callconv\".");
+    assert(lxr.current().value == "callconv");
     lxr.advance(1);
 
     uint32_t sym_flag = ENTITY_FLAGS_NONE;
@@ -81,7 +81,7 @@ tak::parse_callconv(Parser& parser, Lexer& lxr) {
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
 
-    auto* node  = parse_expression(parser, lxr, false);
+    auto* node  = parse(parser, lxr, false);
     bool  state = false;
 
     defer_if(!state, [&] {
@@ -110,7 +110,7 @@ tak::parse_callconv(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_include(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().value == "include", "Expected \"include\" directive.");
+    assert(lxr.current().value == "include");
 
     if(parser.tbl_.scope_stack_.size() > 1) {
         lxr.raise_error("Include statement at non-global scope.");
@@ -188,9 +188,7 @@ tak::parse_include(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().value == "intern" || lxr.current().value == "extern",
-        "Expected visibility directive, \"intern\" or \"extern\".");
-
+    assert(lxr.current().value == "intern" || lxr.current().value == "extern");
 
     const size_t   pos   = lxr.current().src_pos;
     const uint32_t line  = lxr.current().line;
@@ -204,7 +202,7 @@ tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
 
     bool    state = false;
     Symbol* sym   = nullptr;
-    auto*   node  = parse_expression(parser, lxr, true);
+    auto*   node  = parse(parser, lxr, true);
 
     defer_if(!state, [&] {
         delete node;
@@ -234,7 +232,7 @@ tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_AT, "Expected '@'.");
+    assert(lxr.current() == TOKEN_AT);
 
     lxr.advance(1);
     if(lxr.current() != TOKEN_IDENTIFIER) {

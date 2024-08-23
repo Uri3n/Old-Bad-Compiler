@@ -8,7 +8,7 @@
 std::optional<std::string>
 tak::get_namespaced_identifier(Lexer& lxr) {
 
-    parser_assert(TOKEN_IDENT_START(lxr.current().type), "Expected identifier.");
+    assert(TOKEN_IDENT_START(lxr.current().type));
     std::string full_name;
 
     if(lxr.current() == TOKEN_NAMESPACE_ACCESS) {
@@ -40,7 +40,7 @@ tak::get_namespaced_identifier(Lexer& lxr) {
 tak::AstNode*
 tak::parse_identifier(Parser& parser, Lexer& lxr) {
 
-    parser_assert(TOKEN_IDENT_START(lxr.current().type), "Expected identifier start.");
+    assert(TOKEN_IDENT_START(lxr.current().type));
 
     if(lxr.peek(1) == TOKEN_TYPE_ASSIGNMENT || lxr.peek(1) == TOKEN_CONST_TYPE_ASSIGNMENT) {
         if(lxr.current() != TOKEN_IDENTIFIER) {

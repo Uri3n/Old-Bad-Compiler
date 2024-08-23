@@ -1,6 +1,15 @@
 
-struct bar {
-   mem1 : u8^;
-   mem2: i32;
+struct foo {
+   mem1 : bool;
+   mem2 : i64;
+   mem3 : u32[2][2];
 }
 
+struct bar {
+   mem1 : i8^;
+   mem2 : foo;
+   mem3 : void^;
+}
+
+//              bar            foo                         bar
+myvar : bar = {"Hello world", { true, 300, {{1,2},{3,4}}}, nullptr};

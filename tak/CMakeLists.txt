@@ -10,14 +10,13 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 add_executable(tak src/main.cpp
 
-        src/lexer/lex.cpp
         src/lexer/iterate.cpp
         src/lexer/tokens.cpp
         src/lexer/ambiguous_token.cpp
         src/lexer/errors.cpp
         src/lexer/init.cpp
 
-        src/parser/dump.cpp
+        src/parser/begin.cpp
         src/parser/decl.cpp
         src/parser/expr.cpp
         src/parser/ctrlflow.cpp
@@ -27,27 +26,33 @@ add_executable(tak src/main.cpp
         src/parser/directive.cpp
         src/parser/enumdef.cpp
         src/parser/structdef.cpp
+        src/parser/dump_nodes.cpp
 
         src/checker/convert.cpp
-        src/checker/verify.cpp
-        src/checker/visit.cpp
+        src/checker/typedata.cpp
+        src/checker/evaluate.cpp
 
         src/entity_table/types.cpp
         src/entity_table/symbols.cpp
         src/entity_table/namespaces.cpp
         src/entity_table/scope.cpp
+        src/entity_table/dump_entities.cpp
 
-        src/support/basic_utility.cpp
+        src/support/util.cpp
+        src/support/typedata_util.cpp
+        src/support/token_util.cpp
         src/support/destructors.cpp
         src/support/do_compile.cpp
         src/support/semantic_error_handler.cpp
         src/support/io.cpp
+        src/support/argparse.cpp
 
         src/postparser/generic_procedures.cpp
         src/postparser/generic_structs.cpp
         src/postparser/other.cpp
 
         src/codegen/codegen.cpp
+        src/codegen/util.cpp
 
         include/token.hpp
         include/Lexer.hpp
@@ -55,14 +60,15 @@ add_executable(tak src/main.cpp
         include/defer.hpp
         include/parser.hpp
         include/ast_types.hpp
-        include/var_types.hpp
+        include/typedata.hpp
         include/checker.hpp
         include/panic.hpp
-        include/support.hpp
+        include/util.hpp
         include/codegen.hpp
         include/semantic_error_handler.hpp
         include/postparser.hpp
         include/entity_table.hpp
+        include/argparse.hpp
 )
 
 

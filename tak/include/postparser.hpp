@@ -20,15 +20,17 @@ namespace tak {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    void postparse_inspect_struct_t(Parser& parser, TypeData& type, SemanticErrorHandler& errs, const LocationType& loc);
+    void postparse_inspect_proc_t(Parser& parser, const TypeData& type, SemanticErrorHandler& errs, const LocationType& loc);
     bool postparse_verify(Parser& parser, Lexer& lxr);
     bool postparse_check_leftover_placeholders(Parser& parser);
     bool postparse_check_recursive_structures(Parser& parser);
-    void postparse_inspect_struct_t(Parser& parser, TypeData& type, SemanticErrorHandler& errs, const LocationType& loc);
-    void postparse_inspect_proc_t(Parser& parser, const TypeData& type, SemanticErrorHandler& errs, const LocationType& loc);
     bool postparse_permute_generic_structures(Parser& parser);
     bool postparse_permute_generic_procedures(Parser& parser, Lexer& lxr);
     bool postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Parser& parser, Lexer& lxr);
     bool postparse_delete_garbage_objects(Parser& parser);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::optional<TypeData> postparse_try_permute_member(
         const std::unordered_map<std::string,TypeData*>& gen_map,

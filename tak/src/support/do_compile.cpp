@@ -42,7 +42,7 @@ do_parse(Parser& parser, Lexer& lexer) {
 
     do {
         while(true) {
-            toplevel_decl = parse_expression(parser, lexer, false);
+            toplevel_decl = parse(parser, lexer, false);
             if(toplevel_decl == nullptr) {
                 break;
             }
@@ -68,8 +68,8 @@ do_check(Parser& parser, const std::string& original_file_name) {
 
     CheckerContext ctx(parser.tbl_);
     for(const auto& decl : parser.toplevel_decls_) {
-        if(NODE_NEEDS_VISITING(decl->type)) {
-            visit_node(decl, ctx);
+        if(NODE_NEEDS_EVALUATING(decl->type)) {
+            evaluate(decl, ctx);
         }
     }
 
@@ -82,20 +82,24 @@ do_check(Parser& parser, const std::string& original_file_name) {
 
 #ifdef TAK_DEBUG
     parser.dump_nodes();
-    parser.dump_symbols();
-    parser.dump_types();
+    parser.tbl_.dump_symbols();
+    parser.tbl_.dump_types();
 #endif
 
     return true;
 }
 
-static bool
+static void
 do_codegen(Parser& parser, const std::string& llvm_mod_name) {
 
     CodegenContext ctx(parser.tbl_, llvm_mod_name);
     generate_struct_layouts(ctx);
+    generate_global_placeholders(ctx);
+    for(const auto* child : parser.toplevel_decls_) {
+        if(NODE_NEEDS_GENERATING(child->type)) generate(child, ctx);
+    }
 
-    return llvm_mod_name != "poopoo";
+    ctx.mod_.print(llvm::outs(), nullptr);
 }
 
 static bool
@@ -110,7 +114,7 @@ do_compile(const std::string& source_file_name) {
 
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
-    //if(!do_codegen(parser, source_file_name))    return false;
+    do_codegen(parser, source_file_name);
 
     return true;
 }

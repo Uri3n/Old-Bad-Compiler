@@ -5,12 +5,10 @@
 #include <parser.hpp>
 
 
-
-
 tak::AstNode*
 tak::parse_namespace(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_NAMESPACE, "Expected \"namespace\" keyword.");
+    assert(lxr.current() == TOKEN_KW_NAMESPACE);
     lxr.advance(1);
 
     const size_t   begin_pos  = lxr.current().src_pos;
@@ -64,7 +62,7 @@ tak::parse_namespace(Parser& parser, Lexer& lxr) {
         const size_t   curr_pos  = lxr.current().src_pos;
         const uint32_t curr_line = lxr.current().line;
 
-        node->children.emplace_back(parse_expression(parser, lxr, false));
+        node->children.emplace_back(parse(parser, lxr, false));
         if(node->children.back() == nullptr)
             return nullptr;
 

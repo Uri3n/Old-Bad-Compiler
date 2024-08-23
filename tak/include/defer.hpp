@@ -9,17 +9,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define defer(callable) auto _ = defer_wrapper(callable);
-
-#define defer_if(condition, callable) \
-    auto _ = defer_wrapper([&]{       \
-        auto _sub = callable;         \
-        if((condition)) {             \
-            _sub();                   \
-        }                             \
-})                                    \
+#define defer_if(condition, callable)   \
+    auto _ = defer_wrapper([&]{         \
+        auto _sub = callable;           \
+        if((condition)) {               \
+            _sub();                     \
+        }                               \
+    })                                  \
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 template<typename T> requires std::is_invocable_v<T>
 class defer_wrapper {

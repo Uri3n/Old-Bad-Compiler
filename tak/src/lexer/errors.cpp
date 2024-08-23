@@ -39,7 +39,7 @@ tak::Lexer::_raise_error_impl(const std::string& message, size_t file_position, 
 
 
     //
-    // display the error message
+    // display error message with arrow
     //
 
     std::string filler;

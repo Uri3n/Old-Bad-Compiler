@@ -6,162 +6,16 @@
 
 
 tak::AstNode*
-tak::parse_expression(Parser& parser, Lexer& lxr, const bool nocheck_term, const bool parse_single) {
-
-    const auto  curr  = lxr.current();
-    AstNode*    expr  = nullptr;
-    bool        state = false;
-
-    defer_if(!state, [&] {
-        delete expr;
-    });
-
-
-    if(curr == TOKEN_END_OF_FILE)             return nullptr;
-    if(curr == TOKEN_AT)                      expr = parse_compiler_directive(parser, lxr);
-    else if(curr == TOKEN_LPAREN)             expr = parse_parenthesized_expression(parser, lxr);
-    else if(curr == TOKEN_LBRACE)             expr = parse_braced_expression(parser, lxr);
-    else if(curr.kind == KIND_LITERAL)        expr = parse_singleton_literal(parser, lxr);
-    else if(curr.kind == KIND_KEYWORD)        expr = parse_keyword(parser, lxr);
-    else if(TOKEN_IDENT_START(curr.type))     expr = parse_identifier(parser, lxr);
-    else if(TOKEN_VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
-
-    else {
-        lxr.raise_error("Unexpected token.");
-        return nullptr;
-    }
-
-    if(expr == nullptr)
-        return nullptr;
-
-
-    //
-    // For these expressions we should not check for a terminal no matter what.
-    //
-
-    if(NODE_EXPR_NEVER_NEEDS_TERMINAL(expr->type)) {
-        state = true;
-        return expr;
-    }
-
-
-    //
-    // Check postfix
-    //
-
-    while(true) {
-        if(expr == nullptr) {
-            return nullptr;
-        }
-
-        if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-            expr = parse_subscript(expr, parser, lxr);
-            continue;
-        }
-
-        if(lxr.current() == TOKEN_LPAREN) {
-            expr = parse_call(expr, parser, lxr);
-            continue;
-        }
-
-        if(lxr.current() == TOKEN_DOT) {
-            expr = parse_member_access(expr, lxr);
-            continue;
-        }
-
-        if(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && !parse_single) {
-            expr = parse_binary_expression(expr, parser, lxr);
-            continue;
-        }
-
-        break;
-    }
-
-
-    //
-    // Check if we're leaving a parenthesized expression
-    //
-
-    if(lxr.current() == TOKEN_RPAREN) {
-        if(!parser.inside_parenthesized_expression_) {
-            lxr.raise_error("Unexpected token.");
-            return nullptr;
-        }
-
-        if(!parse_single) {
-            --parser.inside_parenthesized_expression_;
-            lxr.advance(1);
-        }
-    }
-
-    if(nocheck_term || parse_single) {
-        state = true;
-        return expr;
-    }
-
-
-    //
-    // Check for terminal character (if not inside of a subexpression)
-    //
-
-    if(lxr.current() == TOKEN_SEMICOLON || lxr.current() == TOKEN_COMMA) {
-        if(parser.inside_parenthesized_expression_) {
-            lxr.raise_error("Unexpected token inside of parenthesized expression.");
-            return nullptr;
-         }
-
-        lxr.advance(1);
-        state = true;
-        return expr;
-    }
-
-    lxr.raise_error("Unexpected token following expression.");
-    return nullptr;
-}
-
-
-tak::AstNode*
-tak::parse_keyword(Parser &parser, Lexer &lxr) {
-
-    parser_assert(lxr.current().kind == KIND_KEYWORD, "Expected keyword.");
-
-    switch(lxr.current().type) {
-        case TOKEN_KW_RET:        return parse_ret(parser, lxr);
-        case TOKEN_KW_IF:         return parse_branch(parser, lxr);
-        case TOKEN_KW_SWITCH:     return parse_switch(parser, lxr);
-        case TOKEN_KW_WHILE:      return parse_while(parser, lxr);
-        case TOKEN_KW_FOR:        return parse_for(parser, lxr);
-        case TOKEN_KW_STRUCT:     return parse_structdef(parser, lxr);
-        case TOKEN_KW_CONT:       return parse_cont(lxr);
-        case TOKEN_KW_BRK:        return parse_brk(lxr);
-        case TOKEN_KW_NAMESPACE:  return parse_namespace(parser, lxr);
-        case TOKEN_KW_DO:         return parse_dowhile(parser, lxr);
-        case TOKEN_KW_BLK:        return parse_block(parser, lxr);
-        case TOKEN_KW_CAST:       return parse_cast(parser, lxr);
-        case TOKEN_KW_ENUM:       return parse_enumdef(parser, lxr);
-        case TOKEN_KW_DEFER:      return parse_defer(parser, lxr);
-        case TOKEN_KW_DEFER_IF:   return parse_defer_if(parser, lxr);
-        case TOKEN_KW_SIZEOF:     return parse_sizeof(parser, lxr);
-        case TOKEN_KW_NULLPTR:    return parse_nullptr(lxr);
-        default: break;
-    }
-
-    lxr.raise_error("This keyword is not allowed here.");
-    return nullptr;
-}
-
-
-tak::AstNode*
 tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_LPAREN, "Expected beginning of parenthesized expression.");
+    assert(lxr.current() == TOKEN_LPAREN);
 
     ++parser.inside_parenthesized_expression_;
     lxr.advance(1);
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    auto* expr              = parse_expression(parser, lxr, true);
+    auto* expr              = parse(parser, lxr, true);
 
     if(expr == nullptr) return nullptr;
     if(!NODE_VALID_SUBEXPRESSION(expr->type)) {
@@ -177,7 +31,7 @@ tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_cast(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_CAST, "Expected \"cast\" keyword.");
+    assert(lxr.current() == TOKEN_KW_CAST);
 
     if(lxr.peek(1) != TOKEN_LPAREN) {
         lxr.raise_error("Expected '('.");
@@ -199,7 +53,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
     lxr.advance(2);
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
-    node->target            = parse_expression(parser, lxr, true);
+    node->target            = parse(parser, lxr, true);
 
     if(node->target == nullptr)
         return nullptr;
@@ -251,7 +105,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().kind == KIND_LITERAL, "Expected literal.");
+    assert(lxr.current().kind == KIND_LITERAL);
 
     bool  state        = false;
     auto* node         = new AstSingletonLiteral(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -311,7 +165,7 @@ tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_nullptr(Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_NULLPTR, "Expected \"nullptr\" keyword.");
+    assert(lxr.current() == TOKEN_KW_NULLPTR);
 
     auto* node         = new AstSingletonLiteral(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->literal_type = TOKEN_KW_NULLPTR;
@@ -325,8 +179,8 @@ tak::parse_nullptr(Lexer& lxr) {
 tak::AstNode*
 tak::parse_member_access(AstNode* target, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_DOT, "Expected '.'");
-    parser_assert(target != nullptr, "null target.");
+    assert(lxr.current() == TOKEN_DOT);
+    assert(target != nullptr);
 
 
     bool           state    = false;
@@ -360,7 +214,7 @@ tak::parse_member_access(AstNode* target, Lexer& lxr) {
 tak::AstNode*
 tak::parse_sizeof(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_KW_SIZEOF, "Expected \"sizeof\" keyword.");
+    assert(lxr.current() == TOKEN_KW_SIZEOF);
 
     const size_t   curr_pos = lxr.current().src_pos;
     const uint32_t line     = lxr.current().line;
@@ -413,7 +267,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
     }
 
     else {
-        auto* target = parse_expression(parser, lxr, true);
+        auto* target = parse(parser, lxr, true);
         if(target == nullptr) {
             return nullptr;
         }
@@ -435,7 +289,7 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_LBRACE, "Expected left-brace.");
+    assert(lxr.current() == TOKEN_LBRACE);
 
     bool  state = false;
     auto* node  = new AstBracedExpression(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -451,7 +305,7 @@ tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
 
-        node->members.emplace_back(parse_expression(parser, lxr, true));
+        node->members.emplace_back(parse(parser, lxr, true));
         if(node->members.back() == nullptr) {
             return nullptr;
         }
@@ -476,7 +330,7 @@ tak::parse_braced_expression(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
 
-    parser_assert(TOKEN_VALID_UNARY_OPERATOR(lxr.current()), "Expected unary operator.");
+    assert(TOKEN_VALID_UNARY_OPERATOR(lxr.current()));
 
     const size_t   src_pos = lxr.current().src_pos;
     const uint32_t line    = lxr.current().line;
@@ -485,7 +339,7 @@ tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
     node->_operator = lxr.current().type;
 
     lxr.advance(1);
-    node->operand = parse_expression(parser, lxr, true, true);
+    node->operand = parse(parser, lxr, true, true);
     if(node->operand == nullptr) {
         delete node;
         return nullptr;
@@ -506,7 +360,7 @@ tak::parse_unary_expression(Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_LPAREN, "Expected '('.");
+    assert(lxr.current() == TOKEN_LPAREN);
 
     //
     // Generate AST node.
@@ -588,7 +442,7 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
         const size_t   curr_pos = lxr.current().src_pos;
         const uint32_t line     = lxr.current().line;
 
-        auto* expr = parse_expression(parser, lxr, true);
+        auto* expr = parse(parser, lxr, true);
         if(expr == nullptr) {
             return nullptr;
         }
@@ -621,8 +475,8 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 tak::AstNode*
 tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR, "Expected binary operator.");
-    parser_assert(left_operand != nullptr, "Null left operand passed.");
+    assert(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR);
+    assert(left_operand != nullptr);
 
 
     bool  state    = false;
@@ -641,7 +495,7 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
 
 
     lxr.advance(1);
-    binexpr->right_op = parse_expression(parser, lxr, true, true);
+    binexpr->right_op = parse(parser, lxr, true, true);
     if(binexpr->right_op == nullptr) {
         return nullptr;
     }
@@ -655,7 +509,7 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
     }
 
 
-    while(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && precedence_of(lxr.current().type) <= precedence_of(binexpr->_operator)) {
+    while(lxr.current().kind == KIND_BINARY_EXPR_OPERATOR && Token::precedence_of(lxr.current().type) <= Token::precedence_of(binexpr->_operator)) {
         binexpr->right_op = parse_binary_expression(binexpr->right_op, parser, lxr);
         if(binexpr->right_op == nullptr) {
             return nullptr;
@@ -670,8 +524,8 @@ tak::parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr) 
 tak::AstNode*
 tak::parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
 
-    parser_assert(lxr.current() == TOKEN_LSQUARE_BRACKET, "Expected '['.");
-    parser_assert(operand != nullptr, "Null operand.");
+    assert(lxr.current() == TOKEN_LSQUARE_BRACKET);
+    assert(operand != nullptr);
     lxr.advance(1);
 
 
@@ -681,7 +535,7 @@ tak::parse_subscript(AstNode* operand, Parser& parser, Lexer& lxr) {
     auto* node            = new AstSubscript(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
     node->operand         = operand;
     node->operand->parent = node;
-    node->value           = parse_expression(parser, lxr, true);
+    node->value           = parse(parser, lxr, true);
 
     bool state = false;
     defer_if(!state, [&] {
