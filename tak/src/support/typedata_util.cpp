@@ -266,6 +266,30 @@ tak::TypeData::get_const_char() {
     return const_int;
 }
 
+bool
+tak::TypeData::is_primitive(const TypeData& type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr && *prim_t != PRIMITIVE_VOID;
+}
+
+bool
+tak::TypeData::is_struct_value_type(const TypeData& type) {
+    return type.kind == TYPE_KIND_STRUCT
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_aggregate(const TypeData& type) {
+    return type.flags & TYPE_ARRAY
+    || (type.kind == TYPE_KIND_STRUCT && !(type.flags & TYPE_POINTER));
+}
+
+bool
+tak::TypeData::is_non_aggregate_pointer(const TypeData& type) {
+    return type.flags & TYPE_POINTER && !(type.flags & TYPE_ARRAY);
+}
+
 std::string
 tak::primitive_t_to_string(const primitive_t type) {
     switch(type) {
@@ -290,6 +314,7 @@ tak::primitive_t_to_string(const primitive_t type) {
 
 uint16_t
 tak::primitive_t_size_bytes(const primitive_t type) {
+
     switch(type) {          // Assumes type is NOT a pointer.
         case PRIMITIVE_BOOLEAN:
         case PRIMITIVE_U8:
@@ -302,7 +327,8 @@ tak::primitive_t_size_bytes(const primitive_t type) {
         case PRIMITIVE_I64:     return 8;
         case PRIMITIVE_F32:     return 4;
         case PRIMITIVE_F64:     return 8;
-        default:
-            panic("var_t_to_size_bytes: non size-convertible var_t passed as argument.");
+        default: break;
     }
+
+    panic("primitive_t_size_bytes: non size-convertible var_t passed as argument.");
 }

@@ -116,7 +116,6 @@ tak::TypeData::is_coercion_permissible(TypeData& left, const TypeData& right) {
         return false;
     }
 
-
     size_t      ptr_count = 0;
     const auto* left_t    = std::get_if<primitive_t>(&left.name);
     const auto* right_t   = std::get_if<primitive_t>(&right.name);

@@ -3,7 +3,7 @@
 #include <io.hpp>
 #include <argparse.hpp>
 
-#define CURRENT_TEST "tests/test2.txt"
+#define CURRENT_TEST "tests/test1.txt"
 
 bool do_compile(const std::string& source_file_name);
 

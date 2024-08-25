@@ -105,6 +105,7 @@ tak::postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Pa
 bool
 tak::postparse_permute_generic_procedures(Parser& parser, Lexer& lxr) {
 
+    SemanticErrorHandler errs;
     while (true) {
         Symbol* gen_sym = nullptr;
         for(auto &[index, sym] : parser.tbl_.sym_table_) {
@@ -119,8 +120,14 @@ tak::postparse_permute_generic_procedures(Parser& parser, Lexer& lxr) {
         }
 
         gen_sym->flags &= ~ENTITY_GENPERM;
+        const Symbol* gen_base = parser.tbl_.lookup_unique_symbol(gen_sym->type.sym_ref);
+        if(gen_base->generic_type_names.empty() || gen_base->type.kind != TYPE_KIND_PROCEDURE) {
+            errs.raise_error("Attempting to pass generic type parameters for a symbol that does not take any.", gen_sym);
+            continue;
+        }
+
         if(!postparse_reparse_procedure_permutation(
-            parser.tbl_.lookup_unique_symbol(gen_sym->type.sym_ref),
+            gen_base,
             gen_sym,
             parser,
             lxr)
@@ -129,5 +136,6 @@ tak::postparse_permute_generic_procedures(Parser& parser, Lexer& lxr) {
         }
     }
 
-    return true;
+    errs.emit();
+    return !errs.failed();
 }

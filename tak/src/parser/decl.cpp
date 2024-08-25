@@ -149,8 +149,8 @@ tak::parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
 static bool
 generic_procdecl_skip_all(tak::Symbol* proc, tak::Parser& parser, tak::Lexer& lxr) {
 
-    assert(lxr.current() == tak::TOKEN_LSQUARE_BRACKET);
-    lxr.advance(1);
+    assert(lxr.current() == tak::TOKEN_DOLLAR_SIGN && lxr.peek(1) == tak::TOKEN_LSQUARE_BRACKET);
+    lxr.advance(2);
 
     while(lxr.current() != tak::TOKEN_RSQUARE_BRACKET) {
         if(lxr.current() != tak::TOKEN_IDENTIFIER) {
@@ -373,7 +373,7 @@ tak::parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
     //
 
     lxr.advance(1);
-    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
+    if(lxr.current() == TOKEN_DOLLAR_SIGN && lxr.peek(1) == TOKEN_LSQUARE_BRACKET) {
         proc->flags |= ENTITY_GENBASE;
         if(generic_procdecl_skip_all(proc, parser, lxr)) {
             state = true;

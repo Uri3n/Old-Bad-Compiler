@@ -2,7 +2,8 @@
 
 struct bar {
    mem1 : bool;
-   mem2 : i64;
+   mem2 : i64^;
+   mem3 : i8^;
 }
 
 struct foo {
@@ -11,19 +12,6 @@ struct foo {
    mem3 : i32^^;
 }
 
-/*
-myfunc :: proc() -> void {
-    myvar = 4210;
-}
-*/
-
-@extern this_takes_ptr :: proc(ptr : i32^) -> void;
-
-main :: proc() -> void {
-    my_integer : i32 = 100;
-    my_ptr : i32^ = &my_integer;
-    my_ptr = my_ptr += 3;
-    
-    this_takes_ptr(3);
-
+main :: proc(myarg : foo) -> void {
+    myval : i64 = 300;
 }

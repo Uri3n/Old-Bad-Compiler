@@ -13,6 +13,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 
 
@@ -33,6 +34,8 @@ namespace tak {
         WrappedIRValue()  = default;
     };
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     struct IRCastingContext {
         llvm::Type* llvm_t = nullptr;
         TypeData    tak_t;
@@ -42,8 +45,24 @@ namespace tak {
             : llvm_t(llvm_t), tak_t(tak_t) {}
     };
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     class CodegenContext {
+        struct {
+            llvm::BasicBlock* cond  = nullptr;
+            llvm::BasicBlock* after = nullptr;
+            llvm::BasicBlock* merge = nullptr;
+        } curr_loop_;
+
+        struct {
+            std::unordered_map<std::string, std::shared_ptr<WrappedIRValue>> named_values;
+            llvm::Function* func = nullptr;
+        } curr_proc_;
+
     public:
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         EntityTable&      tbl_;         // Reference to the Tak entity table for this source file.
         llvm::LLVMContext llvm_ctx_;    // LLVM context.
         llvm::Module      mod_;         // LLVM module, same name as source file.
@@ -54,16 +73,9 @@ namespace tak {
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        struct {
-            llvm::BasicBlock* cond  = nullptr;
-            llvm::BasicBlock* after = nullptr;
-            llvm::BasicBlock* merge = nullptr;
-        } curr_loop_;
-
-        struct {
-            std::unordered_map<std::string, WrappedIRValue> named_values;
-            llvm::Function* func = nullptr;
-        } curr_proc_;
+        std::shared_ptr<WrappedIRValue> set_local(const std::string& name, const std::shared_ptr<WrappedIRValue>& ptr);
+        std::shared_ptr<WrappedIRValue> get_local(const std::string& name);
+        llvm::Function* curr_func();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -73,6 +85,10 @@ namespace tak {
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        bool inside_procedure();
+        bool inside_loop();
+        void enter_proc(llvm::Function* func);
+        void enter_loop(llvm::BasicBlock* cond, llvm::BasicBlock* after, llvm::BasicBlock* merge);
         void leave_curr_proc();
         void leave_curr_loop();
 
@@ -96,6 +112,23 @@ namespace tak {
     void generate_procedure_signatures(CodegenContext& ctx);
     void generate_global_placeholders(CodegenContext& ctx);
 
+    void generate_local_struct_init(
+        llvm::AllocaInst* alloc,
+        llvm::Type* llvm_t,
+        const UserType* utype,
+        const AstBracedExpression* bracedexpr,
+        std::vector<llvm::Value*>& GEP_indices,
+        CodegenContext& ctx
+    );
+
+    void generate_local_array_init(
+        llvm::AllocaInst* alloc,
+        llvm::Type* llvm_t,
+        const AstBracedExpression* bracedexpr,
+        std::vector<llvm::Value*>& GEP_indices,
+        CodegenContext& ctx
+    );
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     llvm::Constant* generate_global_string_constant(CodegenContext& ctx, const AstSingletonLiteral* node);
@@ -106,13 +139,14 @@ namespace tak {
 
     std::shared_ptr<WrappedIRValue> generate_singleton_literal(AstSingletonLiteral* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_struct(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_identifier(const AstIdentifier* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_array(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_primitive(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_vardecl_global(const AstVardecl* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_vardecl(const AstVardecl* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_procdecl(const AstProcdecl* node, CodegenContext& ctx);
-    std::shared_ptr<WrappedIRValue> generate(const AstNode* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate(AstNode* node, CodegenContext& ctx);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }

@@ -26,6 +26,7 @@
     X(LSQUARE_BRACKET, "[")          \
     X(RSQUARE_BRACKET, "]")          \
     X(COMMA, ",")                    \
+    X(DOLLAR_SIGN, "$")              \
     X(DOT, ".")                      \
     X(THREE_DOTS, "...")             \
     X(QUESTION_MARK, "?")            \

@@ -50,8 +50,6 @@ namespace tak {
         void   raise_warning(const std::string& message);
         void   raise_warning(const std::string& message, size_t file_position, uint32_t line);
         void   raise_warning(const std::string& message, size_t file_position);
-
-
         bool   init(const std::string& file_name);
 
         static void token_skip(Lexer& lxr);
@@ -86,6 +84,7 @@ namespace tak {
         static void token_at(Lexer& lxr);
         static void token_null(Lexer& lxr);
         static void token_backslash(Lexer& lxr);
+        static void token_dollarsign(Lexer& lxr);
         static void infer_ambiguous_token(Lexer& lxr, const std::unordered_map<char, token_func>& illegals);
 
         static Token token_hex_literal(Lexer& lxr);

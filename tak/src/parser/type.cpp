@@ -81,11 +81,7 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
         data.name = canonical_name;
     }
 
-    tak::Token peek1 = lxr.peek(1);
-    tak::Token peek2 = lxr.peek(2);
-
-    bool generics = peek1 == tak::TOKEN_LSQUARE_BRACKET && (peek2.kind == tak::KIND_TYPE_IDENTIFIER || TOKEN_IDENT_START(peek2.type));
-    if(!generics) {
+    if(lxr.peek(1) != tak::TOKEN_DOLLAR_SIGN) {
         return true;
     }
 
@@ -111,6 +107,12 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
     }
 
     lxr.advance(2);
+    if(lxr.current() != tak::TOKEN_LSQUARE_BRACKET) {
+        lxr.raise_error("Expected '['.");
+        return false;
+    }
+
+    lxr.advance(1);
     while(lxr.current() != tak::TOKEN_RSQUARE_BRACKET) {
         if(lxr.current().kind != tak::KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
             lxr.raise_error("Expected type identifier.");

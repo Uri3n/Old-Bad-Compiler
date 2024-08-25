@@ -87,8 +87,8 @@ tak::parse_structdef(Parser& parser, Lexer& lxr) {
     new_type->line = begin_line;
 
     lxr.advance(1);
-    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        lxr.advance(1);
+    if(lxr.current() == TOKEN_DOLLAR_SIGN && lxr.peek(1) == TOKEN_LSQUARE_BRACKET) {
+        lxr.advance(2);
         while(lxr.current() != TOKEN_RSQUARE_BRACKET) {
             if(lxr.current() != TOKEN_IDENTIFIER) {
                 lxr.raise_error("Expected generic parameter name (e.g. 'T').");

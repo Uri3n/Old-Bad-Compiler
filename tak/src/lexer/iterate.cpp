@@ -50,6 +50,7 @@ tak::Lexer::advance(const uint32_t amnt) {
         {'@',  token_at},
         {'.',  token_dot},
         {'\\', token_backslash},
+        {'$',  token_dollarsign},
         {'\0', token_null},
     };
 

@@ -93,9 +93,13 @@ static void
 do_codegen(Parser& parser, const std::string& llvm_mod_name) {
 
     CodegenContext ctx(parser.tbl_, llvm_mod_name);
+    ctx.mod_.setDataLayout("e-m:e-i64:64-i128:128-n32:64-S128");
+
     generate_struct_layouts(ctx);
     generate_global_placeholders(ctx);
-    for(const auto* child : parser.toplevel_decls_) {
+    generate_procedure_signatures(ctx);
+
+    for(auto* child : parser.toplevel_decls_) {
         if(NODE_NEEDS_GENERATING(child->type)) generate(child, ctx);
     }
 

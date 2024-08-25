@@ -9,6 +9,7 @@
 #include <string>
 #include <cstdint>
 #include <unordered_map>
+#include <source_location>
 #include <token.hpp>
 #include <variant>
 
@@ -121,6 +122,10 @@ namespace tak {
 
         static bool can_operator_be_applied_to(token_t _operator, const TypeData& type);
         static bool is_arithmetic_eligible(const TypeData& type, token_t _operator);
+        static bool is_primitive(const TypeData& type);
+        static bool is_struct_value_type(const TypeData& type);
+        static bool is_aggregate(const TypeData& type);
+        static bool is_non_aggregate_pointer(const TypeData& type);
         static bool is_bwop_eligible(const TypeData& type);
         static bool is_lop_eligible(const TypeData& type);
         static bool is_cast_eligible(const TypeData& type);

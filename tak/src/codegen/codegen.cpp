@@ -89,7 +89,7 @@ tak::generate_global_placeholders(CodegenContext& ctx) {
             sym->type.flags & TYPE_CONSTANT,
             sym->flags & ENTITY_FOREIGN ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage,
             nullptr,
-            std::to_string(sym->symbol_index)
+            sym->name
         );
     }
 }
@@ -106,7 +106,7 @@ tak::generate_procedure_signatures(CodegenContext& ctx) {
             llvm::Function::Create(
                 signature,
                 sym->flags & ENTITY_INTERNAL ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
-                std::to_string(sym->symbol_index),
+                sym->name,
                 ctx.mod_
             );
 
@@ -137,42 +137,70 @@ std::shared_ptr<tak::WrappedIRValue>
 tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
 
     assert(node != nullptr);
-    if(node->children.empty()) {
+    const Symbol* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
+    if(sym->flags & ENTITY_FOREIGN) {
         return nullptr;
     }
 
     //
-    // Get the associated function, load arguments.
+    // Get the associated function, load arguments locally.
     //
 
-    llvm::Function*   func  = ctx.mod_.getFunction(std::to_string(node->identifier->symbol_index));
+    llvm::Function*   func  = ctx.mod_.getFunction(sym->name);
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(ctx.llvm_ctx_, "entry", func);
 
     assert(func != nullptr);
     assert(node->parameters.size() == func->arg_size());
 
     ctx.builder_.SetInsertPoint(entry);
-    ctx.curr_proc_.func = func;
+    ctx.enter_proc(func);
 
     for(size_t i = 0; i < node->parameters.size(); i++)
     {
-        const auto*     sym   = ctx.tbl_.lookup_unique_symbol(node->parameters[i]->identifier->symbol_index);
-        WrappedIRValue& local = ctx.curr_proc_.named_values[std::to_string(sym->symbol_index)];
+        const auto* arg_sym = ctx.tbl_.lookup_unique_symbol(node->parameters[i]->identifier->symbol_index);
+        const auto  local   = ctx.set_local(std::to_string(arg_sym->symbol_index), WrappedIRValue::create());
 
-        if(sym->type.flags & TYPE_CONSTANT) {
-            local.tak_type = sym->type;
-            local.value    = func->getArg(i);
+        if(arg_sym->type.flags & TYPE_CONSTANT && !TypeData::is_struct_value_type(arg_sym->type)) {
+            local->tak_type = arg_sym->type;
+            local->value    = func->getArg(i);
         } else {
-            local.tak_type = TypeData::get_addressed_type(sym->type).value(); // Shouldn't be unsafe, right?
-            local.value    = ctx.builder_.CreateAlloca(generate_type(ctx, sym->type));
+            local->tak_type = TypeData::get_addressed_type(arg_sym->type).value(); // Shouldn't be unsafe, right?
+            local->value    = ctx.builder_.CreateAlloca(generate_type(ctx, arg_sym->type), nullptr, arg_sym->name);
+            ctx.builder_.CreateStore(func->getArg(i), local->value);
         }
     }
+
+    //
+    // Generate struct body.
+    //
 
     for(const auto& child : node->children) {
         if(NODE_NEEDS_GENERATING(child->type)) generate(child, ctx);
     }
 
-    return nullptr;
+    //
+    // Add a default return value if the user forgot to return themselves.
+    //
+
+    llvm::BasicBlock& last_blk = func->back();
+    if(last_blk.empty() || !llvm::isa<llvm::ReturnInst>(last_blk.back())) {
+        if(sym->type.return_type == nullptr) {
+            ctx.builder_.CreateRetVoid();
+        }
+        else if(TypeData::is_aggregate(*sym->type.return_type)) {
+            ctx.builder_.CreateRet(llvm::ConstantAggregateZero::get(generate_type(ctx, *sym->type.return_type)));
+        }
+        else if(sym->type.return_type->flags & TYPE_POINTER){
+            ctx.builder_.CreateRet(llvm::ConstantPointerNull::get(llvm::PointerType::get(ctx.llvm_ctx_, 0)));
+        }
+        else {
+            ctx.builder_.CreateRet(llvm::Constant::getNullValue(generate_type(ctx, *sym->type.return_type)));
+        }
+    }
+
+    verifyFunction(*func, &llvm::errs());
+    ctx.leave_curr_proc();
+    return WrappedIRValue::create(func);
 }
 
 
@@ -391,7 +419,7 @@ std::shared_ptr<tak::WrappedIRValue>
 tak::generate_vardecl_global(const AstVardecl* node, CodegenContext& ctx) {
     assert(node != nullptr);
 
-    auto*         var = ctx.mod_.getGlobalVariable(std::to_string(node->identifier->symbol_index), true);
+    auto*         var = ctx.mod_.getGlobalVariable(ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index)->name, true);
     const Symbol* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
 
     assert(var != nullptr);
@@ -405,12 +433,193 @@ tak::generate_vardecl_global(const AstVardecl* node, CodegenContext& ctx) {
 }
 
 
+void
+tak::generate_local_struct_init(
+    llvm::AllocaInst* alloc,
+    llvm::Type* llvm_t,
+    const UserType* utype,
+    const AstBracedExpression* bracedexpr,
+    std::vector<llvm::Value*>& GEP_indices,
+    CodegenContext& ctx
+) {
+    assert(alloc      != nullptr);
+    assert(llvm_t     != nullptr);
+    assert(bracedexpr != nullptr);
+    assert(utype      != nullptr);
+    assert(!GEP_indices.empty());
+    assert(ctx.inside_procedure());
+    assert(bracedexpr->members.size() == utype->members.size());
+
+    for(size_t i = 0; i < bracedexpr->members.size(); i++) {
+        GEP_indices.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), i));
+        if(bracedexpr->members[i]->type == NODE_BRACED_EXPRESSION)
+        {
+            if(utype->members[i].type.flags & TYPE_ARRAY) {
+                const auto* to_braced  = dynamic_cast<const AstBracedExpression*>(bracedexpr->members[i]);
+                const auto  lowest     = TypeData::get_lowest_array_type(utype->members[i].type);
+
+                assert(to_braced != nullptr);
+                assert(lowest.has_value());
+
+                if(TypeData::is_primitive(*lowest) && !(lowest->flags & TYPE_POINTER)) {
+                    ctx.set_casting_context(generate_type(ctx, *lowest), *lowest);
+                }
+
+                generate_local_array_init(alloc, llvm_t, to_braced, GEP_indices, ctx);
+            }
+
+            else if(utype->members[i].type.kind == TYPE_KIND_STRUCT) {
+                const auto* to_braced     = dynamic_cast<const AstBracedExpression*>(bracedexpr->members[i]);
+                const auto* nested_utype  = ctx.tbl_.lookup_type(std::get<std::string>(utype->members[i].type.name));
+
+                assert(to_braced != nullptr);
+                generate_local_struct_init(alloc, llvm_t, nested_utype, to_braced, GEP_indices, ctx);
+            }
+
+            else panic("Unknown type for bracedexpr");
+        }
+
+        else // Non-aggregate value.
+        {
+            if(TypeData::is_primitive(utype->members[i].type) && !(utype->members[i].type.flags & TYPE_POINTER)) {
+                ctx.set_casting_context(generate_type(ctx, utype->members[i].type), utype->members[i].type);
+            }
+
+            const auto   generated_value = generate(bracedexpr->members[i], ctx);
+            llvm::Value* calculated      = ctx.builder_.CreateGEP(llvm_t, alloc, GEP_indices);
+
+            assert(generated_value->value != nullptr);
+            ctx.builder_.CreateStore(generated_value->value, calculated);
+        }
+
+        ctx.delete_casting_context();
+        GEP_indices.pop_back();
+    }
+}
+
+
+void
+tak::generate_local_array_init(
+    llvm::AllocaInst* alloc,
+    llvm::Type* llvm_t,
+    const AstBracedExpression* bracedexpr,
+    std::vector<llvm::Value*>& GEP_indices,
+    CodegenContext& ctx
+) {
+    assert(alloc      != nullptr);
+    assert(llvm_t     != nullptr);
+    assert(bracedexpr != nullptr);
+    assert(!GEP_indices.empty());
+    assert(ctx.inside_procedure());
+
+    for(size_t i = 0; i < bracedexpr->members.size(); i++) {
+        GEP_indices.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), i));
+        if(bracedexpr->members[i]->type == NODE_BRACED_EXPRESSION)
+        {
+            generate_local_array_init( // recurse downwards
+                alloc,
+                llvm_t,
+                dynamic_cast<const AstBracedExpression*>(bracedexpr->members[i]),
+                GEP_indices,
+                ctx
+            );
+
+            GEP_indices.pop_back();
+            continue;
+        }
+
+        const auto   generated_value = generate(bracedexpr->members[i], ctx);
+        llvm::Value* calculated      = ctx.builder_.CreateGEP(llvm_t, alloc, GEP_indices);
+
+        assert(generated_value->value != nullptr);
+        ctx.builder_.CreateStore(generated_value->value, calculated);
+        GEP_indices.pop_back();
+    }
+}
+
+
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx) {
-
     assert(node != nullptr);
-    assert(ctx.curr_proc_.func != nullptr);
-    return nullptr;
+    assert(ctx.inside_procedure());
+
+    const auto  saved_ip  = ctx.builder_.saveIP();
+    const auto* sym       = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
+    auto&       entry_blk = ctx.curr_func()->getEntryBlock();
+    auto*       llvm_t    = generate_type(ctx, sym->type);
+
+
+    ctx.builder_.SetInsertPoint(&entry_blk, entry_blk.getFirstInsertionPt());
+    llvm::AllocaInst* alloc   = ctx.builder_.CreateAlloca(llvm_t, nullptr, sym->name);
+    const auto        wrapped = WrappedIRValue::create(alloc, sym->type);
+
+    ctx.builder_.restoreIP(saved_ip);
+    ctx.set_local(std::to_string(sym->symbol_index), WrappedIRValue::create(alloc, sym->type));
+
+    if(!node->init_value) {
+        if(TypeData::is_aggregate(sym->type)) {
+            ctx.builder_.CreateStore(llvm::ConstantAggregateZero::get(llvm_t), alloc);
+        }
+        else if(TypeData::is_non_aggregate_pointer(sym->type)) {
+            ctx.builder_.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(ctx.llvm_ctx_, 0)), alloc);
+        }
+        else {
+            ctx.builder_.CreateStore(llvm::Constant::getNullValue(llvm_t), alloc);
+        }
+
+        return wrapped;
+    }
+
+
+    if(sym->type.flags & TYPE_ARRAY) {
+        const TypeData            lowest      = TypeData::get_lowest_array_type(sym->type).value();
+        llvm::ConstantInt*        const_zero  = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), 0);
+        std::vector<llvm::Value*> GEP_indices = { const_zero };
+
+        if(TypeData::is_primitive(lowest) && !(lowest.flags & TYPE_POINTER)) {
+            ctx.set_casting_context(generate_type(ctx, lowest), lowest);
+        }
+
+        assert(llvm::isa<llvm::ArrayType>(llvm_t));
+        assert((*node->init_value)->type == NODE_BRACED_EXPRESSION);
+
+        generate_local_array_init(
+            alloc,
+            llvm_t,
+            dynamic_cast<AstBracedExpression*>(*node->init_value),
+            GEP_indices,
+            ctx
+        );
+    }
+
+    else if(sym->type.kind == TYPE_KIND_STRUCT && !(sym->type.flags & TYPE_POINTER)) {
+        const UserType*           utype       = ctx.tbl_.lookup_type(std::get<std::string>(sym->type.name));
+        llvm::ConstantInt*        const_zero  = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), 0);
+        std::vector<llvm::Value*> GEP_indices = { const_zero };
+
+        assert(llvm::isa<llvm::StructType>(llvm_t));
+        assert((*node->init_value)->type == NODE_BRACED_EXPRESSION);
+
+        generate_local_struct_init(
+            alloc,
+            llvm_t,
+            utype,
+            dynamic_cast<AstBracedExpression*>(*node->init_value),
+            GEP_indices,
+            ctx
+        );
+    }
+
+    else {
+        if(TypeData::is_primitive(sym->type) && !(sym->type.flags & TYPE_POINTER)) {
+            ctx.set_casting_context(llvm_t, sym->type);
+        }
+        const auto init = generate(*node->init_value, ctx);
+        ctx.builder_.CreateStore(init->value, alloc);
+    }
+
+    ctx.delete_casting_context();
+    return wrapped;
 }
 
 
@@ -562,18 +771,23 @@ tak::generate_vardecl(const AstVardecl* node, CodegenContext& ctx) {
     if(sym->flags & ENTITY_GLOBAL) {
         return generate_vardecl_global(node, ctx);
     }
-
     return generate_vardecl_local(node, ctx);
 }
 
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_identifier(const AstIdentifier* node, CodegenContext& ctx) {
+    return WrappedIRValue::create();
+}
 
 std::shared_ptr<tak::WrappedIRValue>
-tak::generate(const AstNode* node, CodegenContext& ctx) {
+tak::generate(AstNode* node, CodegenContext& ctx) {
 
     assert(node != nullptr);
     switch(node->type) {
-        case NODE_PROCDECL: return generate_procdecl(dynamic_cast<const AstProcdecl*>(node), ctx);
-        case NODE_VARDECL:  return generate_vardecl(dynamic_cast<const AstVardecl*>(node), ctx);
+        case NODE_PROCDECL:          return generate_procdecl(dynamic_cast<const AstProcdecl*>(node), ctx);
+        case NODE_VARDECL:           return generate_vardecl(dynamic_cast<const AstVardecl*>(node), ctx);
+        case NODE_SINGLETON_LITERAL: return generate_singleton_literal(dynamic_cast<AstSingletonLiteral*>(node), ctx);
+        case NODE_IDENT:             return generate_identifier(dynamic_cast<const AstIdentifier*>(node), ctx);
         default: break;
     }
 

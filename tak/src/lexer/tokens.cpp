@@ -9,7 +9,6 @@ void
 tak::Lexer::token_skip(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -22,7 +21,6 @@ void
 tak::Lexer::token_newline(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -36,7 +34,6 @@ void
 tak::Lexer::token_semicolon(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -49,7 +46,6 @@ void
 tak::Lexer::token_lparen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -62,7 +58,6 @@ void
 tak::Lexer::token_rparen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -72,10 +67,21 @@ tak::Lexer::token_rparen(Lexer &lxr) {
 }
 
 void
+tak::Lexer::token_dollarsign(Lexer& lxr) {
+
+    auto &[src, index, curr_line, _current, _] = lxr;
+    if(index >= src.size()) {
+        _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
+    } else {
+        _current = Token{TOKEN_DOLLAR_SIGN, KIND_UNSPECIFIC, index, {&src[index], 1}};
+        lxr.advance_char(1);
+    }
+}
+
+void
 tak::Lexer::token_lbrace(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -88,7 +94,6 @@ void
 tak::Lexer::token_rbrace(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -101,7 +106,6 @@ void
 tak::Lexer::token_comma(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -114,12 +118,10 @@ void
 tak::Lexer::token_hyphen(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
     }
-
 
     switch(lxr.peek_char()) {
         case '=':
@@ -148,7 +150,6 @@ void
 tak::Lexer::token_plus(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -175,7 +176,6 @@ void
 tak::Lexer::token_asterisk(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -195,7 +195,6 @@ void
 tak::Lexer::token_fwdslash(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
@@ -262,7 +261,6 @@ void
 tak::Lexer::token_percent(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -302,7 +300,6 @@ void
 tak::Lexer::token_lessthan(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
@@ -338,7 +335,6 @@ void
 tak::Lexer::token_greaterthan(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
@@ -375,7 +371,6 @@ void
 tak::Lexer::token_ampersand(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
         return;
@@ -433,7 +428,6 @@ void
 tak::Lexer::token_exclamation(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -453,7 +447,6 @@ void
 tak::Lexer::token_tilde(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -466,7 +459,6 @@ void
 tak::Lexer::token_uparrow(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -572,7 +564,6 @@ void
 tak::Lexer::token_lsquarebracket(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -585,7 +576,6 @@ void
 tak::Lexer::token_rsquarebracket(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -599,7 +589,6 @@ void
 tak::Lexer::token_questionmark(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -612,7 +601,6 @@ void
 tak::Lexer::token_colon(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     }
@@ -632,7 +620,6 @@ void
 tak::Lexer::token_dot(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else if(lxr.peek_char(1) == '.' && lxr.peek_char(2) == '.'){
@@ -648,7 +635,6 @@ void
 tak::Lexer::token_backslash(Lexer& lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {
@@ -661,7 +647,6 @@ void
 tak::Lexer::token_at(Lexer &lxr) {
 
     auto &[src, index, curr_line, _current, _] = lxr;
-
     if(index >= src.size()) {
         _current = Token{TOKEN_END_OF_FILE, KIND_UNSPECIFIC, src.size() - 1, "\\0"};
     } else {

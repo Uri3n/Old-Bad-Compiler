@@ -214,7 +214,7 @@ tak::evaluate_identifier(const AstIdentifier* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    if(sym->type.flags & TYPE_INFERRED) {
+    if(sym->type.flags & TYPE_INFERRED || sym->flags & ENTITY_PLACEHOLDER) {
         ctx.errs_.raise_error(fmt("Referencing uninitialized or invalid symbol \"{}\".", sym->name), node);
         return std::nullopt;
     }

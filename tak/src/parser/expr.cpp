@@ -380,56 +380,10 @@ tak::parse_call(AstNode* operand, Parser& parser, Lexer& lxr) {
 
 
     //
-    // Check for generics.
-    //
-
-    auto*          ident = dynamic_cast<AstIdentifier*>(operand);
-    const Symbol*  sym   = ident == nullptr ? nullptr : parser.tbl_.lookup_unique_symbol(ident->symbol_index);
-
-    lxr.advance(1);
-    if(lxr.current() == TOKEN_LSQUARE_BRACKET) {
-        if(sym == nullptr) {
-            lxr.raise_error("This does not take generic parameters.");
-            return nullptr;
-        }
-
-        lxr.advance(1);
-        std::vector<TypeData> types;
-        while(lxr.current() != TOKEN_RSQUARE_BRACKET) {
-            if(lxr.current().kind != KIND_TYPE_IDENTIFIER && !TOKEN_IDENT_START(lxr.current().type)) {
-                lxr.raise_error("Expected generic type.");
-                return nullptr;
-            }
-
-            if(const auto type = parse_type(parser, lxr)) {
-                types.emplace_back(*type);
-            } else {
-                return nullptr;
-            }
-
-            if(lxr.current() == TOKEN_COMMA || lxr.current() == TOKEN_SEMICOLON) {
-                lxr.advance(1);
-            }
-        }
-
-        if(types.empty()) {
-            lxr.raise_error("Empty generic parameters are not allowed.");
-            return nullptr;
-        }
-
-        auto* new_sym        = parser.tbl_.create_generic_proc_permutation(sym, std::move(types));
-        new_sym->file        = lxr.source_file_name_;
-        new_sym->line_number = begin_line;
-        ident->symbol_index  = new_sym->symbol_index;
-
-        lxr.advance(1);
-    }
-
-
-    //
     // Parse out value parameters.
     //
 
+    lxr.advance(1);
     if(lxr.current() == TOKEN_RPAREN) {
         lxr.advance(1);
         state = true;

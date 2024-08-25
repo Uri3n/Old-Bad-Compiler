@@ -1,15 +1,22 @@
 
-struct foo {
-   mem1 : bool;
-   mem2 : i64;
-   mem3 : u32[2][2];
+
+struct bar $[T] {
+   mem1 : u8^;
+   mem2 :: bool;
+   mem3 :: T;
 }
 
-struct bar {
-   mem1 : i8^;
-   mem2 : foo;
-   mem3 : void^;
+myproc :: proc$[T, J](arg1 : T, arg2 :: bool) -> J {
+   bodyvar : J = 1;
+   if arg1 >= 20 {
+      ret bodyvar + arg;
+   }
+
+   ret bodyvar;
 }
 
-//              bar            foo                         bar
-myvar : bar = {"Hello world", { true, 300, {{1,2},{3,4}}}, nullptr};
+main :: proc() -> i32 {
+   myvar : i32;
+   other := myvar$[u32];
+   ret 0;
+}
