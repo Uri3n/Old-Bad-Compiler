@@ -395,7 +395,7 @@ tak::TypeData::get_contained(const TypeData& type) {
 }
 
 std::optional<tak::TypeData>
-tak::TypeData::get_addressed_type(const TypeData& type) {
+tak::TypeData::get_pointer_to(const TypeData& type) {
     if(type.flags & TYPE_ARRAY || type.flags & TYPE_RVALUE) {
         return std::nullopt;
     }

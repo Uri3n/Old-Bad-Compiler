@@ -22,12 +22,31 @@
 namespace tak {
 
     struct WrappedIRValue {
-        llvm::Value* value = nullptr;
         TypeData tak_type;
+        llvm::Value* value = nullptr;
+        bool loadable      = false;
+
+        static std::shared_ptr<WrappedIRValue> maybe_adjust(
+            std::shared_ptr<WrappedIRValue> wrapped,
+            class CodegenContext& ctx
+        );
+
+        static std::shared_ptr<WrappedIRValue> maybe_adjust(
+            llvm::Value* value,
+            const std::optional<TypeData>& tak_type,
+            CodegenContext& ctx
+        );
+
+        static std::shared_ptr<WrappedIRValue> maybe_adjust(
+            AstNode* node,
+            CodegenContext& ctx,
+            bool loadable = false
+        );
 
         static std::shared_ptr<WrappedIRValue> create(
             llvm::Value* value = nullptr,
-            const std::optional<TypeData>& tak_type = std::nullopt
+            const std::optional<TypeData>& tak_type = std::nullopt,
+            bool loadable = false
         );
 
         ~WrappedIRValue() = default;
@@ -60,8 +79,6 @@ namespace tak {
         } curr_proc_;
 
     public:
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         EntityTable&      tbl_;         // Reference to the Tak entity table for this source file.
         llvm::LLVMContext llvm_ctx_;    // LLVM context.
@@ -140,6 +157,12 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_singleton_literal(AstSingletonLiteral* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_struct(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_identifier(const AstIdentifier* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_conditional_not(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_bitwise_not(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_unary_minus(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_address_of(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_dereference(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_unaryexpr(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_array(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_global_primitive(const AstVardecl* node, const Symbol* sym, llvm::GlobalVariable* global, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_vardecl_global(const AstVardecl* node, CodegenContext& ctx);

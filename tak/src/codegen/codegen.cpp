@@ -155,19 +155,15 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
     ctx.builder_.SetInsertPoint(entry);
     ctx.enter_proc(func);
 
-    for(size_t i = 0; i < node->parameters.size(); i++)
-    {
+    for(size_t i = 0; i < node->parameters.size(); i++) {
         const auto* arg_sym = ctx.tbl_.lookup_unique_symbol(node->parameters[i]->identifier->symbol_index);
         const auto  local   = ctx.set_local(std::to_string(arg_sym->symbol_index), WrappedIRValue::create());
 
-        if(arg_sym->type.flags & TYPE_CONSTANT && !TypeData::is_struct_value_type(arg_sym->type)) {
-            local->tak_type = arg_sym->type;
-            local->value    = func->getArg(i);
-        } else {
-            local->tak_type = TypeData::get_addressed_type(arg_sym->type).value(); // Shouldn't be unsafe, right?
-            local->value    = ctx.builder_.CreateAlloca(generate_type(ctx, arg_sym->type), nullptr, arg_sym->name);
-            ctx.builder_.CreateStore(func->getArg(i), local->value);
-        }
+        local->tak_type     = arg_sym->type;
+        local->value        = ctx.builder_.CreateAlloca(generate_type(ctx, arg_sym->type), nullptr, arg_sym->name);
+        local->loadable     = true;
+
+        ctx.builder_.CreateStore(func->getArg(i), local->value);
     }
 
     //
@@ -485,7 +481,7 @@ tak::generate_local_struct_init(
                 ctx.set_casting_context(generate_type(ctx, utype->members[i].type), utype->members[i].type);
             }
 
-            const auto   generated_value = generate(bracedexpr->members[i], ctx);
+            const auto   generated_value = WrappedIRValue::maybe_adjust(bracedexpr->members[i], ctx);
             llvm::Value* calculated      = ctx.builder_.CreateGEP(llvm_t, alloc, GEP_indices);
 
             assert(generated_value->value != nullptr);
@@ -528,7 +524,7 @@ tak::generate_local_array_init(
             continue;
         }
 
-        const auto   generated_value = generate(bracedexpr->members[i], ctx);
+        const auto   generated_value = WrappedIRValue::maybe_adjust(bracedexpr->members[i], ctx);
         llvm::Value* calculated      = ctx.builder_.CreateGEP(llvm_t, alloc, GEP_indices);
 
         assert(generated_value->value != nullptr);
@@ -614,7 +610,7 @@ tak::generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx) {
         if(TypeData::is_primitive(sym->type) && !(sym->type.flags & TYPE_POINTER)) {
             ctx.set_casting_context(llvm_t, sym->type);
         }
-        const auto init = generate(*node->init_value, ctx);
+        const auto init = WrappedIRValue::maybe_adjust(*node->init_value, ctx);
         ctx.builder_.CreateStore(init->value, alloc);
     }
 
@@ -653,7 +649,6 @@ tak::generate_global_string_constant(CodegenContext& ctx, const AstSingletonLite
 
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate_singleton_literal(AstSingletonLiteral* node, CodegenContext& ctx) {
-
     assert(node != nullptr);
     if(node->literal_type == TOKEN_STRING_LITERAL || node->literal_type == TOKEN_CHARACTER_LITERAL) {
         assert(node->value.size() >= 2);
@@ -771,24 +766,215 @@ tak::generate_vardecl(const AstVardecl* node, CodegenContext& ctx) {
     if(sym->flags & ENTITY_GLOBAL) {
         return generate_vardecl_global(node, ctx);
     }
+
     return generate_vardecl_local(node, ctx);
 }
 
+
 std::shared_ptr<tak::WrappedIRValue>
-tak::generate_identifier(const AstIdentifier* node, CodegenContext& ctx) {
-    return WrappedIRValue::create();
+tak::WrappedIRValue::maybe_adjust(std::shared_ptr<WrappedIRValue> wrapped, CodegenContext& ctx) {
+    assert(wrapped->value != nullptr);
+    assert(ctx.inside_procedure());
+
+    if(wrapped->tak_type.flags & TYPE_ARRAY) {
+        return wrapped;
+    }
+
+    if(wrapped->loadable) {
+        wrapped->value = ctx.builder_.CreateLoad(generate_type(ctx, wrapped->tak_type), wrapped->value);
+    }
+
+    if(!TypeData::is_primitive(wrapped->tak_type)
+        || !ctx.casting_context_exists()
+        || wrapped->value->getType() == ctx.casting_context_->llvm_t
+    ) {
+        return wrapped;
+    }
+
+    llvm::Value* val    = wrapped->value;
+    llvm::Type*  llvm_t = ctx.casting_context_->llvm_t;
+    const auto&  tak_t  = ctx.casting_context_->tak_t;
+
+    if(llvm_t->isFloatingPointTy())
+    {
+        if(val->getType()->isFloatingPointTy()) {
+            return create(ctx.builder_.CreateFPExt(val, llvm_t), tak_t);
+        }
+        else if(TypeData::is_signed_primitive(wrapped->tak_type)) {
+            return create(ctx.builder_.CreateSIToFP(val, llvm_t), tak_t);
+        }
+        return create(ctx.builder_.CreateUIToFP(val, llvm_t), tak_t);
+    }
+
+    if(TypeData::is_signed_primitive(wrapped->tak_type)) {
+        return create(ctx.builder_.CreateSExt(val, llvm_t), tak_t);
+    }
+    if(TypeData::is_unsigned_primitive(wrapped->tak_type)) {
+        return create(ctx.builder_.CreateZExt(val, llvm_t), tak_t);
+    }
+
+    panic("default assertion");
 }
 
 std::shared_ptr<tak::WrappedIRValue>
-tak::generate(AstNode* node, CodegenContext& ctx) {
+tak::WrappedIRValue::maybe_adjust(AstNode* node, CodegenContext& ctx, const bool loadable) {
+    const auto generated = generate(node, ctx);
+    const auto adjusted  = maybe_adjust(generated, ctx);
+    adjusted->loadable   = loadable;
 
+    return adjusted;
+}
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::WrappedIRValue::maybe_adjust(llvm::Value* value, const std::optional<TypeData>& tak_type, CodegenContext& ctx) {
+    return maybe_adjust(create(value, tak_type), ctx);
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_identifier(const AstIdentifier* node, CodegenContext& ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    const auto* sym  = ctx.tbl_.lookup_unique_symbol(node->symbol_index);
+    const auto  val  = [&]() -> std::shared_ptr<WrappedIRValue>
+    {
+        if(sym->type.kind == TYPE_KIND_PROCEDURE && !(sym->type.flags & TYPE_POINTER)) {
+            return WrappedIRValue::create(ctx.mod_.getFunction(sym->name), sym->type, false);
+        }
+
+        if(sym->flags & ENTITY_GLOBAL) {
+            return WrappedIRValue::create(ctx.mod_.getGlobalVariable(sym->name, true), sym->type, true);
+        }
+
+        return ctx.get_local(std::to_string(sym->symbol_index));
+    }();
+
+    assert(val->value != nullptr);
+    return val;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_address_of(const AstUnaryexpr* node, CodegenContext& ctx) {
+    const auto generated = generate(node->operand, ctx);
+    const bool is_valid  =
+           llvm::isa<llvm::AllocaInst>(generated->value)
+        || llvm::isa<llvm::GetElementPtrInst>(generated->value)
+        || llvm::isa<llvm::GlobalVariable>(generated->value)
+        || llvm::isa<llvm::Function>(generated->value);
+
+    assert(node->_operator == TOKEN_BITWISE_AND);
+    assert(generated->value->getType()->isPointerTy());
+    assert(is_valid);
+
+    generated->tak_type = TypeData::get_pointer_to(generated->tak_type).value();
+    generated->loadable = false;
+    return generated;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_dereference(const AstUnaryexpr* node, CodegenContext& ctx) {
+    const auto generated = WrappedIRValue::maybe_adjust(node->operand, ctx);
+    const auto contained = TypeData::get_contained(generated->tak_type).value();
+
+    if(generated->tak_type.flags & TYPE_ARRAY) {
+        llvm::Value* constzero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), 0);
+        llvm::Value* GEP       = ctx.builder_.CreateGEP(generate_type(ctx, generated->tak_type), generated->value, {constzero, constzero});
+        return WrappedIRValue::create(GEP, contained, true);
+    }
+
+    generated->loadable = true;
+    generated->tak_type = contained;
+    return generated;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_conditional_not(const AstUnaryexpr* node, CodegenContext& ctx) {
+    const auto   generated = WrappedIRValue::maybe_adjust(node->operand, ctx);
+    llvm::Type*  gen_type  = generated->value->getType();
+    llvm::Value* cmp_inst  = nullptr;
+
+    if(gen_type->isFloatTy()) {
+        cmp_inst = ctx.builder_.CreateFCmpOEQ(
+            generated->value,
+            llvm::ConstantFP::get(gen_type, 0.00)
+        );
+    }
+
+    if(gen_type->isPointerTy()) {
+        cmp_inst = ctx.builder_.CreateICmpEQ(
+            generated->value,
+            llvm::ConstantPointerNull::get(
+            llvm::PointerType::get(ctx.llvm_ctx_, 0)
+        ));
+    }
+
+    else {
+        cmp_inst = ctx.builder_.CreateICmpEQ(
+            generated->value,
+            llvm::ConstantInt::get(gen_type, 0)
+        );
+    }
+
+    return WrappedIRValue::create(cmp_inst, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_bitwise_not(const AstUnaryexpr* node, CodegenContext& ctx) {
+    const auto generated = WrappedIRValue::maybe_adjust(node->operand, ctx);
+    generated->value     = ctx.builder_.CreateNot(generated->value);
+    generated->loadable  = false;
+
+    return generated;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_unary_minus(const AstUnaryexpr* node, CodegenContext& ctx) {
+    const auto generated = WrappedIRValue::maybe_adjust(node->operand, ctx);
+    generated->value     = ctx.builder_.CreateNeg(generated->value);
+    generated->loadable  = false;
+
+    TypeData::flip_sign(generated->tak_type);
+    return generated;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_unaryexpr(const AstUnaryexpr* node, CodegenContext& ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    switch(node->_operator) {
+        case TOKEN_BITWISE_AND:        return generate_address_of(node, ctx);
+        case TOKEN_BITWISE_XOR_OR_PTR: return generate_dereference(node, ctx);
+        case TOKEN_BITWISE_NOT:        return generate_bitwise_not(node, ctx);
+        case TOKEN_CONDITIONAL_NOT:    return generate_conditional_not(node, ctx);
+        case TOKEN_SUB:                return generate_unary_minus(node, ctx);
+        case TOKEN_PLUS:               return WrappedIRValue::maybe_adjust(node->operand, ctx);
+
+        default : break;
+    }
+
+    panic(fmt("Invalid unary operator: {}", Token::to_string(node->_operator)));
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate(AstNode* node, CodegenContext& ctx) {
     assert(node != nullptr);
     switch(node->type) {
         case NODE_PROCDECL:          return generate_procdecl(dynamic_cast<const AstProcdecl*>(node), ctx);
         case NODE_VARDECL:           return generate_vardecl(dynamic_cast<const AstVardecl*>(node), ctx);
         case NODE_SINGLETON_LITERAL: return generate_singleton_literal(dynamic_cast<AstSingletonLiteral*>(node), ctx);
         case NODE_IDENT:             return generate_identifier(dynamic_cast<const AstIdentifier*>(node), ctx);
-        default: break;
+        case NODE_UNARYEXPR:         return generate_unaryexpr(dynamic_cast<const AstUnaryexpr*>(node), ctx);
+
+        default : break;
     }
 
     panic("tak::generate_node: default reached.");

@@ -190,7 +190,7 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
     }
 
     if(node->_operator == TOKEN_BITWISE_AND) {
-        if(const auto addressed_t = TypeData::get_addressed_type(*operand_t)) {
+        if(const auto addressed_t = TypeData::get_pointer_to(*operand_t)) {
             return addressed_t;
         }
 

@@ -12,6 +12,7 @@ struct foo {
    mem3 : i32^^;
 }
 
-main :: proc(myarg : foo) -> void {
-    myval : i64 = 300;
+main :: proc() -> void {
+    myvar1 : i16^;
+    myvar2 : i32 = -300; 
 }

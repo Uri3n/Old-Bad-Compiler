@@ -18,12 +18,15 @@ tak::CodegenContext::leave_curr_loop() {
 }
 
 std::shared_ptr<tak::WrappedIRValue>
-tak::WrappedIRValue::create(llvm::Value* value, const std::optional<TypeData>& tak_type) {
-    auto val = std::make_shared<WrappedIRValue>();
-    val->value = value;
-    if(tak_type) {
-        val->tak_type = *tak_type;
-    }
+tak::WrappedIRValue::create(
+    llvm::Value* value,
+    const std::optional<TypeData>& tak_type,
+    const bool loadable
+) {
+    auto val      = std::make_shared<WrappedIRValue>();
+    val->value    = value;
+    val->tak_type = tak_type.value_or(TypeData());
+    val->loadable = loadable;
 
     return val;
 }
@@ -76,6 +79,7 @@ std::shared_ptr<tak::WrappedIRValue>
 tak::CodegenContext::set_local(const std::string& name, const std::shared_ptr<WrappedIRValue>& ptr) {
     assert(inside_procedure() && "must be inside a procedure body to call this.");
     curr_proc_.named_values[name] = ptr;
+    curr_proc_.named_values[name]->loadable = true;
     return curr_proc_.named_values[name];
 }
 

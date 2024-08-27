@@ -269,7 +269,37 @@ tak::TypeData::get_const_char() {
 bool
 tak::TypeData::is_primitive(const TypeData& type) {
     const auto* prim_t = std::get_if<primitive_t>(&type.name);
-    return prim_t != nullptr && *prim_t != PRIMITIVE_VOID;
+    return prim_t != nullptr
+        && *prim_t != PRIMITIVE_VOID
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_floating_point(const TypeData& type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr
+        && (*prim_t == PRIMITIVE_F32 || *prim_t == PRIMITIVE_F64)
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_signed_primitive(const TypeData& type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr
+        && PRIMITIVE_IS_SIGNED(*prim_t)
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_unsigned_primitive(const TypeData& type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr
+        && !PRIMITIVE_IS_SIGNED(*prim_t)
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
 }
 
 bool

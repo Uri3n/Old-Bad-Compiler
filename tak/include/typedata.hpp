@@ -113,7 +113,7 @@ namespace tak {
         static std::string to_string(const TypeData& type, bool include_qualifiers = true, bool include_postfixes = true);
         static std::string format(const TypeData& type, uint16_t num_tabs = 0);
         static std::optional<TypeData> get_contained(const TypeData& type);
-        static std::optional<TypeData> get_addressed_type(const TypeData& type);
+        static std::optional<TypeData> get_pointer_to(const TypeData& type);
         static std::optional<TypeData> get_lowest_array_type(const TypeData& type);
         static TypeData to_lvalue(const TypeData& type);
         static TypeData to_rvalue(const TypeData& type);
@@ -123,6 +123,9 @@ namespace tak {
         static bool can_operator_be_applied_to(token_t _operator, const TypeData& type);
         static bool is_arithmetic_eligible(const TypeData& type, token_t _operator);
         static bool is_primitive(const TypeData& type);
+        static bool is_floating_point(const TypeData& type);
+        static bool is_signed_primitive(const TypeData& type);
+        static bool is_unsigned_primitive(const TypeData& type);
         static bool is_struct_value_type(const TypeData& type);
         static bool is_aggregate(const TypeData& type);
         static bool is_non_aggregate_pointer(const TypeData& type);
