@@ -58,11 +58,30 @@ tak::token_to_var_t(const token_t tok) {
     }
 }
 
+
+// NOTE:
+// - precedence is currently fucked in this compiler.
+// - "3 + somevariable += 3" does not currently evaluate as intended.
+// - this is because I had to increase the precedence values on the assignment
+//   operators for unrelated reasons. Will see later if I can come up with a
+//   better way of handling things. for now, things """work""", just in a shit way.
+
 uint16_t
 tak::Token::precedence_of(const token_t _operator) {
     switch(_operator) {
-        case TOKEN_CONDITIONAL_AND:    return 13;
-        case TOKEN_CONDITIONAL_OR:     return 12;
+        case TOKEN_CONDITIONAL_AND:    return 11;
+        case TOKEN_CONDITIONAL_OR:     return 10;
+        case TOKEN_VALUE_ASSIGNMENT:
+        case TOKEN_PLUSEQ:
+        case TOKEN_SUBEQ:
+        case TOKEN_MULEQ:
+        case TOKEN_DIVEQ:
+        case TOKEN_MODEQ:
+        case TOKEN_BITWISE_LSHIFTEQ:
+        case TOKEN_BITWISE_RSHIFTEQ:
+        case TOKEN_BITWISE_ANDEQ:
+        case TOKEN_BITWISE_OREQ:
+        case TOKEN_BITWISE_XOREQ:      return 9;
         case TOKEN_MUL:
         case TOKEN_DIV:
         case TOKEN_MOD:                return 8;
@@ -79,21 +98,10 @@ tak::Token::precedence_of(const token_t _operator) {
         case TOKEN_BITWISE_AND:        return 3;
         case TOKEN_BITWISE_XOR_OR_PTR: return 2;
         case TOKEN_BITWISE_OR:         return 1;
-        case TOKEN_VALUE_ASSIGNMENT:
-        case TOKEN_PLUSEQ:
-        case TOKEN_SUBEQ:
-        case TOKEN_MULEQ:
-        case TOKEN_DIVEQ:
-        case TOKEN_MODEQ:
-        case TOKEN_BITWISE_LSHIFTEQ:
-        case TOKEN_BITWISE_RSHIFTEQ:
-        case TOKEN_BITWISE_ANDEQ:
-        case TOKEN_BITWISE_OREQ:
-        case TOKEN_BITWISE_XOREQ:      return 0;
-
-        default:
-            panic("predence_of: default case reached");
+        default : break;
     }
+
+    panic("precedence_of: default case reached");
 }
 
 std::optional<size_t>

@@ -13,6 +13,7 @@ struct foo {
 }
 
 main :: proc() -> void {
-    myvar1 : i16^;
-    myvar2 : i32 = -300; 
+   //var1 : bool = true;
+   var2 : f64 = 0;
+   var2 = var2 == 3;
 }

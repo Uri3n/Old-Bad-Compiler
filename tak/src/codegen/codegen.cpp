@@ -457,7 +457,7 @@ tak::generate_local_struct_init(
                 assert(to_braced != nullptr);
                 assert(lowest.has_value());
 
-                if(TypeData::is_primitive(*lowest) && !(lowest->flags & TYPE_POINTER)) {
+                if(TypeData::is_primitive(*lowest)) {
                     ctx.set_casting_context(generate_type(ctx, *lowest), *lowest);
                 }
 
@@ -477,7 +477,7 @@ tak::generate_local_struct_init(
 
         else // Non-aggregate value.
         {
-            if(TypeData::is_primitive(utype->members[i].type) && !(utype->members[i].type.flags & TYPE_POINTER)) {
+            if(TypeData::is_primitive(utype->members[i].type)) {
                 ctx.set_casting_context(generate_type(ctx, utype->members[i].type), utype->members[i].type);
             }
 
@@ -572,7 +572,7 @@ tak::generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx) {
         llvm::ConstantInt*        const_zero  = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvm_ctx_), 0);
         std::vector<llvm::Value*> GEP_indices = { const_zero };
 
-        if(TypeData::is_primitive(lowest) && !(lowest.flags & TYPE_POINTER)) {
+        if(TypeData::is_primitive(lowest)) {
             ctx.set_casting_context(generate_type(ctx, lowest), lowest);
         }
 
@@ -607,7 +607,7 @@ tak::generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx) {
     }
 
     else {
-        if(TypeData::is_primitive(sym->type) && !(sym->type.flags & TYPE_POINTER)) {
+        if(TypeData::is_primitive(sym->type)) {
             ctx.set_casting_context(llvm_t, sym->type);
         }
         const auto init = WrappedIRValue::maybe_adjust(*node->init_value, ctx);
@@ -781,7 +781,8 @@ tak::WrappedIRValue::maybe_adjust(std::shared_ptr<WrappedIRValue> wrapped, Codeg
     }
 
     if(wrapped->loadable) {
-        wrapped->value = ctx.builder_.CreateLoad(generate_type(ctx, wrapped->tak_type), wrapped->value);
+        wrapped->loadable = false;
+        wrapped->value    = ctx.builder_.CreateLoad(generate_type(ctx, wrapped->tak_type), wrapped->value);
     }
 
     if(!TypeData::is_primitive(wrapped->tak_type)
@@ -849,6 +850,11 @@ tak::generate_identifier(const AstIdentifier* node, CodegenContext& ctx) {
 
         return ctx.get_local(std::to_string(sym->symbol_index));
     }();
+
+    // @Incorrect ? don't know yet if this makes sense or not...
+    if(!ctx.casting_context_exists() && TypeData::is_primitive(val->tak_type)) {
+        ctx.set_casting_context(generate_type(ctx, val->tak_type), val->tak_type);
+    }
 
     assert(val->value != nullptr);
     return val;
@@ -936,8 +942,10 @@ tak::generate_bitwise_not(const AstUnaryexpr* node, CodegenContext& ctx) {
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate_unary_minus(const AstUnaryexpr* node, CodegenContext& ctx) {
     const auto generated = WrappedIRValue::maybe_adjust(node->operand, ctx);
-    generated->value     = ctx.builder_.CreateNeg(generated->value);
     generated->loadable  = false;
+    generated->value     = TypeData::is_floating_point(generated->tak_type)
+        ? ctx.builder_.CreateFNeg(generated->value)
+        : ctx.builder_.CreateNeg(generated->value);
 
     TypeData::flip_sign(generated->tak_type);
     return generated;
@@ -955,12 +963,698 @@ tak::generate_unaryexpr(const AstUnaryexpr* node, CodegenContext& ctx) {
         case TOKEN_BITWISE_NOT:        return generate_bitwise_not(node, ctx);
         case TOKEN_CONDITIONAL_NOT:    return generate_conditional_not(node, ctx);
         case TOKEN_SUB:                return generate_unary_minus(node, ctx);
+        case TOKEN_DECREMENT:          return generate_decrement(node, ctx);
+        case TOKEN_INCREMENT:          return generate_increment(node, ctx);
         case TOKEN_PLUS:               return WrappedIRValue::maybe_adjust(node->operand, ctx);
 
         default : break;
     }
 
     panic(fmt("Invalid unary operator: {}", Token::to_string(node->_operator)));
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_add(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_PLUS);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = [&]() -> std::shared_ptr<WrappedIRValue>
+    {
+        if(LHS->tak_type.flags & TYPE_POINTER) {
+            const auto saved      = ctx.swap_casting_context(llvm::Type::getInt64Ty(ctx.llvm_ctx_), TypeData::get_const_uint64());
+            const auto _to_return = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+            ctx.casting_context_  = saved;
+            return _to_return;
+        } else {
+            return WrappedIRValue::maybe_adjust(node->right_op, ctx);
+        }
+    }();
+
+    if(LHS->tak_type.flags & TYPE_POINTER) {
+        LHS->value = ctx.builder_.CreatePtrAdd(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_floating_point(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateFAdd(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateAdd(LHS->value, RHS->value);
+    }
+    else {
+        panic("default assertion");
+    }
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_addeq(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_PLUSEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = [&]() -> std::shared_ptr<WrappedIRValue>
+    {
+        if(LHS->tak_type.flags & TYPE_POINTER) {
+            const auto saved      = ctx.swap_casting_context(llvm::Type::getInt64Ty(ctx.llvm_ctx_), TypeData::get_const_uint64());
+            const auto _to_return = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+            ctx.casting_context_  = saved;
+            return _to_return;
+        } else {
+            return WrappedIRValue::maybe_adjust(node->right_op, ctx);
+        }
+    }();
+
+    assert(LHS->loadable);
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* add  = nullptr;
+
+    if(LHS->tak_type.flags & TYPE_POINTER) {
+        add = ctx.builder_.CreatePtrAdd(load, RHS->value);
+    }
+    else if(TypeData::is_floating_point(LHS->tak_type)) {
+        add = ctx.builder_.CreateFAdd(load, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        add = ctx.builder_.CreateAdd(load, RHS->value);
+    }
+
+    assert(add != nullptr);
+    ctx.builder_.CreateStore(add, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_div(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_DIV);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateFDiv(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        LHS->value = TypeData::is_signed_primitive(LHS->tak_type)
+            ? ctx.builder_.CreateSDiv(LHS->value, RHS->value)
+            : ctx.builder_.CreateUDiv(LHS->value, RHS->value);
+    }
+    else {
+        panic("default assertion");
+    }
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_diveq(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_DIVEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(LHS->loadable);
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* div  = nullptr;
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        div = ctx.builder_.CreateFDiv(load, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        div = TypeData::is_signed_primitive(LHS->tak_type)
+            ? ctx.builder_.CreateSDiv(load, RHS->value)
+            : ctx.builder_.CreateUDiv(load, RHS->value);
+    }
+
+    assert(div != nullptr);
+    ctx.builder_.CreateStore(div, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_mul(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_MUL);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateFMul(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateMul(LHS->value, RHS->value);
+    }
+    else {
+        panic("default assertion");
+    }
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_muleq(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_MULEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(LHS->loadable);
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* mul  = nullptr;
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        mul = ctx.builder_.CreateFMul(load, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        mul = ctx.builder_.CreateMul(load, RHS->value);
+    }
+
+    assert(mul != nullptr);
+    ctx.builder_.CreateStore(mul, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_mod(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_MOD);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateFRem(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateSRem(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateURem(LHS->value, RHS->value);
+    }
+    else {
+        panic("default assertion");
+    }
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_modeq(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_MODEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(LHS->loadable);
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* mod  = nullptr;
+
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        mod = ctx.builder_.CreateFRem(load, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        mod = ctx.builder_.CreateSRem(load, RHS->value);
+    }
+    else if(TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        mod = ctx.builder_.CreateURem(load, RHS->value);
+    }
+
+    assert(mod != nullptr);
+    ctx.builder_.CreateStore(mod, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_assign(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_VALUE_ASSIGNMENT);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(LHS->loadable);
+    ctx.builder_.CreateStore(RHS->value, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_bitwise_or(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_OR);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    LHS->value = ctx.builder_.CreateOr(LHS->value, RHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_bitwise_oreq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_OREQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    assert(LHS->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* _or  = ctx.builder_.CreateOr(load, RHS->value);
+
+    ctx.builder_.CreateStore(_or, LHS->value);
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_bitwise_and(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_AND);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    LHS->value = ctx.builder_.CreateAnd(LHS->value, RHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_bitwise_andeq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_ANDEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    assert(LHS->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* _and = ctx.builder_.CreateAnd(load, RHS->value);
+
+    ctx.builder_.CreateStore(_and, LHS->value);
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_xor(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_XOR_OR_PTR);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    LHS->value = ctx.builder_.CreateXor(LHS->value, RHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_xoreq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_XOREQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    assert(LHS->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* _xor = ctx.builder_.CreateXor(load, RHS->value);
+
+    ctx.builder_.CreateStore(_xor, LHS->value);
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_lshift(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_LSHIFT);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    LHS->value = ctx.builder_.CreateShl(LHS->value, RHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_lshifteq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_LSHIFTEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    assert(LHS->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* shl  = ctx.builder_.CreateShl(load, RHS->value);
+
+    ctx.builder_.CreateStore(shl, LHS->value);
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_rshift(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_RSHIFT);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    LHS->value = TypeData::is_signed_primitive(LHS->tak_type)
+        ? ctx.builder_.CreateAShr(LHS->value, RHS->value)
+        : ctx.builder_.CreateLShr(LHS->value, RHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_rshifteq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_BITWISE_RSHIFTEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    assert(TypeData::is_integer(LHS->tak_type));
+    assert(LHS->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* shr  = TypeData::is_signed_primitive(LHS->tak_type)
+        ? ctx.builder_.CreateAShr(load, RHS->value)
+        : ctx.builder_.CreateLShr(load, RHS->value);
+
+    ctx.builder_.CreateStore(shr, LHS->value);
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+/*
+const size_t signed_cnt = [&]() -> size_t {
+        size_t _signed_cnt = 0;
+        if(TypeData::is_signed_primitive(LHS->tak_type)) ++_signed_cnt;
+        if(TypeData::is_signed_primitive(RHS->tak_type)) ++_signed_cnt;
+        return _signed_cnt;
+    }();
+*/
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_eq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_EQUALS);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = TypeData::is_floating_point(LHS->tak_type)
+        ? ctx.builder_.CreateFCmpOEQ(LHS->value, RHS->value)
+        : ctx.builder_.CreateICmpEQ(LHS->value, RHS->value);
+
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_neq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_NOT_EQUALS);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = TypeData::is_floating_point(LHS->tak_type)
+        ? ctx.builder_.CreateFCmpONE(LHS->value, RHS->value)
+        : ctx.builder_.CreateICmpNE(LHS->value, RHS->value);
+
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_sub(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_SUB);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS        = [&]() -> std::shared_ptr<WrappedIRValue>
+    {
+        if(LHS->tak_type.flags & TYPE_POINTER) {
+            const auto saved      = ctx.swap_casting_context(llvm::Type::getInt64Ty(ctx.llvm_ctx_), TypeData::get_const_uint64());
+            const auto _to_return = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+            ctx.casting_context_  = saved;
+            return _to_return;
+        } else {
+            return WrappedIRValue::maybe_adjust(node->right_op, ctx);
+        }
+    }();
+
+    if(LHS->tak_type.flags & TYPE_POINTER) {
+        const auto   contained = TypeData::get_contained(LHS->tak_type);
+        llvm::Value* negation  = ctx.builder_.CreateNeg(RHS->value);
+
+        assert(contained.has_value());
+        LHS->value = ctx.builder_.CreateGEP(generate_type(ctx, *contained), LHS->value, { negation });
+    }
+    else if(TypeData::is_floating_point(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateFSub(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        LHS->value = ctx.builder_.CreateSub(LHS->value, RHS->value);
+    }
+    else {
+        panic("default assertion");
+    }
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_subeq(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_SUBEQ);
+    assert(ctx.inside_procedure());
+
+    const bool ctx_exists = ctx.casting_context_exists();
+    const auto LHS        = generate(node->left_op, ctx);
+    const auto RHS        = [&]() -> std::shared_ptr<WrappedIRValue>
+    {
+        if(LHS->tak_type.flags & TYPE_POINTER) {
+            const auto saved      = ctx.swap_casting_context(llvm::Type::getInt64Ty(ctx.llvm_ctx_), TypeData::get_const_uint64());
+            const auto _to_return = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+            ctx.casting_context_  = saved;
+            return _to_return;
+        } else {
+            return WrappedIRValue::maybe_adjust(node->right_op, ctx);
+        }
+    }();
+
+    assert(LHS->loadable);
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, LHS->tak_type), LHS->value);
+    llvm::Value* sub  = nullptr;
+
+    if(LHS->tak_type.flags & TYPE_POINTER) {
+        const auto   contained = TypeData::get_contained(LHS->tak_type);
+        llvm::Value* negation  = ctx.builder_.CreateNeg(RHS->value);
+
+        assert(contained.has_value());
+        sub = ctx.builder_.CreateGEP(generate_type(ctx, *contained), LHS->value, { negation });
+    }
+    else if(TypeData::is_floating_point(LHS->tak_type)) {
+        sub = ctx.builder_.CreateFSub(load, RHS->value);
+    }
+    else if(TypeData::is_primitive(LHS->tak_type)) {
+        sub = ctx.builder_.CreateSub(load, RHS->value);
+    }
+
+    assert(sub != nullptr);
+    ctx.builder_.CreateStore(sub, LHS->value);
+
+    if(!ctx_exists) ctx.delete_casting_context();
+    return LHS;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_decrement(const AstUnaryexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_DECREMENT);
+    assert(ctx.inside_procedure());
+
+    const auto gen = generate(node->operand, ctx);
+    assert(gen->loadable);
+
+    const auto   contained = TypeData::get_contained(gen->tak_type);
+    llvm::Value* load      = ctx.builder_.CreateLoad(generate_type(ctx, gen->tak_type), gen->value);
+    llvm::Value* neg_one   = llvm::ConstantInt::get(ctx.builder_.getInt64Ty(), -1);
+    llvm::Value* add       = nullptr;
+
+    if(gen->tak_type.flags & TYPE_POINTER) {
+        assert(contained.has_value());
+        add = ctx.builder_.CreateGEP(generate_type(ctx, *contained), load, { neg_one });
+    }
+    else if(TypeData::is_floating_point(gen->tak_type)) {
+        add = ctx.builder_.CreateFSub(load, llvm::ConstantFP::get(generate_type(ctx, gen->tak_type), 1.00));
+    }
+    else if(TypeData::is_primitive(gen->tak_type)) {
+        add = ctx.builder_.CreateSub(load, llvm::ConstantInt::get(generate_type(ctx, gen->tak_type), 1));
+    }
+
+    assert(add != nullptr);
+    ctx.builder_.CreateStore(add, gen->value);
+    return gen;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_increment(const AstUnaryexpr* node, CodegenContext& ctx) {
+    assert(node->_operator == TOKEN_INCREMENT);
+    assert(ctx.inside_procedure());
+
+    const auto gen = generate(node->operand, ctx);
+    assert(gen->loadable);
+
+    llvm::Value* load = ctx.builder_.CreateLoad(generate_type(ctx, gen->tak_type), gen->value);
+    llvm::Value* add  = nullptr;
+
+    if(gen->tak_type.flags & TYPE_POINTER) {
+        add = ctx.builder_.CreatePtrAdd(load, llvm::ConstantInt::get(ctx.builder_.getInt64Ty(), 1));
+    }
+    else if(TypeData::is_floating_point(gen->tak_type)) {
+        add = ctx.builder_.CreateFAdd(load, llvm::ConstantFP::get(generate_type(ctx, gen->tak_type), 1));
+    }
+    else if(TypeData::is_primitive(gen->tak_type)) {
+        add = ctx.builder_.CreateAdd(load, llvm::ConstantInt::get(generate_type(ctx, gen->tak_type), 1));
+    }
+
+    assert(add != nullptr);
+    ctx.builder_.CreateStore(add, gen->value);
+    return gen;
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_binexpr(const AstBinexpr* node, CodegenContext& ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    switch(node->_operator) {
+        case TOKEN_PLUS:               return generate_add(node, ctx);
+        case TOKEN_PLUSEQ:             return generate_addeq(node, ctx);
+        case TOKEN_SUB:                return generate_sub(node, ctx);
+        case TOKEN_SUBEQ:              return generate_subeq(node, ctx);
+        case TOKEN_DIV:                return generate_div(node, ctx);
+        case TOKEN_DIVEQ:              return generate_diveq(node, ctx);
+        case TOKEN_MUL:                return generate_mul(node, ctx);
+        case TOKEN_MULEQ:              return generate_muleq(node, ctx);
+        case TOKEN_MOD:                return generate_mod(node, ctx);
+        case TOKEN_MODEQ:              return generate_modeq(node, ctx);
+        case TOKEN_VALUE_ASSIGNMENT:   return generate_assign(node, ctx);
+        case TOKEN_BITWISE_OR:         return generate_bitwise_or(node, ctx);
+        case TOKEN_BITWISE_OREQ:       return generate_bitwise_oreq(node, ctx);
+        case TOKEN_BITWISE_AND:        return generate_bitwise_and(node, ctx);
+        case TOKEN_BITWISE_ANDEQ:      return generate_bitwise_andeq(node, ctx);
+        case TOKEN_BITWISE_XOR_OR_PTR: return generate_xor(node, ctx);
+        case TOKEN_BITWISE_XOREQ:      return generate_xoreq(node, ctx);
+        case TOKEN_BITWISE_LSHIFT:     return generate_lshift(node, ctx);
+        case TOKEN_BITWISE_LSHIFTEQ:   return generate_lshifteq(node, ctx);
+        case TOKEN_BITWISE_RSHIFT:     return generate_rshift(node, ctx);
+        case TOKEN_BITWISE_RSHIFTEQ:   return generate_rshifteq(node, ctx);
+        case TOKEN_COMP_NOT_EQUALS:    return generate_neq(node, ctx);
+        case TOKEN_COMP_EQUALS:        return generate_eq(node, ctx);
+        case TOKEN_COMP_LT:
+        case TOKEN_COMP_GT:
+        case TOKEN_COMP_LTE:
+        case TOKEN_COMP_GTE:
+        case TOKEN_CONDITIONAL_OR:
+        case TOKEN_CONDITIONAL_AND:
+        default : break;
+    }
+
+    panic("generate_binexpr: default assert");
 }
 
 
@@ -972,6 +1666,7 @@ tak::generate(AstNode* node, CodegenContext& ctx) {
         case NODE_VARDECL:           return generate_vardecl(dynamic_cast<const AstVardecl*>(node), ctx);
         case NODE_SINGLETON_LITERAL: return generate_singleton_literal(dynamic_cast<AstSingletonLiteral*>(node), ctx);
         case NODE_IDENT:             return generate_identifier(dynamic_cast<const AstIdentifier*>(node), ctx);
+        case NODE_BINEXPR:           return generate_binexpr(dynamic_cast<const AstBinexpr*>(node), ctx);
         case NODE_UNARYEXPR:         return generate_unaryexpr(dynamic_cast<const AstUnaryexpr*>(node), ctx);
 
         default : break;

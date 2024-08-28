@@ -6,15 +6,16 @@
 #define PANIC_HPP
 #include <cstdlib>
 #include <io.hpp>
-#include <source_location>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 [[noreturn]] inline void
-panic(const std::string& message, const std::source_location& loc = std::source_location::current()) {
+_panic_impl(const std::string& message, const std::string& file, const int64_t line) {
     tak::print<tak::TFG_RED, tak::TBG_NONE, tak::TSTYLE_BOLD>("PANIC :: {}", message);
-    tak::print("In file {} at location {}:{}", loc.file_name(), loc.line(), loc.column());
+    tak::print("In file \"{}\" at line {}.", file, line);
     exit(1);
 }
+
+#define panic(MSG) ::_panic_impl(MSG, __FILE__, __LINE__)
 
 #endif //PANIC_HPP

@@ -44,7 +44,7 @@ tak::evaluate_procdecl(AstProcdecl* node, CheckerContext& ctx) {
 
 
 static bool
-binexpr_ptr_arith_chk(const tak::TypeData& left, const tak::TypeData& right) {
+binexpr_ptr_arith_chk(const tak::TypeData& left, const tak::TypeData& right, const tak::token_t _operator) {
 
     const auto* prim_left   = std::get_if<tak::primitive_t>(&left.name);
     const auto* prim_right  = std::get_if<tak::primitive_t>(&right.name);
@@ -60,7 +60,7 @@ binexpr_ptr_arith_chk(const tak::TypeData& left, const tak::TypeData& right) {
         && (prim_right != nullptr
         && PRIMITIVE_IS_INTEGRAL(*prim_right));
 
-    return is_valid_ptr && is_valid_operand;
+    return is_valid_ptr && is_valid_operand && TOKEN_OP_IS_VALID_PTR_ARITH(_operator);
 }
 
 
@@ -104,7 +104,7 @@ tak::evaluate_binexpr(AstBinexpr* node, CheckerContext& ctx) {
         if(!TypeData::can_operator_be_applied_to(node->_operator, *left_t)) {
             ctx.errs_.raise_error(fmt("Operator '{}' cannot be applied to lefthand type {}.", op_as_str, left_as_str), node);
         }
-        if(!binexpr_ptr_arith_chk(*left_t, *right_t) && !TypeData::is_coercion_permissible(*left_t, *right_t)) {
+        if(!binexpr_ptr_arith_chk(*left_t, *right_t, node->_operator) && !TypeData::is_coercion_permissible(*left_t, *right_t)) {
             ctx.errs_.raise_error(fmt("Cannot coerce type of righthand expression ({}) to {}", right_as_str, left_as_str), node);
         }
     }
@@ -133,9 +133,8 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
     const auto op_as_str   = Token::to_string(node->_operator);
     const auto type_as_str = TypeData::to_string(*operand_t);
 
-
     if(node->_operator == TOKEN_SUB || node->_operator == TOKEN_PLUS) {
-        if(operand_t->flags & TYPE_POINTER || !operand_t->array_lengths.empty() || operand_t->kind != TYPE_KIND_PRIMITIVE) {
+        if(!TypeData::is_primitive(*operand_t) || operand_t->kind != TYPE_KIND_PRIMITIVE) {
             ctx.errs_.raise_error(fmt("Cannot apply unary operator {} to type {}.", op_as_str, type_as_str), node);
             return std::nullopt;
         }

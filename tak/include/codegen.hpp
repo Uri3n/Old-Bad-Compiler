@@ -96,9 +96,10 @@ namespace tak {
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        std::optional<IRCastingContext> swap_casting_context(llvm::Type* llvm_t, const TypeData& tak_t);
+        std::optional<IRCastingContext> delete_casting_context();
+        std::optional<IRCastingContext> set_casting_context(llvm::Type* llvm_t, const TypeData& tak_t);
         bool casting_context_exists();
-        void set_casting_context(llvm::Type* llvm_t, const TypeData& tak_t);
-        void delete_casting_context();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -160,6 +161,37 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_conditional_not(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_bitwise_not(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_unary_minus(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_decrement(const AstUnaryexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_increment(const AstUnaryexpr* node, CodegenContext& ctx);
+
+    std::shared_ptr<WrappedIRValue> generate_add(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_addeq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_sub(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_subeq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_div(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_diveq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_mul(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_muleq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_mod(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_modeq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_assign(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_bitwise_or(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_bitwise_oreq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_bitwise_and(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_bitwise_andeq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_xor(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_xoreq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_lshift(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_lshifteq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_rshift(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_rshifteq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_eq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_neq(const AstBinexpr* node, CodegenContext& ctx);
+
+
+
+
+    std::shared_ptr<WrappedIRValue> generate_binexpr(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_address_of(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_dereference(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_unaryexpr(const AstUnaryexpr* node, CodegenContext& ctx);

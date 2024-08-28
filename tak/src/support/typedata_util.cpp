@@ -294,6 +294,16 @@ tak::TypeData::is_signed_primitive(const TypeData& type) {
 }
 
 bool
+tak::TypeData::is_integer(const TypeData& type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr
+        && *prim_t != PRIMITIVE_VOID
+        && (*prim_t != PRIMITIVE_F32 && *prim_t != PRIMITIVE_F64)
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
 tak::TypeData::is_unsigned_primitive(const TypeData& type) {
     const auto* prim_t = std::get_if<primitive_t>(&type.name);
     return prim_t != nullptr
