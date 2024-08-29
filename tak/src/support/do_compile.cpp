@@ -66,6 +66,18 @@ do_parse(Parser& parser, Lexer& lexer) {
 static bool
 do_check(Parser& parser, const std::string& original_file_name) {
 
+#ifdef TAK_DEBUG
+    constexpr bool dump = true;
+#else
+    constexpr bool dump = false;
+#endif
+
+    defer_if(dump, [&] {
+        parser.dump_nodes();
+        parser.tbl_.dump_symbols();
+        parser.tbl_.dump_types();
+    });
+
     CheckerContext ctx(parser.tbl_);
     for(const auto& decl : parser.toplevel_decls_) {
         if(NODE_NEEDS_EVALUATING(decl->type)) {
@@ -79,12 +91,6 @@ do_check(Parser& parser, const std::string& original_file_name) {
         print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("Finished with {} errors, {} warnings.", ctx.errs_.error_count_, ctx.errs_.warning_count_);
         return false;
     }
-
-#ifdef TAK_DEBUG
-    parser.dump_nodes();
-    parser.tbl_.dump_symbols();
-    parser.tbl_.dump_types();
-#endif
 
     return true;
 }

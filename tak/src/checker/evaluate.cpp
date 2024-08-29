@@ -5,20 +5,11 @@
 #include <checker.hpp>
 
 
-template<typename T>
-concept node_has_children = requires(T a)
-{
-    { a->children } -> std::same_as<std::vector<tak::AstNode*>&>;
-};
-
-template<typename T> requires node_has_children<T>
+template<typename T> requires tak::node_has_children<T>
 static auto evaluate_children(T node, tak::CheckerContext& ctx) -> std::optional<tak::TypeData> {
-
     assert(node != nullptr);
     for(auto* child : node->children) {
-        if(NODE_NEEDS_EVALUATING(child->type)) {
-            tak::evaluate(child, ctx);
-        }
+        if(NODE_NEEDS_EVALUATING(child->type)) tak::evaluate(child, ctx);
     }
 
     return std::nullopt;

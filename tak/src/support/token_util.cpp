@@ -69,8 +69,6 @@ tak::token_to_var_t(const token_t tok) {
 uint16_t
 tak::Token::precedence_of(const token_t _operator) {
     switch(_operator) {
-        case TOKEN_CONDITIONAL_AND:    return 11;
-        case TOKEN_CONDITIONAL_OR:     return 10;
         case TOKEN_VALUE_ASSIGNMENT:
         case TOKEN_PLUSEQ:
         case TOKEN_SUBEQ:
@@ -81,7 +79,9 @@ tak::Token::precedence_of(const token_t _operator) {
         case TOKEN_BITWISE_RSHIFTEQ:
         case TOKEN_BITWISE_ANDEQ:
         case TOKEN_BITWISE_OREQ:
-        case TOKEN_BITWISE_XOREQ:      return 9;
+        case TOKEN_BITWISE_XOREQ:      return 12;
+        case TOKEN_CONDITIONAL_AND:    return 11;
+        case TOKEN_CONDITIONAL_OR:     return 10;
         case TOKEN_MUL:
         case TOKEN_DIV:
         case TOKEN_MOD:                return 8;

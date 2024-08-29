@@ -294,6 +294,15 @@ tak::TypeData::is_signed_primitive(const TypeData& type) {
 }
 
 bool
+tak::TypeData::is_boolean(const TypeData &type) {
+    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+    return prim_t != nullptr
+        && *prim_t == PRIMITIVE_BOOLEAN
+        && !(type.flags & TYPE_POINTER)
+        && !(type.flags & TYPE_ARRAY);
+}
+
+bool
 tak::TypeData::is_integer(const TypeData& type) {
     const auto* prim_t = std::get_if<primitive_t>(&type.name);
     return prim_t != nullptr

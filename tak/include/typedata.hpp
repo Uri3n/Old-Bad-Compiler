@@ -125,6 +125,7 @@ namespace tak {
         static bool is_primitive(const TypeData& type);
         static bool is_floating_point(const TypeData& type);
         static bool is_signed_primitive(const TypeData& type);
+        static bool is_boolean(const TypeData& type);
         static bool is_unsigned_primitive(const TypeData& type);
         static bool is_struct_value_type(const TypeData& type);
         static bool is_integer(const TypeData& type);

@@ -104,6 +104,7 @@ tak::CodegenContext::get_local(const std::string& name) {
 llvm::Function*
 tak::CodegenContext::curr_func() {
     assert(inside_procedure() && "must be inside a procedure body to call this.");
+    assert(curr_proc_.func != nullptr);
     return curr_proc_.func;
 }
 

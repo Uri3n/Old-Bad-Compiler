@@ -152,6 +152,7 @@ namespace tak {
     llvm::Constant* generate_global_string_constant(CodegenContext& ctx, const AstSingletonLiteral* node);
     llvm::Constant* generate_constant_array(CodegenContext& ctx, const AstBracedExpression* node, llvm::ArrayType* llvm_t);
     llvm::Constant* generate_constant_struct(CodegenContext& ctx, const AstBracedExpression* node, const UserType* utype, llvm::StructType* llvm_t);
+    llvm::Value*    generate_to_i1(std::shared_ptr<WrappedIRValue> to_convert, CodegenContext& ctx);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -187,9 +188,15 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_rshifteq(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_eq(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_neq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_lt(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_lte(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_gt(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_gte(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_conditional_and(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_conditional_or(const AstBinexpr* node, CodegenContext& ctx);
 
-
-
+    std::shared_ptr<WrappedIRValue> generate_member_access(const AstMemberAccess* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_subscript(const AstSubscript* node, CodegenContext& ctx);
 
     std::shared_ptr<WrappedIRValue> generate_binexpr(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_address_of(const AstUnaryexpr* node, CodegenContext& ctx);

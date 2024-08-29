@@ -6,6 +6,17 @@
 #include <codegen.hpp>
 
 
+template<typename T> requires tak::node_has_children<T>
+static auto generate_children(T node, tak::CodegenContext& ctx) -> std::shared_ptr<tak::WrappedIRValue> {
+    assert(node != nullptr);
+    for(auto* child : node->children) {
+        if(NODE_NEEDS_GENERATING(child->type)) tak::generate(child, ctx);
+    }
+
+    return tak::WrappedIRValue::create();
+}
+
+
 llvm::Type*
 tak::generate_primitive_type(CodegenContext& ctx, const primitive_t prim) {
     switch(prim) {
@@ -796,22 +807,25 @@ tak::WrappedIRValue::maybe_adjust(std::shared_ptr<WrappedIRValue> wrapped, Codeg
     llvm::Type*  llvm_t = ctx.casting_context_->llvm_t;
     const auto&  tak_t  = ctx.casting_context_->tak_t;
 
-    if(llvm_t->isFloatingPointTy())
+    if(TypeData::is_floating_point(tak_t))
     {
-        if(val->getType()->isFloatingPointTy()) {
+        if(TypeData::is_floating_point(wrapped->tak_type)) {
             return create(ctx.builder_.CreateFPExt(val, llvm_t), tak_t);
         }
-        else if(TypeData::is_signed_primitive(wrapped->tak_type)) {
+        if(TypeData::is_signed_primitive(wrapped->tak_type)) {
             return create(ctx.builder_.CreateSIToFP(val, llvm_t), tak_t);
         }
         return create(ctx.builder_.CreateUIToFP(val, llvm_t), tak_t);
     }
 
-    if(TypeData::is_signed_primitive(wrapped->tak_type)) {
-        return create(ctx.builder_.CreateSExt(val, llvm_t), tak_t);
-    }
-    if(TypeData::is_unsigned_primitive(wrapped->tak_type)) {
-        return create(ctx.builder_.CreateZExt(val, llvm_t), tak_t);
+    if(TypeData::is_integer(tak_t))
+    {
+        if(TypeData::is_signed_primitive(wrapped->tak_type)) {
+            return create(ctx.builder_.CreateSExtOrTrunc(val, llvm_t), tak_t);
+        }
+        if(TypeData::is_unsigned_primitive(wrapped->tak_type)) {
+            return create(ctx.builder_.CreateZExtOrTrunc(val, llvm_t), tak_t);
+        }
     }
 
     panic("default assertion");
@@ -1474,6 +1488,212 @@ tak::generate_neq(const AstBinexpr *node, CodegenContext &ctx) {
 
 
 std::shared_ptr<tak::WrappedIRValue>
+tak::generate_lt(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_LT);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = nullptr;
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateFCmpOLT(LHS->value, RHS->value);
+    }
+    else if(LHS->tak_type.flags & TYPE_POINTER || TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpSLT(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpULT(LHS->value, RHS->value);
+    }
+
+    assert(cmp != nullptr);
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_lte(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_LTE);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = nullptr;
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateFCmpOLE(LHS->value, RHS->value);
+    }
+    else if(LHS->tak_type.flags & TYPE_POINTER || TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpSLE(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpULE(LHS->value, RHS->value);
+    }
+
+    assert(cmp != nullptr);
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_gt(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_GT);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = nullptr;
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateFCmpOGT(LHS->value, RHS->value);
+    }
+    else if(LHS->tak_type.flags & TYPE_POINTER || TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpSGT(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpUGT(LHS->value, RHS->value);
+    }
+
+    assert(cmp != nullptr);
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_gte(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_COMP_GTE);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    const auto RHS   = WrappedIRValue::maybe_adjust(node->right_op, ctx);
+
+    llvm::Value* cmp = nullptr;
+    if(TypeData::is_floating_point(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateFCmpOGE(LHS->value, RHS->value);
+    }
+    else if(LHS->tak_type.flags & TYPE_POINTER || TypeData::is_unsigned_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpSGE(LHS->value, RHS->value);
+    }
+    else if(TypeData::is_signed_primitive(LHS->tak_type)) {
+        cmp = ctx.builder_.CreateICmpUGE(LHS->value, RHS->value);
+    }
+
+    assert(cmp != nullptr);
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(cmp, TypeData::get_const_bool());
+}
+
+
+llvm::Value*
+tak::generate_to_i1(const std::shared_ptr<WrappedIRValue> to_convert, CodegenContext& ctx) {
+    assert(to_convert->value != nullptr);
+    assert(ctx.inside_procedure());
+
+    llvm::Value* null_val = llvm::Constant::getNullValue(to_convert->value->getType());
+
+    if(TypeData::is_boolean(to_convert->tak_type)) {
+        return to_convert->value;
+    }
+    if(TypeData::is_integer(to_convert->tak_type) || to_convert->tak_type.flags & TYPE_POINTER) {
+        return ctx.builder_.CreateICmpNE(to_convert->value, null_val);
+    }
+    if(TypeData::is_floating_point(to_convert->tak_type)) {
+        return ctx.builder_.CreateFCmpONE(to_convert->value, null_val);
+    }
+
+    panic("default assertion");
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_conditional_and(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_CONDITIONAL_AND);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = WrappedIRValue::maybe_adjust(node->left_op, ctx);
+    auto* then_blk   = llvm::BasicBlock::Create(ctx.llvm_ctx_, "&&.RHS", ctx.curr_func());
+    auto* merge_blk  = llvm::BasicBlock::Create(ctx.llvm_ctx_, "&&.merge", ctx.curr_func());
+    auto* LHS_blk    = ctx.builder_.GetInsertBlock();
+
+
+    ctx.builder_.CreateCondBr(generate_to_i1(LHS, ctx), then_blk, merge_blk);
+    ctx.builder_.SetInsertPoint(then_blk);
+
+    const auto RHS     = generate_to_i1(WrappedIRValue::maybe_adjust(node->right_op, ctx), ctx);
+    auto*      RHS_blk = ctx.builder_.GetInsertBlock();
+
+    ctx.builder_.CreateBr(merge_blk);
+    ctx.builder_.SetInsertPoint(merge_blk);
+
+    llvm::PHINode* result = ctx.builder_.CreatePHI(ctx.builder_.getInt1Ty(), 2, "&&.result");
+    result->addIncoming(ctx.builder_.getInt1(false), LHS_blk); // left condition is false.
+    result->addIncoming(RHS, RHS_blk);                         // returned condition is righthand side.
+
+
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(result, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_conditional_or(const AstBinexpr *node, CodegenContext &ctx) {
+    assert(node->_operator == TOKEN_CONDITIONAL_OR);
+    assert(ctx.inside_procedure());
+
+    const auto saved = ctx.delete_casting_context();
+    const auto LHS   = generate_to_i1(WrappedIRValue::maybe_adjust(node->left_op, ctx), ctx);
+    auto* then_blk   = llvm::BasicBlock::Create(ctx.llvm_ctx_, "||.RHS",   ctx.curr_func());
+    auto* merge_blk  = llvm::BasicBlock::Create(ctx.llvm_ctx_, "||.merge", ctx.curr_func());
+    auto* LHS_blk    = ctx.builder_.GetInsertBlock();
+
+
+    ctx.delete_casting_context();
+    ctx.builder_.CreateCondBr(LHS, merge_blk, then_blk);
+    ctx.builder_.SetInsertPoint(then_blk);
+
+    const auto RHS     = generate_to_i1(WrappedIRValue::maybe_adjust(node->right_op, ctx), ctx);
+    auto*      RHS_blk = ctx.builder_.GetInsertBlock();
+
+    ctx.builder_.CreateBr(merge_blk);
+    ctx.builder_.SetInsertPoint(merge_blk);
+
+    llvm::PHINode* result = ctx.builder_.CreatePHI(ctx.builder_.getInt1Ty(), 2, "||.result");
+    result->addIncoming(LHS, LHS_blk);
+    result->addIncoming(RHS, RHS_blk);
+
+
+    ctx.casting_context_ = saved;
+    return WrappedIRValue::create(result, TypeData::get_const_bool());
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_member_access(const AstMemberAccess *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    return WrappedIRValue::create(); // TODO: finish
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_subscript(const AstSubscript *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    return WrappedIRValue::create(); // TODO: finish
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
 tak::generate_sub(const AstBinexpr *node, CodegenContext &ctx) {
     assert(node->_operator == TOKEN_SUB);
     assert(ctx.inside_procedure());
@@ -1645,12 +1865,12 @@ tak::generate_binexpr(const AstBinexpr* node, CodegenContext& ctx) {
         case TOKEN_BITWISE_RSHIFTEQ:   return generate_rshifteq(node, ctx);
         case TOKEN_COMP_NOT_EQUALS:    return generate_neq(node, ctx);
         case TOKEN_COMP_EQUALS:        return generate_eq(node, ctx);
-        case TOKEN_COMP_LT:
-        case TOKEN_COMP_GT:
-        case TOKEN_COMP_LTE:
-        case TOKEN_COMP_GTE:
-        case TOKEN_CONDITIONAL_OR:
-        case TOKEN_CONDITIONAL_AND:
+        case TOKEN_COMP_LT:            return generate_lt(node, ctx);
+        case TOKEN_COMP_GT:            return generate_gt(node, ctx);
+        case TOKEN_COMP_LTE:           return generate_lte(node, ctx);
+        case TOKEN_COMP_GTE:           return generate_gte(node, ctx);
+        case TOKEN_CONDITIONAL_OR:     return generate_conditional_or(node, ctx);
+        case TOKEN_CONDITIONAL_AND:    return generate_conditional_and(node, ctx);
         default : break;
     }
 
@@ -1668,6 +1888,9 @@ tak::generate(AstNode* node, CodegenContext& ctx) {
         case NODE_IDENT:             return generate_identifier(dynamic_cast<const AstIdentifier*>(node), ctx);
         case NODE_BINEXPR:           return generate_binexpr(dynamic_cast<const AstBinexpr*>(node), ctx);
         case NODE_UNARYEXPR:         return generate_unaryexpr(dynamic_cast<const AstUnaryexpr*>(node), ctx);
+        case NODE_NAMESPACEDECL:     return generate_children(dynamic_cast<AstNamespaceDecl*>(node), ctx);
+        case NODE_SUBSCRIPT:         return generate_subscript(dynamic_cast<const AstSubscript*>(node), ctx);
+        case NODE_MEMBER_ACCESS:     return generate_member_access(dynamic_cast<const AstMemberAccess*>(node), ctx);
 
         default : break;
     }
