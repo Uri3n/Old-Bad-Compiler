@@ -103,7 +103,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
 
 
 tak::AstNode*
-tak::parse_singleton_literal(Parser& parser, Lexer& lxr) {
+tak::parse_singleton_literal([[maybe_unused]] Parser& parser, Lexer& lxr) {
 
     assert(lxr.current().kind == KIND_LITERAL);
 

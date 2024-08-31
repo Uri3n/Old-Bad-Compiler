@@ -86,7 +86,7 @@ tak::get_bracedexpr_as_array_t(const AstBracedExpression* node, CheckerContext& 
     }();
 
 
-    if(!contained_t || TypeData::is_invalid_in_inferred_context(*contained_t)) {
+    if(!contained_t || contained_t->is_invalid_in_inferred_context()) {
         return std::nullopt;
     }
 
@@ -184,7 +184,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     assert(type.kind == TYPE_KIND_STRUCT);
 
     if(type.flags & TYPE_RVALUE) {
-        ctx.errs_.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", TypeData::to_string(type)), expr);
+        ctx.errs_.raise_error(fmt("Cannot assign this braced expression to lefthand type {}.", type.to_string()), expr);
         return;
     }
 
@@ -198,7 +198,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
     if(members->size() != expr->members.size()) {
         ctx.errs_.raise_error(fmt("Number of elements within braced expression ({}) does not match the struct type {} ({} members).",
             expr->members.size(),
-            TypeData::to_string(type),
+            type.to_string(),
             members->size()),
             expr
         );
@@ -226,7 +226,7 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
 
             if(!TypeData::are_arrays_equivalent(members->at(i).type, *array_t)) {
                 ctx.errs_.raise_error(fmt("Element {} in braced expression: array of type {} is not equivalent to {}.",
-                    i + 1, TypeData::to_string(*array_t), TypeData::to_string(members->at(i).type)), expr);
+                    i + 1, array_t->to_string(), members->at(i).type.to_string()), expr);
             }
             continue;
         }
@@ -250,8 +250,8 @@ tak::assign_bracedexpr_to_struct(const TypeData& type, const AstBracedExpression
         if(!TypeData::is_coercion_permissible(members->at(i).type, *element_t)) {
             ctx.errs_.raise_error(fmt("Cannot coerce element {} of braced expression to type {} ({} was given).",
                 i + 1,
-                TypeData::to_string(members->at(i).type),
-                TypeData::to_string(*element_t)),
+                members->at(i).type.to_string(),
+                element_t->to_string()),
                 expr->members[i]
             );
         }

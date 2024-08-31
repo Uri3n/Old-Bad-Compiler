@@ -87,7 +87,8 @@ namespace tak {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    struct TypeData {
+    class TypeData {
+    public:
         uint32_t    sym_ref         = INVALID_SYMBOL_INDEX;
         type_kind_t kind            = TYPE_KIND_NONE;
         uint16_t    pointer_depth   = 0;
@@ -110,8 +111,6 @@ namespace tak {
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        static std::string to_string(const TypeData& type, bool include_qualifiers = true, bool include_postfixes = true);
-        static std::string format(const TypeData& type, uint16_t num_tabs = 0);
         static std::optional<TypeData> get_contained(const TypeData& type);
         static std::optional<TypeData> get_pointer_to(const TypeData& type);
         static std::optional<TypeData> get_lowest_array_type(const TypeData& type);
@@ -120,30 +119,37 @@ namespace tak {
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        static bool can_operator_be_applied_to(token_t _operator, const TypeData& type);
-        static bool is_arithmetic_eligible(const TypeData& type, token_t _operator);
-        static bool is_primitive(const TypeData& type);
-        static bool is_floating_point(const TypeData& type);
-        static bool is_signed_primitive(const TypeData& type);
-        static bool is_boolean(const TypeData& type);
-        static bool is_unsigned_primitive(const TypeData& type);
-        static bool is_struct_value_type(const TypeData& type);
-        static bool is_integer(const TypeData& type);
-        static bool is_aggregate(const TypeData& type);
-        static bool is_non_aggregate_pointer(const TypeData& type);
-        static bool is_bwop_eligible(const TypeData& type);
-        static bool is_lop_eligible(const TypeData& type);
-        static bool is_cast_eligible(const TypeData& type);
+        std::string to_string(bool include_qualifiers = true, bool include_postfixes = true) const;
+        std::string format(uint16_t num_tabs = 0) const;
+        bool is_primitive() const;
+        bool is_floating_point() const;
+        bool is_signed_primitive() const;
+        bool is_boolean() const;
+        bool is_unsigned_primitive() const;
+        bool is_struct_value_type() const;
+        bool is_f64() const;
+        bool is_f32() const;
+        bool is_integer() const;
+        bool is_aggregate() const;
+        bool is_non_aggregate_pointer() const;
+        bool array_has_inferred_sizes() const;
+        bool is_invalid_in_inferred_context() const;
+        bool is_reassignable() const;
+        bool is_returntype_lvalue_eligible() const;
+        bool is_bwop_eligible() const;
+        bool is_lop_eligible() const;
+        bool is_cast_eligible() const;
+        bool flip_sign();
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         static bool identical(const TypeData& first, const TypeData& second);
         static bool is_cast_permissible(const TypeData& from, const TypeData& to);
         static bool is_coercion_permissible(TypeData& left, const TypeData& right);
         static bool are_arrays_equivalent(const TypeData& first, const TypeData& second);
-        static bool array_has_inferred_sizes(const TypeData& type);
-        static bool is_invalid_in_inferred_context(const TypeData& type);
-        static bool is_reassignable(const TypeData& type);
-        static bool is_returntype_lvalue_eligible(const TypeData &type);
         static bool type_promote_non_concrete(TypeData& left, const TypeData& right);
-        static bool flip_sign(TypeData& type);
+        static bool can_operator_be_applied_to(token_t _operator, const TypeData& type);
+        static bool is_arithmetic_eligible(const TypeData& type, token_t _operator);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

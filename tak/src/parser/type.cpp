@@ -130,10 +130,10 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
         }
     }
 
-    if(parser.tbl_.type_exists(tak::TypeData::to_string(data))) {
+    if(parser.tbl_.type_exists(data.to_string())) {
         data.parameters.reset();
         data.parameters = nullptr;
-        data.name = tak::TypeData::to_string(data);
+        data.name = data.to_string();
     }
 
     state = true;

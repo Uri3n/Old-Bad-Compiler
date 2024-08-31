@@ -8,7 +8,7 @@
 
 
 std::string
-tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
+tak::TypeData::format(const uint16_t num_tabs) const {
 
     static constexpr std::string_view fmt_type =
         "{} - Symbol Type:   {}"
@@ -28,14 +28,14 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
 
     const std::string flags = [&]() -> std::string {
         std::string _flags;
-        if(type.flags & TYPE_CONSTANT)      _flags += "CONSTANT | ";
-        if(type.flags & TYPE_POINTER)       _flags += "POINTER | ";
-        if(type.flags & TYPE_ARRAY)         _flags += "ARRAY | ";
-        if(type.flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
-        if(type.flags & TYPE_NON_CONCRETE)  _flags += "NON_CONCRETE | ";
-        if(type.flags & TYPE_DEFAULT_INIT)  _flags += "DEFAULT INITIALIZED | ";
-        if(type.flags & TYPE_INFERRED)      _flags += "INFERRED";
-        if(type.flags & TYPE_PROC_VARARGS)  _flags += "VARIADIC_ARGUMENTS | ";
+        if(this->flags & TYPE_CONSTANT)      _flags += "CONSTANT | ";
+        if(this->flags & TYPE_POINTER)       _flags += "POINTER | ";
+        if(this->flags & TYPE_ARRAY)         _flags += "ARRAY | ";
+        if(this->flags & TYPE_PROCARG)       _flags += "PROCEDURE_ARGUMENT | ";
+        if(this->flags & TYPE_NON_CONCRETE)  _flags += "NON_CONCRETE | ";
+        if(this->flags & TYPE_DEFAULT_INIT)  _flags += "DEFAULT INITIALIZED | ";
+        if(this->flags & TYPE_INFERRED)      _flags += "INFERRED";
+        if(this->flags & TYPE_PROC_VARARGS)  _flags += "VARIADIC_ARGUMENTS | ";
 
         if(_flags.size() >= 2 && _flags[_flags.size()-2] == '|') {
             _flags.erase(_flags.size()-2);
@@ -48,18 +48,18 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
 
 
     const std::string sym_t_str = [&]() -> std::string {
-        if(type.kind == TYPE_KIND_PROCEDURE) return "Procedure";
-        if(type.kind == TYPE_KIND_PRIMITIVE)  return "Variable";
-        if(type.kind == TYPE_KIND_STRUCT)    return "Struct";
+        if(this->kind == TYPE_KIND_PROCEDURE) return "Procedure";
+        if(this->kind == TYPE_KIND_PRIMITIVE)  return "Variable";
+        if(this->kind == TYPE_KIND_STRUCT)    return "Struct";
         return "None";
     }();
 
 
     const std::string type_name_str = [&]() -> std::string {
-        if(const auto* is_var = std::get_if<primitive_t>(&type.name)) {
+        if(const auto* is_var = std::get_if<primitive_t>(&this->name)) {
             return primitive_t_to_string(*is_var);
         }
-        else if(const auto* is_struct = std::get_if<std::string>(&type.name)) {
+        else if(const auto* is_struct = std::get_if<std::string>(&this->name)) {
             return fmt("{} (User Defined Struct)", *is_struct);
         }
         return "Procedure";
@@ -67,18 +67,18 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
 
 
     const std::string return_type_data = [&]() -> std::string {
-        if(type.return_type != nullptr) {
-            return TypeData::to_string(*type.return_type);
+        if(this->return_type != nullptr) {
+            return this->return_type->to_string();
         }
         return "N/A";
     }();
 
 
     const std::string param_data = [&]() -> std::string {
-        if(type.parameters != nullptr) {
+        if(this->parameters != nullptr) {
             std::string _params;
-            for(const auto& param : *type.parameters) {
-                _params += fmt("{}, ", TypeData::to_string(param));
+            for(const auto& param : *this->parameters) {
+                _params += fmt("{}, ", param.to_string());
             }
             if(_params.size() > 2 && _params[_params.size()-2] == ',') {
                 _params.erase(_params.size()-2);
@@ -92,7 +92,7 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
 
     const std::string array_lengths = [&]() -> std::string {
         std::string _lengths;
-        for(const auto& len : type.array_lengths) {
+        for(const auto& len : this->array_lengths) {
             _lengths += std::to_string(len) + ',';
         }
         if(!array_lengths.empty() && array_lengths.back() == ',') {
@@ -108,9 +108,9 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
         tabs,
         flags,
         tabs,
-        type.pointer_depth,
+        this->pointer_depth,
         tabs,
-        type.array_lengths.size(),
+        this->array_lengths.size(),
         tabs,
         array_lengths.empty() ? "N/A" : array_lengths,
         tabs,
@@ -124,22 +124,21 @@ tak::TypeData::format(const TypeData& type, const uint16_t num_tabs) {
 
 
 std::string
-tak::TypeData::to_string(const TypeData& type, const bool include_qualifiers, const bool include_postfixes) {
-
+tak::TypeData::to_string(const bool include_qualifiers, const bool include_postfixes) const {
     std::string buffer;
     bool is_proc    = false;
     bool _is_struct = false;
 
     if(include_qualifiers) {
-        if(type.flags & TYPE_INFERRED) return "Invalid Type";
-        if(type.flags & TYPE_CONSTANT) buffer += "const ";
-        if(type.flags & TYPE_RVALUE)   buffer += "rvalue ";
+        if(this->flags & TYPE_INFERRED) return "Invalid Type";
+        if(this->flags & TYPE_CONSTANT) buffer += "const ";
+        if(this->flags & TYPE_RVALUE)   buffer += "rvalue ";
     }
 
-    if(const auto* is_primitive = std::get_if<primitive_t>(&type.name)) {
+    if(const auto* is_primitive = std::get_if<primitive_t>(&this->name)) {
         buffer += primitive_t_to_string(*is_primitive);
     }
-    else if(const auto* is_struct = std::get_if<std::string>(&type.name)) {
+    else if(const auto* is_struct = std::get_if<std::string>(&this->name)) {
         buffer += *is_struct;
         _is_struct = true;
     }
@@ -149,10 +148,10 @@ tak::TypeData::to_string(const TypeData& type, const bool include_qualifiers, co
     }
 
 
-    if(_is_struct && type.parameters != nullptr) {
+    if(_is_struct && this->parameters != nullptr) {
         buffer += '[';
-        for(const auto& param : *type.parameters) {
-            buffer += TypeData::to_string(param) + ',';
+        for(const auto& param : *this->parameters) {
+            buffer += param.to_string() + ',';
         }
 
         if(buffer.back() == ',') buffer.pop_back();
@@ -160,16 +159,16 @@ tak::TypeData::to_string(const TypeData& type, const bool include_qualifiers, co
     }
 
     if(include_postfixes) {
-        if(type.flags & TYPE_POINTER) {
-            for(uint16_t i = 0; i < type.pointer_depth; i++) {
+        if(this->flags & TYPE_POINTER) {
+            for(uint16_t i = 0; i < this->pointer_depth; i++) {
                 buffer += '^';
             }
         }
 
-        if(type.flags & TYPE_ARRAY) {
-            for(size_t i = 0 ; i < type.array_lengths.size(); i++) {
-                if(!type.array_lengths[i]) buffer += "[]";
-                else buffer += fmt("[{}]", type.array_lengths[i]);
+        if(this->flags & TYPE_ARRAY) {
+            for(size_t i = 0 ; i < this->array_lengths.size(); i++) {
+                if(!this->array_lengths[i]) buffer += "[]";
+                else buffer += fmt("[{}]", this->array_lengths[i]);
             }
         }
     }
@@ -177,19 +176,19 @@ tak::TypeData::to_string(const TypeData& type, const bool include_qualifiers, co
 
     if(is_proc) {
         buffer += '(';
-        if(type.parameters != nullptr) {
-            for(const auto& param : *type.parameters) {
-                buffer += TypeData::to_string(param) + ',';
+        if(this->parameters != nullptr) {
+            for(const auto& param : *this->parameters) {
+                buffer += param.to_string() + ',';
             }
         }
 
-        if(type.flags & TYPE_PROC_VARARGS) buffer += "...";
+        if(this->flags & TYPE_PROC_VARARGS) buffer += "...";
         if(buffer.back() == ',') buffer.pop_back();
 
         buffer += ')';
         buffer += " -> ";
 
-        if(type.return_type != nullptr) buffer += TypeData::to_string(*type.return_type);
+        if(this->return_type != nullptr) buffer += this->return_type->to_string();
         else buffer += "void";
     }
 
@@ -266,77 +265,110 @@ tak::TypeData::get_const_char() {
     return const_int;
 }
 
-bool
-tak::TypeData::is_primitive(const TypeData& type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
-    return prim_t != nullptr
-        && *prim_t != PRIMITIVE_VOID
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+tak::TypeData
+tak::TypeData::to_lvalue(const TypeData& type) {
+    TypeData lval = type;
+    lval.flags   &= ~TYPE_RVALUE;
+    return lval;
+}
+
+tak::TypeData
+tak::TypeData::to_rvalue(const TypeData& type) {
+    TypeData rval = type;
+    rval.flags   |= TYPE_RVALUE;
+    return rval;
 }
 
 bool
-tak::TypeData::is_floating_point(const TypeData& type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_primitive() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
+    return prim_t != nullptr
+        && *prim_t != PRIMITIVE_VOID
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_floating_point() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
     return prim_t != nullptr
         && (*prim_t == PRIMITIVE_F32 || *prim_t == PRIMITIVE_F64)
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_signed_primitive(const TypeData& type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_signed_primitive() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
     return prim_t != nullptr
         && PRIMITIVE_IS_SIGNED(*prim_t)
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_boolean(const TypeData &type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_boolean() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
     return prim_t != nullptr
         && *prim_t == PRIMITIVE_BOOLEAN
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_integer(const TypeData& type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_integer() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
     return prim_t != nullptr
         && *prim_t != PRIMITIVE_VOID
-        && (*prim_t != PRIMITIVE_F32 && *prim_t != PRIMITIVE_F64)
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+        && *prim_t != PRIMITIVE_F32
+        && *prim_t != PRIMITIVE_F64
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_unsigned_primitive(const TypeData& type) {
-    const auto* prim_t = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_unsigned_primitive() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
     return prim_t != nullptr
         && !PRIMITIVE_IS_SIGNED(*prim_t)
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_struct_value_type(const TypeData& type) {
-    return type.kind == TYPE_KIND_STRUCT
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+tak::TypeData::is_struct_value_type() const {
+    return this->kind == TYPE_KIND_STRUCT
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_aggregate(const TypeData& type) {
-    return type.flags & TYPE_ARRAY
-    || (type.kind == TYPE_KIND_STRUCT && !(type.flags & TYPE_POINTER));
+tak::TypeData::is_f64() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
+    return prim_t != nullptr
+        && *prim_t == PRIMITIVE_F64
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_non_aggregate_pointer(const TypeData& type) {
-    return type.flags & TYPE_POINTER && !(type.flags & TYPE_ARRAY);
+tak::TypeData::is_f32() const {
+    const auto* prim_t = std::get_if<primitive_t>(&this->name);
+    return prim_t != nullptr
+        && *prim_t == PRIMITIVE_F32
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
+}
+
+bool
+tak::TypeData::is_aggregate() const {
+    return this->flags & TYPE_ARRAY
+    || (this->kind == TYPE_KIND_STRUCT && !(this->flags & TYPE_POINTER));
+}
+
+bool
+tak::TypeData::is_non_aggregate_pointer() const {
+    return this->flags & TYPE_POINTER && !(this->flags & TYPE_ARRAY);
 }
 
 std::string
@@ -363,7 +395,6 @@ tak::primitive_t_to_string(const primitive_t type) {
 
 uint16_t
 tak::primitive_t_size_bytes(const primitive_t type) {
-
     switch(type) {          // Assumes type is NOT a pointer.
         case PRIMITIVE_BOOLEAN:
         case PRIMITIVE_U8:

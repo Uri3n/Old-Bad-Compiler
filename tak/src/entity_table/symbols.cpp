@@ -84,7 +84,7 @@ tak::EntityTable::create_generic_proc_permutation(const Symbol* original, std::v
     const std::string name = [&]() -> std::string {
         std::string _name = "[";
         for(const auto& type : generic_params) {
-            _name += TypeData::to_string(type) + ',';
+            _name += type.to_string() + ',';
         }
 
         if(!_name.empty() && _name.back() == ',') {

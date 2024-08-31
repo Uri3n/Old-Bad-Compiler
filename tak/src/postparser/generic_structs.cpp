@@ -82,7 +82,7 @@ postparse_try_permute_struct_member(
     }
 
 
-    const std::string to_str = tak::TypeData::to_string(new_member, false, false);
+    const std::string to_str = new_member.to_string(false, false);
     if(parser.tbl_.type_exists(to_str)) {
         new_member.parameters.reset();
         new_member.parameters = nullptr;
@@ -122,7 +122,7 @@ tak::postparse_try_permute_member(
             || (!old_member.array_lengths.empty() && !gen_t->array_lengths.empty())
         ) {
             errs.raise_error(fmt("Substitution failure: cannot substitute a member of type {} with {}",
-                TypeData::to_string(old_member), TypeData::to_string(*gen_t)), loc.file, loc.pos, loc.line);
+                old_member.to_string(), gen_t->to_string()), loc.file, loc.pos, loc.line);
             return std::nullopt;
         }
 
@@ -137,6 +137,9 @@ tak::postparse_try_permute_member(
         new_member.kind        = old_member.kind;
         new_member.return_type = old_member.return_type;
     }
+
+    if(!new_member.array_lengths.empty()) new_member.flags |= TYPE_ARRAY;
+    if(new_member.pointer_depth > 0)      new_member.flags |= TYPE_POINTER;
 
 
     // Substituted type is a primitive.
@@ -234,7 +237,7 @@ tak::postparse_inspect_struct_t(
             loc.file, loc.pos, loc.line);
     }
 
-    const auto type_str = TypeData::to_string(type, false, false);
+    const auto type_str = type.to_string(false, false);
     if(parser.tbl_.type_exists(type_str)) {
         type.name = type_str;
     } else if(!postparse_try_create_permutation(type_str, parser, type, utype, errs, loc)) {

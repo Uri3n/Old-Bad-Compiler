@@ -8,6 +8,7 @@ void
 tak::CodegenContext::leave_curr_proc() {
     curr_proc_.named_values.clear();
     curr_proc_.func = nullptr;
+    curr_proc_.sym  = nullptr;
 }
 
 void
@@ -29,6 +30,12 @@ tak::WrappedIRValue::create(
     val->loadable = loadable;
 
     return val;
+}
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::WrappedIRValue::get_empty() {
+    static const auto empty = create();
+    return empty;
 }
 
 std::optional<tak::IRCastingContext>
@@ -57,7 +64,8 @@ bool tak::CodegenContext::casting_context_exists() {
 }
 
 bool tak::CodegenContext::inside_procedure() {
-    return curr_proc_.func != nullptr;
+    return curr_proc_.func != nullptr
+        && curr_proc_.sym  != nullptr;
 }
 
 bool tak::CodegenContext::inside_loop() {
@@ -66,9 +74,11 @@ bool tak::CodegenContext::inside_loop() {
         && curr_loop_.merge != nullptr;
 }
 
-void tak::CodegenContext::enter_proc(llvm::Function* func) {
-    assert(curr_proc_.func == nullptr);
+void tak::CodegenContext::enter_proc(llvm::Function* func, const Symbol* sym) {
+    assert(curr_proc_.func == nullptr && "call leave_proc before this.");
+    assert(curr_proc_.sym == nullptr  && "call leave_proc before this.");
     curr_proc_.func = func;
+    curr_proc_.sym  = sym;
 }
 
 void tak::CodegenContext::enter_loop(llvm::BasicBlock* cond, llvm::BasicBlock* after, llvm::BasicBlock* merge) {
@@ -94,6 +104,7 @@ std::shared_ptr<tak::WrappedIRValue>
 tak::CodegenContext::get_local(const std::string& name) {
     assert(inside_procedure() && "must be inside a procedure body to call this.");
     assert(curr_proc_.named_values.contains(name) && "named local does not exist.");
+
     return WrappedIRValue::create(
         curr_proc_.named_values[name]->value,
         curr_proc_.named_values[name]->tak_type,
@@ -101,11 +112,5 @@ tak::CodegenContext::get_local(const std::string& name) {
     );
 }
 
-llvm::Function*
-tak::CodegenContext::curr_func() {
-    assert(inside_procedure() && "must be inside a procedure body to call this.");
-    assert(curr_proc_.func != nullptr);
-    return curr_proc_.func;
-}
 
 

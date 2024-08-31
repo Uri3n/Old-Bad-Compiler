@@ -26,6 +26,7 @@ namespace tak {
         llvm::Value* value = nullptr;
         bool loadable      = false;
 
+        static std::shared_ptr<WrappedIRValue> get_empty();
         static std::shared_ptr<WrappedIRValue> maybe_adjust(
             std::shared_ptr<WrappedIRValue> wrapped,
             class CodegenContext& ctx
@@ -67,6 +68,7 @@ namespace tak {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     class CodegenContext {
+    public:
         struct {
             llvm::BasicBlock* cond  = nullptr;
             llvm::BasicBlock* after = nullptr;
@@ -76,9 +78,10 @@ namespace tak {
         struct {
             std::unordered_map<std::string, std::shared_ptr<WrappedIRValue>> named_values;
             llvm::Function* func = nullptr;
+            const Symbol* sym    = nullptr;
         } curr_proc_;
 
-    public:
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         EntityTable&      tbl_;         // Reference to the Tak entity table for this source file.
         llvm::LLVMContext llvm_ctx_;    // LLVM context.
@@ -92,7 +95,6 @@ namespace tak {
 
         std::shared_ptr<WrappedIRValue> set_local(const std::string& name, const std::shared_ptr<WrappedIRValue>& ptr);
         std::shared_ptr<WrappedIRValue> get_local(const std::string& name);
-        llvm::Function* curr_func();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -105,7 +107,7 @@ namespace tak {
 
         bool inside_procedure();
         bool inside_loop();
-        void enter_proc(llvm::Function* func);
+        void enter_proc(llvm::Function* func, const Symbol* sym);
         void enter_loop(llvm::BasicBlock* cond, llvm::BasicBlock* after, llvm::BasicBlock* merge);
         void leave_curr_proc();
         void leave_curr_loop();
@@ -131,7 +133,7 @@ namespace tak {
     void generate_global_placeholders(CodegenContext& ctx);
 
     void generate_local_struct_init(
-        llvm::AllocaInst* alloc,
+        llvm::Value* ptr,
         llvm::Type* llvm_t,
         const UserType* utype,
         const AstBracedExpression* bracedexpr,
@@ -140,7 +142,7 @@ namespace tak {
     );
 
     void generate_local_array_init(
-        llvm::AllocaInst* alloc,
+        llvm::Value* ptr,
         llvm::Type* llvm_t,
         const AstBracedExpression* bracedexpr,
         std::vector<llvm::Value*>& GEP_indices,
@@ -164,7 +166,6 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_unary_minus(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_decrement(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_increment(const AstUnaryexpr* node, CodegenContext& ctx);
-
     std::shared_ptr<WrappedIRValue> generate_add(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_addeq(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_sub(const AstBinexpr* node, CodegenContext& ctx);
@@ -175,6 +176,7 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_muleq(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_mod(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_modeq(const AstBinexpr* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_assign_bracedexpr(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_assign(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_bitwise_or(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_bitwise_oreq(const AstBinexpr* node, CodegenContext& ctx);
@@ -195,9 +197,13 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_conditional_and(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_conditional_or(const AstBinexpr* node, CodegenContext& ctx);
 
+    std::shared_ptr<WrappedIRValue> generate_sizeof(const AstSizeof* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_cast(const AstCast* node, CodegenContext& ctx);
+
     std::shared_ptr<WrappedIRValue> generate_member_access(const AstMemberAccess* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_subscript(const AstSubscript* node, CodegenContext& ctx);
-
+    std::shared_ptr<WrappedIRValue> generate_ret(const AstRet* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_call(const AstCall* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_binexpr(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_address_of(const AstUnaryexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_dereference(const AstUnaryexpr* node, CodegenContext& ctx);

@@ -7,7 +7,6 @@
 
 bool
 tak::TypeData::identical(const TypeData& first, const TypeData& second) {
-
     if(first.kind != second.kind
         || first.pointer_depth != second.pointer_depth
         || first.array_lengths.size() != second.array_lengths.size()
@@ -60,7 +59,6 @@ tak::TypeData::identical(const TypeData& first, const TypeData& second) {
         return false;
     }
 
-
     if(first.return_type != nullptr && second.return_type != nullptr) {
         return identical(*first.return_type, *second.return_type);
     }
@@ -71,12 +69,11 @@ tak::TypeData::identical(const TypeData& first, const TypeData& second) {
 
 bool
 tak::TypeData::is_cast_permissible(const TypeData& from, const TypeData& to) {
-
     if(identical(from, to)) {
         return true;
     }
 
-    if(!is_cast_eligible(from) || !is_cast_eligible(to)) {
+    if(!from.is_cast_eligible() || !to.is_cast_eligible()) {
         return false;
     }
 
@@ -107,12 +104,11 @@ tak::TypeData::is_cast_permissible(const TypeData& from, const TypeData& to) {
 
 bool
 tak::TypeData::is_coercion_permissible(TypeData& left, const TypeData& right) {
-
     if(identical(left, right)) {
         return true;
     }
 
-    if(!is_cast_eligible(left) || !is_cast_eligible(right)) {
+    if(!left.is_cast_eligible() || !right.is_cast_eligible()) {
         return false;
     }
 
@@ -138,10 +134,8 @@ tak::TypeData::is_coercion_permissible(TypeData& left, const TypeData& right) {
     return primitive_t_size_bytes(*right_t) <= primitive_t_size_bytes(*left_t);
 }
 
-
 bool
 tak::TypeData::are_arrays_equivalent(const TypeData& first, const TypeData& second) {
-
     assert(first.flags & TYPE_ARRAY);
     assert(second.flags & TYPE_ARRAY);
 
@@ -177,25 +171,8 @@ tak::TypeData::are_arrays_equivalent(const TypeData& first, const TypeData& seco
     return is_coercion_permissible(first_contained, second_contained);
 }
 
-
-tak::TypeData
-tak::TypeData::to_lvalue(const TypeData& type) {
-    TypeData lval = type;
-    lval.flags   &= ~TYPE_RVALUE;
-    return lval;
-}
-
-tak::TypeData
-tak::TypeData::to_rvalue(const TypeData& type) {
-    TypeData rval = type;
-    rval.flags   |= TYPE_RVALUE;
-    return rval;
-}
-
-
 bool
 tak::TypeData::type_promote_non_concrete(TypeData& left, const TypeData& right) {
-
     const auto* pleft_t  = std::get_if<primitive_t>(&left.name);
     const auto* pright_t = std::get_if<primitive_t>(&right.name);
     bool is_signed       = false;
@@ -227,26 +204,24 @@ tak::TypeData::type_promote_non_concrete(TypeData& left, const TypeData& right) 
     return true;
 }
 
-
 bool
-tak::TypeData::flip_sign(TypeData& type) {
+tak::TypeData::flip_sign() {
+    assert(this->pointer_depth == 0);
+    assert(this->array_lengths.empty());
+    assert(this->kind == TYPE_KIND_PRIMITIVE);
 
-    assert(type.pointer_depth == 0);
-    assert(type.array_lengths.empty());
-    assert(type.kind == TYPE_KIND_PRIMITIVE);
-
-    const auto* ptype = std::get_if<primitive_t>(&type.name);
+    const auto* ptype = std::get_if<primitive_t>(&this->name);
     assert(ptype != nullptr);
 
     switch(*ptype) {
-        case PRIMITIVE_U8:  type.name = PRIMITIVE_I8;  break;
-        case PRIMITIVE_I8:  type.name = PRIMITIVE_U8;  break;
-        case PRIMITIVE_U16: type.name = PRIMITIVE_I16; break;
-        case PRIMITIVE_I16: type.name = PRIMITIVE_U16; break;
-        case PRIMITIVE_U32: type.name = PRIMITIVE_I32; break;
-        case PRIMITIVE_I32: type.name = PRIMITIVE_U32; break;
-        case PRIMITIVE_U64: type.name = PRIMITIVE_I64; break;
-        case PRIMITIVE_I64: type.name = PRIMITIVE_U64; break;
+        case PRIMITIVE_U8:  this->name = PRIMITIVE_I8;  break;
+        case PRIMITIVE_I8:  this->name = PRIMITIVE_U8;  break;
+        case PRIMITIVE_U16: this->name = PRIMITIVE_I16; break;
+        case PRIMITIVE_I16: this->name = PRIMITIVE_U16; break;
+        case PRIMITIVE_U32: this->name = PRIMITIVE_I32; break;
+        case PRIMITIVE_I32: this->name = PRIMITIVE_U32; break;
+        case PRIMITIVE_U64: this->name = PRIMITIVE_I64; break;
+        case PRIMITIVE_I64: this->name = PRIMITIVE_U64; break;
         case PRIMITIVE_BOOLEAN: return false;
         case PRIMITIVE_VOID:    return false;
         default: break;
@@ -255,69 +230,71 @@ tak::TypeData::flip_sign(TypeData& type) {
     return true;
 }
 
-
 bool
-tak::TypeData::array_has_inferred_sizes(const TypeData& type) {
-    assert(type.flags & TYPE_ARRAY);
-    for(const auto length : type.array_lengths) {
+tak::TypeData::array_has_inferred_sizes() const {
+    assert(this->flags & TYPE_ARRAY);
+    for(const auto length : this->array_lengths) {
         if(length == 0) return true;
     }
-
     return false;
 }
 
 bool
-tak::TypeData::is_invalid_in_inferred_context(const TypeData& type) {
-    return (type.kind == TYPE_KIND_PROCEDURE && !(type.flags & TYPE_POINTER)) || type.flags & TYPE_INFERRED;
+tak::TypeData::is_invalid_in_inferred_context() const {
+    return (this->kind == TYPE_KIND_PROCEDURE
+        && !(this->flags & TYPE_POINTER))
+        || this->flags & TYPE_INFERRED;
 }
 
 bool
-tak::TypeData::is_reassignable(const TypeData& type) {
-    return type.array_lengths.empty()
-        && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)
-        && !(type.flags & TYPE_CONSTANT);
+tak::TypeData::is_reassignable() const {
+    return this->array_lengths.empty()
+        && !(this->kind == TYPE_KIND_PROCEDURE && this->pointer_depth < 1)
+        && !(this->flags & TYPE_CONSTANT);
 }
 
 bool
-tak::TypeData::is_returntype_lvalue_eligible(const TypeData &type) {
-    return type.kind == TYPE_KIND_STRUCT
-        && !(type.flags & TYPE_POINTER)
-        && !(type.flags & TYPE_ARRAY);
+tak::TypeData::is_returntype_lvalue_eligible() const {
+    return this->kind == TYPE_KIND_STRUCT
+        && !(this->flags & TYPE_POINTER)
+        && !(this->flags & TYPE_ARRAY);
 }
 
 bool
-tak::TypeData::is_cast_eligible(const TypeData& type) {
-    return type.array_lengths.empty()
-        && !(type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 1)
-        && type.kind != TYPE_KIND_STRUCT;
+tak::TypeData::is_cast_eligible() const {
+    if(!this->array_lengths.empty()) {
+        return false;
+    }
+    if(this->kind == TYPE_KIND_PROCEDURE || this->kind == TYPE_KIND_STRUCT) {
+        return this->pointer_depth > 0;
+    }
+
+    return true;
 }
 
 bool
-tak::TypeData::is_lop_eligible(const TypeData& type) {
-    return (type.flags & TYPE_POINTER
-        || type.kind == TYPE_KIND_PRIMITIVE)
-        && type.array_lengths.empty();
+tak::TypeData::is_lop_eligible() const {
+    return (this->flags & TYPE_POINTER
+        || this->kind == TYPE_KIND_PRIMITIVE)
+        && this->array_lengths.empty();
 }
 
 bool
-tak::TypeData::is_bwop_eligible(const TypeData& type) {
-
-    const auto* primitive_ptr = std::get_if<primitive_t>(&type.name);
+tak::TypeData::is_bwop_eligible() const {
+    const auto* primitive_ptr = std::get_if<primitive_t>(&this->name);
     if(primitive_ptr == nullptr) {
         return false;
     }
 
-    return type.pointer_depth == 0
-        && type.kind == TYPE_KIND_PRIMITIVE
-        && type.array_lengths.empty()
+    return this->pointer_depth == 0
+        && this->kind == TYPE_KIND_PRIMITIVE
+        && this->array_lengths.empty()
         && *primitive_ptr != PRIMITIVE_VOID
         && !PRIMITIVE_IS_FLOAT(*primitive_ptr);
 }
 
-
 bool
 tak::TypeData::is_arithmetic_eligible(const TypeData& type, const token_t _operator) {
-
     assert(TOKEN_OP_IS_ARITHMETIC(_operator));
     if((type.kind == TYPE_KIND_PROCEDURE && type.pointer_depth < 2) || !type.array_lengths.empty()) {
         return false;
@@ -345,21 +322,18 @@ tak::TypeData::is_arithmetic_eligible(const TypeData& type, const token_t _opera
 
 std::optional<tak::TypeData>
 tak::TypeData::get_lowest_array_type(const TypeData& type) {
-
     if(!(type.flags & TYPE_ARRAY)) {
         return std::nullopt;
     }
 
-    std::optional<TypeData> to_ret = type;
+    std::optional to_ret = type;
     to_ret->array_lengths.clear();
     to_ret->flags &= ~TYPE_ARRAY;
-
     return to_ret;
 }
 
 std::optional<tak::TypeData>
 tak::TypeData::get_contained(const TypeData& type) {
-
     TypeData deref_t = type;
 
     if(deref_t.flags & TYPE_ARRAY) {
@@ -409,17 +383,38 @@ tak::TypeData::get_pointer_to(const TypeData& type) {
 
 bool
 tak::TypeData::can_operator_be_applied_to(const token_t _operator, const TypeData& type) {
-
     if(type.flags & TYPE_ARRAY) {
         return false;
     }
 
-    if(_operator == TOKEN_VALUE_ASSIGNMENT) return !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) return is_arithmetic_eligible(type, _operator) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    if(TOKEN_OP_IS_ARITHMETIC(_operator))   return is_arithmetic_eligible(type, _operator);
-    if(TOKEN_OP_IS_BW_ASSIGN(_operator))    return is_bwop_eligible(type) && !(type.flags & TYPE_CONSTANT) && !(type.flags & TYPE_RVALUE);
-    if(TOKEN_OP_IS_BITWISE(_operator))      return is_bwop_eligible(type);
-    if(TOKEN_OP_IS_LOGICAL(_operator))      return is_lop_eligible(type);
+    if(_operator == TOKEN_VALUE_ASSIGNMENT) {
+        return !(type.flags & TYPE_CONSTANT)
+            && !(type.flags & TYPE_RVALUE);
+    }
+
+    if(TOKEN_OP_IS_ARITH_ASSIGN(_operator)) {
+        return is_arithmetic_eligible(type, _operator)
+            && !(type.flags & TYPE_CONSTANT)
+            && !(type.flags & TYPE_RVALUE);
+    }
+
+    if(TOKEN_OP_IS_ARITHMETIC(_operator)) {
+        return is_arithmetic_eligible(type, _operator);
+    }
+
+    if(TOKEN_OP_IS_BW_ASSIGN(_operator)) {
+        return type.is_bwop_eligible()
+            && !(type.flags & TYPE_CONSTANT)
+            && !(type.flags & TYPE_RVALUE);
+    }
+
+    if(TOKEN_OP_IS_BITWISE(_operator)) {
+        return type.is_bwop_eligible();
+    }
+
+    if(TOKEN_OP_IS_LOGICAL(_operator)) {
+        return type.is_lop_eligible();
+    }
 
     panic("can_operator_be_applied_to: no condition reached.");
 }

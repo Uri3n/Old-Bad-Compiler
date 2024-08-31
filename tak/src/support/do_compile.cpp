@@ -124,7 +124,7 @@ do_compile(const std::string& source_file_name) {
 
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
-    do_codegen(parser, source_file_name);
+    //do_codegen(parser, source_file_name);
 
     return true;
 }

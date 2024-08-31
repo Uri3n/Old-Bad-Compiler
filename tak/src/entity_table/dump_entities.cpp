@@ -19,7 +19,7 @@ tak::EntityTable::dump_types() {
         print("  Members:");
         for(size_t i = 0; i < type->members.size(); ++i) {
             print("    {}. {}", i + 1, type->members[i].name);
-            print("{}", TypeData::format(type->members[i].type, 1));
+            print("{}", type->members[i].type.format(1));
         }
     }
 
@@ -85,7 +85,7 @@ tak::EntityTable::dump_symbols() {
             sym->src_pos,
             sym->_namespace,
             symflags,
-            TypeData::format(sym->type)
+            sym->type.format()
         );
     }
 

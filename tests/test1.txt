@@ -1,20 +1,26 @@
 //@include "test2.txt";
 
-struct bar {
-   mem1 : bool;
-   mem2 : i64^;
-   mem3 : i8^;
+struct foo {
+   mem1 : u32;
+   mem2 : i32^;
+   mem3 : fuck^^;
 }
 
-struct foo {
+struct fuck {
+   bla : bool;
+}
+
+struct bar $[T] {
    mem1 : bool;
-   mem2 : i64[3];
-   mem3 : i32^^;
+   mem2 : T;
+   mem3 : foo^;
+}
+
+idk :: proc() -> foo {
+
 }
 
 main :: proc() -> void {
-   var1 : bool;
-   var2 : i64 = 1;
-
-   var1 = var2 != 420 || var2 >= 300 && var2;
+   poopoo : foo;
+   poopoo.mem3 + 3 = nullptr;
 }

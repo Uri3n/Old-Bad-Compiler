@@ -578,7 +578,7 @@ display_node_type_alias(tak::AstNode* node, const std::string& node_title, tak::
     tak::print("{}{}: Type Alias Definition, Expands To {}",
         node_title,
         alias->name,
-        tak::TypeData::to_string(parser.tbl_.lookup_type_alias(alias->name))
+        parser.tbl_.lookup_type_alias(alias->name).to_string()
     );
 }
 
@@ -623,7 +623,7 @@ display_node_sizeof(tak::AstNode* node, std::string& node_title, uint32_t depth,
     tak::print("{}SizeOf", node_title);
 
     if(const auto* is_raw_type = std::get_if<tak::TypeData>(&_sizeof->target)) {
-        display_fake_node(tak::fmt("Type: {}", tak::TypeData::to_string(*is_raw_type)), node_title, depth);
+        display_fake_node(tak::fmt("Type: {}", is_raw_type->to_string()), node_title, depth);
     }
     else if(const auto* is_node = std::get_if<tak::AstNode*>(&_sizeof->target)) {
         display_node_data(*is_node, depth + 1, _);

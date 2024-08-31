@@ -18,7 +18,6 @@ static auto evaluate_children(T node, tak::CheckerContext& ctx) -> std::optional
 
 std::optional<tak::TypeData>
 tak::evaluate_procdecl(AstProcdecl* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     const auto* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
 
@@ -36,7 +35,6 @@ tak::evaluate_procdecl(AstProcdecl* node, CheckerContext& ctx) {
 
 static bool
 binexpr_ptr_arith_chk(const tak::TypeData& left, const tak::TypeData& right, const tak::token_t _operator) {
-
     const auto* prim_left   = std::get_if<tak::primitive_t>(&left.name);
     const auto* prim_right  = std::get_if<tak::primitive_t>(&right.name);
 
@@ -57,7 +55,6 @@ binexpr_ptr_arith_chk(const tak::TypeData& left, const tak::TypeData& right, con
 
 std::optional<tak::TypeData>
 tak::evaluate_binexpr(AstBinexpr* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     auto  left_t = evaluate(node->left_op, ctx);
     auto right_t = evaluate(node->right_op, ctx);
@@ -81,8 +78,8 @@ tak::evaluate_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
 
     const auto op_as_str    = Token::to_string(node->_operator);
-    const auto left_as_str  = TypeData::to_string(*left_t);
-    const auto right_as_str = TypeData::to_string(*right_t);
+    const auto left_as_str  = left_t->to_string();
+    const auto right_as_str = right_t->to_string();
 
     if(node->_operator == TOKEN_CONDITIONAL_OR || node->_operator == TOKEN_CONDITIONAL_AND) {
         if(!TypeData::can_operator_be_applied_to(node->_operator, *left_t)) {
@@ -112,7 +109,6 @@ tak::evaluate_binexpr(AstBinexpr* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(node->operand != nullptr);
 
@@ -122,16 +118,16 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
     }
 
     const auto op_as_str   = Token::to_string(node->_operator);
-    const auto type_as_str = TypeData::to_string(*operand_t);
+    const auto type_as_str = operand_t->to_string();
 
     if(node->_operator == TOKEN_SUB || node->_operator == TOKEN_PLUS) {
-        if(!TypeData::is_primitive(*operand_t) || operand_t->kind != TYPE_KIND_PRIMITIVE) {
+        if(!operand_t->is_primitive() || operand_t->kind != TYPE_KIND_PRIMITIVE) {
             ctx.errs_.raise_error(fmt("Cannot apply unary operator {} to type {}.", op_as_str, type_as_str), node);
             return std::nullopt;
         }
 
         if(node->_operator == TOKEN_SUB) {
-            if(!TypeData::flip_sign(*operand_t)) {
+            if(!operand_t->flip_sign()) {
                 ctx.errs_.raise_error(fmt("Cannot apply unary minus to type {}.", op_as_str, type_as_str), node);
                 return std::nullopt;
             }
@@ -142,7 +138,7 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
     }
 
     if(node->_operator == TOKEN_BITWISE_NOT) {
-        if(!TypeData::is_bwop_eligible(*operand_t)) {
+        if(!operand_t->is_bwop_eligible()) {
             ctx.errs_.raise_error(fmt("Cannot apply bitwise operator ~ to type {}", type_as_str), node);
             return std::nullopt;
         }
@@ -162,7 +158,7 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
     }
 
     if(node->_operator == TOKEN_CONDITIONAL_NOT) {
-        if(!TypeData::is_lop_eligible(*operand_t)) {
+        if(!operand_t->is_lop_eligible()) {
             ctx.errs_.raise_error(fmt("Cannot apply logical operator ! to type {}", type_as_str), node);
             return std::nullopt;
         }
@@ -194,7 +190,6 @@ tak::evaluate_unaryexpr(AstUnaryexpr* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_identifier(const AstIdentifier* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     const auto* sym = ctx.tbl_.lookup_unique_symbol(node->symbol_index);
     assert(sym != nullptr);
@@ -215,7 +210,6 @@ tak::evaluate_identifier(const AstIdentifier* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_singleton_literal(AstSingletonLiteral* node, CheckerContext& _) {
-
     assert(node != nullptr);
     TypeData data;
 
@@ -250,10 +244,8 @@ tak::evaluate_singleton_literal(AstSingletonLiteral* node, CheckerContext& _) {
 
 std::optional<tak::TypeData>
 tak::evaluate_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
-
     assert(sym != nullptr && decl != nullptr);
     assert(decl->init_value);
-
 
     if((*decl->init_value)->type != NODE_BRACED_EXPRESSION) {
         ctx.errs_.raise_error("Expected braced initializer.", decl);
@@ -268,7 +260,7 @@ tak::evaluate_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx
 
     if(!TypeData::are_arrays_equivalent(sym->type, *array_t)) {
         ctx.errs_.raise_error(fmt("Array of type {} is not equivalent to {}.",
-            TypeData::to_string(*array_t), TypeData::to_string(sym->type)), *decl->init_value
+            array_t->to_string(), sym->type.to_string()), *decl->init_value
         );
 
         return std::nullopt;
@@ -285,7 +277,6 @@ tak::evaluate_arraydecl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx
 
 std::optional<tak::TypeData>
 tak::evaluate_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext& ctx) {
-
     assert(sym != nullptr && decl != nullptr);
     assert(sym->type.flags & TYPE_INFERRED);
     assert(decl->init_value.has_value());
@@ -314,8 +305,8 @@ tak::evaluate_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext&
         return std::nullopt;
     }
 
-    if(TypeData::is_invalid_in_inferred_context(*assigned_t) || (assigned_t->flags & TYPE_ARRAY && (*decl->init_value)->type != NODE_BRACED_EXPRESSION)) {
-        ctx.errs_.raise_error(fmt("Cannot assign type {} in an inferred context.", TypeData::to_string(*assigned_t)), *decl->init_value);
+    if(assigned_t->is_invalid_in_inferred_context() || (assigned_t->flags & TYPE_ARRAY && (*decl->init_value)->type != NODE_BRACED_EXPRESSION)) {
+        ctx.errs_.raise_error(fmt("Cannot assign type {} in an inferred context.", assigned_t->to_string()), *decl->init_value);
         return std::nullopt;
     }
 
@@ -361,24 +352,20 @@ tak::evaluate_inferred_decl(Symbol* sym, const AstVardecl* decl, CheckerContext&
 
 std::optional<tak::TypeData>
 tak::evaluate_vardecl(const AstVardecl* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(node->identifier != nullptr);
 
     auto* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
 
-
     if(sym->flags & ENTITY_INTERNAL && sym->flags & ENTITY_FOREIGN) {
         ctx.errs_.raise_error("Variable is marked both as foreign and internal.", node);
     }
-
     if(sym->flags & ENTITY_FOREIGN && node->init_value.has_value()) {
         ctx.errs_.raise_error("Declarations of foreign variables cannot be initialized.", node);
     }
-
     if(!node->init_value) {
         assert(!(sym->type.flags & TYPE_INFERRED));
-        if(sym->type.flags & TYPE_ARRAY && TypeData::array_has_inferred_sizes(sym->type)) {
+        if(sym->type.flags & TYPE_ARRAY && sym->type.array_has_inferred_sizes()) {
             ctx.errs_.raise_error("Arrays with inferred sizes (e.g. '[]') must be assigned when created.", node);
             return std::nullopt;
         }
@@ -390,11 +377,9 @@ tak::evaluate_vardecl(const AstVardecl* node, CheckerContext& ctx) {
     if(sym->type.flags & TYPE_INFERRED) {
         return evaluate_inferred_decl(sym, node, ctx);
     }
-
     if(sym->type.flags & TYPE_ARRAY) {
         return evaluate_arraydecl(sym, node, ctx);
     }
-
     if((*node->init_value)->type == NODE_BRACED_EXPRESSION && sym->type.kind == TYPE_KIND_STRUCT && !(sym->type.flags & TYPE_POINTER)) {
         assign_bracedexpr_to_struct(sym->type, dynamic_cast<AstBracedExpression*>(*node->init_value), ctx, sym->flags & ENTITY_GLOBAL);
         return sym->type;
@@ -406,16 +391,14 @@ tak::evaluate_vardecl(const AstVardecl* node, CheckerContext& ctx) {
         ctx.errs_.raise_error("Righthand expression does not have a type.", node);
         return std::nullopt;
     }
-
     if(sym->flags & ENTITY_GLOBAL && (*node->init_value)->type != NODE_SINGLETON_LITERAL) {
         ctx.errs_.raise_error("Globals must be initialized using literals.", node);
     }
-
     if(!TypeData::is_coercion_permissible(sym->type, *init_t)) {
         ctx.errs_.raise_error(fmt("Cannot assign variable \"{}\" of type {} to {}.",
             sym->name,
-            TypeData::to_string(sym->type),
-            TypeData::to_string(*init_t)),
+            sym->type.to_string(),
+            init_t->to_string()),
             node
         );
 
@@ -428,7 +411,6 @@ tak::evaluate_vardecl(const AstVardecl* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_cast(const AstCast* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     const auto  target_t = evaluate(node->target, ctx);
     const auto& cast_t   = node->type;
@@ -437,8 +419,8 @@ tak::evaluate_cast(const AstCast* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    const std::string target_t_str = TypeData::to_string(*target_t);
-    const std::string cast_t_str   = TypeData::to_string(cast_t);
+    const std::string target_t_str = target_t->to_string();
+    const std::string cast_t_str   = cast_t.to_string();
 
     if(!TypeData::is_cast_permissible(*target_t, cast_t)) {
         ctx.errs_.raise_error(fmt("Cannot cast type {} to {}.", target_t_str, cast_t_str), node);
@@ -454,29 +436,28 @@ get_call_return_type(const tak::TypeData& called) {
     if(called.return_type == nullptr) {
         return std::nullopt;
     }
-
-    if(!tak::TypeData::is_returntype_lvalue_eligible(*called.return_type)) { // convert to rvalue if necessary.
+    if(!called.return_type->is_returntype_lvalue_eligible()) {
         return tak::TypeData::to_rvalue(*called.return_type);
     }
 
     return *called.return_type;
 }
 
-
 static bool
 is_t_invalid_as_procarg(const tak::TypeData& type) {
-    return type.flags & tak::TYPE_ARRAY || (type.kind == tak::TYPE_KIND_PROCEDURE && !(type.flags & tak::TYPE_POINTER));
+    return type.flags & tak::TYPE_ARRAY
+        || (type.kind == tak::TYPE_KIND_PROCEDURE
+        && !(type.flags & tak::TYPE_POINTER));
 }
 
 
 static std::optional<tak::TypeData>
 evaluate_variadic_call(const tak::AstCall* node, const tak::TypeData& called, tak::CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(called.kind == tak::TYPE_KIND_PROCEDURE);
     assert(called.flags & tak::TYPE_PROC_VARARGS);
 
-    const auto     proc_t_str  = tak::TypeData::to_string(called);
+    const auto     proc_t_str  = called.to_string();
     const uint32_t called_with = node->arguments.size();
     const uint32_t receives    = called.parameters == nullptr ? 0 : called.parameters->size();
 
@@ -493,7 +474,7 @@ evaluate_variadic_call(const tak::AstCall* node, const tak::TypeData& called, ta
         }
 
         if(is_t_invalid_as_procarg(*arg_t)) {
-            ctx.errs_.raise_error(tak::fmt("Type {} cannot be used as a procedure argument.", tak::TypeData::to_string(*arg_t)), node->arguments[i]);
+            ctx.errs_.raise_error(tak::fmt("Type {} cannot be used as a procedure argument.", arg_t->to_string()), node->arguments[i]);
             continue;
         }
 
@@ -502,7 +483,7 @@ evaluate_variadic_call(const tak::AstCall* node, const tak::TypeData& called, ta
             && !tak::TypeData::is_coercion_permissible(called.parameters->at(i), *arg_t)
         ) {
             ctx.errs_.raise_error(tak::fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
-                i + 1, tak::TypeData::to_string(*arg_t), tak::TypeData::to_string(called.parameters->at(i))), node->arguments[i]);
+                i + 1, arg_t->to_string(), called.parameters->at(i).to_string()), node->arguments[i]);
         }
     }
 
@@ -512,7 +493,6 @@ evaluate_variadic_call(const tak::AstCall* node, const tak::TypeData& called, ta
 
 std::optional<tak::TypeData>
 tak::evaluate_call(AstCall* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
 
     auto target_t = evaluate(node->target, ctx);
@@ -521,7 +501,7 @@ tak::evaluate_call(AstCall* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    if(target_t->kind != TYPE_KIND_PROCEDURE) {
+    if(target_t->kind != TYPE_KIND_PROCEDURE || target_t->pointer_depth > 1) {
         ctx.errs_.raise_error("Attempt to call non-callable type.", node);
         return std::nullopt;
     }
@@ -531,7 +511,7 @@ tak::evaluate_call(AstCall* node, CheckerContext& ctx) {
     }
 
 
-    const auto     proc_t_str  = TypeData::to_string(*target_t);
+    const auto     proc_t_str  = target_t->to_string();
     const uint32_t called_with = node->arguments.size();
     const uint32_t receives    = target_t->parameters == nullptr ? 0 : target_t->parameters->size();
 
@@ -559,13 +539,13 @@ tak::evaluate_call(AstCall* node, CheckerContext& ctx) {
         }
 
         if(is_t_invalid_as_procarg(*arg_t)) {
-            ctx.errs_.raise_error(fmt("Type {} cannot be used as a procedure argument.", TypeData::to_string(*arg_t)), node->arguments[i]);
+            ctx.errs_.raise_error(fmt("Type {} cannot be used as a procedure argument.", arg_t->to_string()), node->arguments[i]);
             continue;
         }
 
         if(!TypeData::is_coercion_permissible(target_t->parameters->at(i), *arg_t)) {
-            const std::string param_t_str = TypeData::to_string(target_t->parameters->at(i));
-            const std::string arg_t_str   = TypeData::to_string(*arg_t);
+            const std::string param_t_str = target_t->parameters->at(i).to_string();
+            const std::string arg_t_str   = arg_t->to_string();
 
             ctx.errs_.raise_error(fmt("Cannot convert argument {} of type {} to expected parameter type {}.",
                 i + 1, arg_t_str, param_t_str), node->arguments[i]);
@@ -578,7 +558,6 @@ tak::evaluate_call(AstCall* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_ret(const AstRet* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
 
     const AstNode* itr = node;
@@ -616,8 +595,8 @@ tak::evaluate_ret(const AstRet* node, CheckerContext& ctx) {
 
     if(!TypeData::is_coercion_permissible(*sym->type.return_type, *ret_t)) {
         ctx.errs_.raise_error(fmt("Cannot coerce type {} to procedure return type {} (compiling procedure \"{}\").",
-            TypeData::to_string(*ret_t),
-            TypeData::to_string(*sym->type.return_type),
+            ret_t->to_string(),
+            sym->type.return_type->to_string(),
             sym->name),
             node
         );
@@ -629,8 +608,8 @@ tak::evaluate_ret(const AstRet* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
+
     const auto target_t = evaluate(node->target, ctx);
     if(!target_t) {
         ctx.errs_.raise_error("Attempting to access non-existant type as a struct.", node);
@@ -638,7 +617,7 @@ tak::evaluate_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
     }
 
     if(target_t->kind != TYPE_KIND_STRUCT || target_t->flags & TYPE_ARRAY || target_t->pointer_depth > 1) {
-        ctx.errs_.raise_error(fmt("Cannot perform member access on type {}.", TypeData::to_string(*target_t)), node);
+        ctx.errs_.raise_error(fmt("Cannot perform member access on type {}.", target_t->to_string()), node);
         return std::nullopt;
     }
 
@@ -652,14 +631,13 @@ tak::evaluate_member_access(const AstMemberAccess* node, CheckerContext& ctx) {
         return *member_type;
     }
 
-    ctx.errs_.raise_error(fmt("Cannot access \"{}\" within type \"{}\".", node->path, TypeData::to_string(*target_t)), node);
+    ctx.errs_.raise_error(fmt("Cannot access \"{}\" within type \"{}\".", node->path, target_t->to_string()), node);
     return std::nullopt;
 }
 
 
 std::optional<tak::TypeData>
 tak::evaluate_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
 
     const auto condition_t = evaluate(node->condition, ctx);
@@ -670,8 +648,8 @@ tak::evaluate_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    if(!TypeData::is_lop_eligible(*condition_t)) {
-        ctx.errs_.raise_error(fmt("Type {} cannot be used as a logical expression.", TypeData::to_string(*condition_t)), node->condition);
+    if(!condition_t->is_lop_eligible()) {
+        ctx.errs_.raise_error(fmt("Type {} cannot be used as a logical expression.", condition_t->to_string()), node->condition);
     }
 
     return call_t;
@@ -680,7 +658,6 @@ tak::evaluate_defer_if(const AstDeferIf* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_defer(const AstDefer* node,  CheckerContext& ctx) {
-
     assert(node != nullptr);
     return evaluate(node->call, ctx); // Not much to do here. We just need to typecheck the wrapped call node
 }
@@ -688,11 +665,17 @@ tak::evaluate_defer(const AstDefer* node,  CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_sizeof(const AstSizeof* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
+
     if(const auto* is_child_node = std::get_if<AstNode*>(&node->target)) {
-        if(!evaluate(*is_child_node, ctx)) {
+        const auto eval = evaluate(*is_child_node, ctx);
+        if(!eval) {
             ctx.errs_.raise_error("Expression does not evaluate to a type.", *is_child_node);
+            return std::nullopt;
+        }
+
+        if(eval->kind == TYPE_KIND_PROCEDURE && !(eval->flags & TYPE_POINTER)) {
+            ctx.errs_.raise_error(fmt("Cannot get the size of type {}.", eval->to_string()), *is_child_node);
             return std::nullopt;
         }
     }
@@ -703,8 +686,8 @@ tak::evaluate_sizeof(const AstSizeof* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_branch(const AstBranch* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
+
     for(const AstIf* _if : node->conditions) {
         const auto condition_t = evaluate(_if->condition, ctx);
         if(!condition_t) {
@@ -712,8 +695,8 @@ tak::evaluate_branch(const AstBranch* node, CheckerContext& ctx) {
             continue;
         }
 
-        const std::string cond_str = TypeData::to_string(*condition_t);
-        if(!TypeData::is_lop_eligible(*condition_t)) {
+        const std::string cond_str = condition_t->to_string();
+        if(!condition_t->is_lop_eligible()) {
             ctx.errs_.raise_error(fmt("Type {} cannot be used as a logical expression.", cond_str), _if);
         }
 
@@ -734,8 +717,8 @@ tak::evaluate_branch(const AstBranch* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_for(const AstFor* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
+
     if(node->init) {
         if(const auto init_t = evaluate(*node->init, ctx); !init_t) {
             ctx.errs_.raise_error("For-loop initialization clause does not produce a type.", *node->init);
@@ -746,8 +729,8 @@ tak::evaluate_for(const AstFor* node, CheckerContext& ctx) {
         const auto condition_t = evaluate(*node->condition, ctx);
         if(!condition_t) {
             ctx.errs_.raise_error("For-loop condition does not produce a type.", *node->condition);
-        } else if(!TypeData::is_lop_eligible(*condition_t)) {
-            const std::string cond_t_str = TypeData::to_string(*condition_t);
+        } else if(!condition_t->is_lop_eligible()) {
+            const std::string cond_t_str = condition_t->to_string();
             ctx.errs_.raise_error(fmt("Type {} cannot be used as a for-loop condition.", cond_t_str), *node->condition);
         }
     }
@@ -768,18 +751,18 @@ tak::evaluate_for(const AstFor* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_switch(const AstSwitch* node, CheckerContext& ctx) {
+    assert(node != nullptr);
+    assert(node->target != nullptr);
 
-    assert(node != nullptr && node->target != nullptr);
     auto target_t = evaluate(node->target, ctx);
-
     if(!target_t) {
         ctx.errs_.raise_error("Switch target does not produce a type.", node->target);
         return std::nullopt;
     }
 
-    const std::string target_t_str = TypeData::to_string(*target_t);
+    const std::string target_t_str = target_t->to_string();
 
-    if(!TypeData::is_bwop_eligible(*target_t)) {
+    if(!target_t->is_bwop_eligible()) {
         ctx.errs_.raise_error(fmt("Type {} cannot be used as a switch target.", target_t_str), node->target);
         return std::nullopt;
     }
@@ -791,11 +774,9 @@ tak::evaluate_switch(const AstSwitch* node, CheckerContext& ctx) {
             ctx.errs_.raise_error("Case value does not produce a type.", _case);
             continue;
         }
-
         if(!TypeData::is_coercion_permissible(*target_t, *case_t)) {
-            ctx.errs_.raise_error(fmt("Cannot coerce type of case value ({}) to {}.", TypeData::to_string(*case_t), target_t_str), _case);
+            ctx.errs_.raise_error(fmt("Cannot coerce type of case value ({}) to {}.", case_t->to_string(), target_t_str), _case);
         }
-
         for(AstNode* child : _case->body) {
             if(NODE_NEEDS_EVALUATING(child->type)) evaluate(child, ctx);
         }
@@ -811,7 +792,6 @@ tak::evaluate_switch(const AstSwitch* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_while(AstNode* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(node->type == NODE_WHILE || node->type == NODE_DOWHILE);
 
@@ -838,8 +818,8 @@ tak::evaluate_while(AstNode* node, CheckerContext& ctx) {
         ctx.errs_.raise_error("Loop condition does not produce a type.", condition);
     }
 
-    else if(!TypeData::is_lop_eligible(*condition_t)) {
-        ctx.errs_.raise_error(fmt("Type {} cannot be used as a condition for a while-loop.", TypeData::to_string(*condition_t)), condition);
+    else if(!condition_t->is_lop_eligible()) {
+        ctx.errs_.raise_error(fmt("Type {} cannot be used as a condition for a while-loop.", condition_t->to_string()), condition);
     }
 
     for(AstNode* child : *branch_body) {
@@ -852,7 +832,6 @@ tak::evaluate_while(AstNode* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_subscript(const AstSubscript* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
 
     const auto value_t   = evaluate(node->value, ctx);
@@ -865,11 +844,11 @@ tak::evaluate_subscript(const AstSubscript* node, CheckerContext& ctx) {
         return std::nullopt;
     }
 
-    const std::string value_t_str   = TypeData::to_string(*value_t);
-    const std::string operand_t_str = TypeData::to_string(*operand_t);
+    const std::string value_t_str   = value_t->to_string();
+    const std::string operand_t_str = operand_t->to_string();
     const auto        contained_t   = TypeData::get_contained(*operand_t);
 
-    if(!TypeData::is_bwop_eligible(*value_t)) {
+    if(!value_t->is_bwop_eligible()) {
         ctx.errs_.raise_error(fmt("Type {} Cannot be used as a subscript value.", value_t_str), node->value);
     }
 
@@ -884,7 +863,6 @@ tak::evaluate_subscript(const AstSubscript* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate_brk_or_cont(const AstNode* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(node->type == NODE_CONT || node->type == NODE_BRK);
 
@@ -904,7 +882,6 @@ tak::evaluate_brk_or_cont(const AstNode* node, CheckerContext& ctx) {
 
 std::optional<tak::TypeData>
 tak::evaluate(AstNode* node, CheckerContext& ctx) {
-
     assert(node != nullptr);
     assert(node->type != NODE_NONE);
 
