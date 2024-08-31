@@ -1526,10 +1526,10 @@ tak::generate_lt(const AstBinexpr *node, CodegenContext &ctx) {
         cmp = ctx.builder_.CreateFCmpOLT(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.flags & TYPE_POINTER || LHS->tak_type.is_unsigned_primitive()) {
-        cmp = ctx.builder_.CreateICmpSLT(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpULT(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.is_signed_primitive()) {
-        cmp = ctx.builder_.CreateICmpULT(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpSLT(LHS->value, RHS->value);
     }
 
     assert(cmp != nullptr);
@@ -1552,10 +1552,10 @@ tak::generate_lte(const AstBinexpr *node, CodegenContext &ctx) {
         cmp = ctx.builder_.CreateFCmpOLE(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.flags & TYPE_POINTER || LHS->tak_type.is_unsigned_primitive()) {
-        cmp = ctx.builder_.CreateICmpSLE(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpULE(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.is_signed_primitive()) {
-        cmp = ctx.builder_.CreateICmpULE(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpSLE(LHS->value, RHS->value);
     }
 
     assert(cmp != nullptr);
@@ -1578,10 +1578,10 @@ tak::generate_gt(const AstBinexpr *node, CodegenContext &ctx) {
         cmp = ctx.builder_.CreateFCmpOGT(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.flags & TYPE_POINTER || LHS->tak_type.is_unsigned_primitive()) {
-        cmp = ctx.builder_.CreateICmpSGT(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpUGT(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.is_signed_primitive()) {
-        cmp = ctx.builder_.CreateICmpUGT(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpSGT(LHS->value, RHS->value);
     }
 
     assert(cmp != nullptr);
@@ -1604,10 +1604,10 @@ tak::generate_gte(const AstBinexpr *node, CodegenContext &ctx) {
         cmp = ctx.builder_.CreateFCmpOGE(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.flags & TYPE_POINTER || LHS->tak_type.is_unsigned_primitive()) {
-        cmp = ctx.builder_.CreateICmpSGE(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpUGE(LHS->value, RHS->value);
     }
     else if(LHS->tak_type.is_signed_primitive()) {
-        cmp = ctx.builder_.CreateICmpUGE(LHS->value, RHS->value);
+        cmp = ctx.builder_.CreateICmpSGE(LHS->value, RHS->value);
     }
 
     assert(cmp != nullptr);
