@@ -85,7 +85,6 @@
     X(KW_CASE, "case")               \
     X(KW_DEFAULT, "default")         \
     X(KW_FALLTHROUGH, "fallthrough") \
-    X(KW_ELIF, "elif")               \
     X(KW_NAMESPACE, "namespace")     \
     X(KW_DEFER, "defer")             \
     X(KW_DEFER_IF, "defer_if")       \

@@ -70,7 +70,6 @@ namespace tak {
     class CodegenContext {
     public:
         struct {
-            llvm::BasicBlock* cond  = nullptr;
             llvm::BasicBlock* after = nullptr;
             llvm::BasicBlock* merge = nullptr;
         } curr_loop_;
@@ -88,13 +87,14 @@ namespace tak {
         llvm::Module      mod_;         // LLVM module, same name as source file.
         llvm::IRBuilder<> builder_;     // LLVM IRBuilder, helper class for generating IR.
 
-        std::optional<IRCastingContext>             casting_context_;   // casting context
-        std::vector<std::vector<llvm::BasicBlock*>> deferred_blocks_;   // calls for defer statements
+        std::optional<IRCastingContext>    casting_context_;  // casting context
+        std::vector<std::vector<AstNode*>> deferred_stmts_;   // calls for defer statements
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         std::shared_ptr<WrappedIRValue> set_local(const std::string& name, const std::shared_ptr<WrappedIRValue>& ptr);
         std::shared_ptr<WrappedIRValue> get_local(const std::string& name);
+        bool                            local_exists(const std::string& name);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -106,11 +106,15 @@ namespace tak {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         bool inside_procedure();
+        bool curr_block_has_terminator();
         bool inside_loop();
+        void pop_defers();
+        void push_defers();
+        void push_deferred_stmt(AstNode* node);
         void enter_proc(llvm::Function* func, const Symbol* sym);
-        void enter_loop(llvm::BasicBlock* cond, llvm::BasicBlock* after, llvm::BasicBlock* merge);
+        void enter_loop(llvm::BasicBlock* after, llvm::BasicBlock* merge);
         void leave_curr_proc();
-        void leave_curr_loop();
+        std::array<llvm::BasicBlock*, 2> leave_curr_loop();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -131,6 +135,9 @@ namespace tak {
     void generate_struct_layouts(CodegenContext& ctx);
     void generate_procedure_signatures(CodegenContext& ctx);
     void generate_global_placeholders(CodegenContext& ctx);
+    void unpack_defer(const AstDefer* node, CodegenContext& ctx);
+    void unpack_defer_if(const AstDeferIf* node, CodegenContext& ctx);
+    void unpack_defers(CodegenContext& ctx, bool pop_after = false);
 
     void generate_local_struct_init(
         llvm::Value* ptr,
@@ -196,10 +203,16 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_gte(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_conditional_and(const AstBinexpr* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_conditional_or(const AstBinexpr* node, CodegenContext& ctx);
-
     std::shared_ptr<WrappedIRValue> generate_sizeof(const AstSizeof* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_cast(const AstCast* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_switch(const AstSwitch* node, CodegenContext& ctx);
 
+    std::shared_ptr<WrappedIRValue> generate_for(const AstFor* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_while(const AstWhile* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_dowhile(const AstDoWhile* node, CodegenContext& ctx);
+
+    std::shared_ptr<WrappedIRValue> generate_branch(const AstBranch* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_blk(const AstBlock* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_member_access(const AstMemberAccess* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_subscript(const AstSubscript* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_ret(const AstRet* node, CodegenContext& ctx);
@@ -214,6 +227,7 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_vardecl_local(const AstVardecl* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_vardecl(const AstVardecl* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_procdecl(const AstProcdecl* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_defer(AstNode* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate(AstNode* node, CodegenContext& ctx);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

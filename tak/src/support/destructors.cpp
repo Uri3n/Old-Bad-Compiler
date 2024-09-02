@@ -15,10 +15,7 @@ tak::AstMemberAccess::~AstMemberAccess() {
 }
 
 tak::AstBranch::~AstBranch() {
-    for(AstNode const* node : conditions) {
-        delete node;
-    }
-
+    delete _if;
     if(_else.has_value()) {
         delete *_else;
     }
@@ -42,11 +39,9 @@ tak::AstProcdecl::~AstProcdecl() {
     for(AstNode const* node : children) {
         delete node;
     }
-
     for(AstNode const* node : parameters) {
         delete node;
     }
-
     delete identifier;
 }
 
@@ -54,7 +49,6 @@ tak::AstVardecl::~AstVardecl() {
     if(init_value.has_value()) {
         delete *init_value;
     }
-
     delete identifier;
 }
 
@@ -62,7 +56,6 @@ tak::AstCall::~AstCall() {
     for(AstNode const* node : arguments) {
         delete node;
     }
-
     delete target;
 }
 
@@ -100,7 +93,6 @@ tak::AstWhile::~AstWhile() {
     for(AstNode const* node : body) {
         delete node;
     }
-
     delete condition;
 }
 
@@ -108,7 +100,6 @@ tak::AstDoWhile::~AstDoWhile() {
     for(AstNode const* node : body) {
         delete node;
     }
-
     delete condition;
 }
 
@@ -132,7 +123,6 @@ tak::AstCase::~AstCase() {
     for(AstNode const* node : body) {
         delete node;
     }
-
     delete value;
 }
 
@@ -173,6 +163,7 @@ tak::AstDeferIf::~AstDeferIf() {
 }
 
 tak::Parser::~Parser() {
+    additional_generic_inspections_.clear();
     for(AstNode const* node : toplevel_decls_) {
         delete node;
     }

@@ -7,7 +7,6 @@
 
 bool
 tak::postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Parser& parser, Lexer& lxr) {
-
     assert(old != nullptr);
     assert(perm != nullptr);
     assert(!old->_namespace.empty());
@@ -104,7 +103,6 @@ tak::postparse_reparse_procedure_permutation(const Symbol* old, Symbol* perm, Pa
 
 bool
 tak::postparse_permute_generic_procedures(Parser& parser, Lexer& lxr) {
-
     SemanticErrorHandler errs;
     while (true) {
         Symbol* gen_sym = nullptr;

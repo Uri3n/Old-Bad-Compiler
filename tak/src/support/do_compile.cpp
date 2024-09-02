@@ -14,7 +14,6 @@ using namespace tak;
 
 static bool
 get_next_include(Parser& parser, Lexer& lexer) {
-
     const auto next_include = std::find_if(parser.included_files_.begin(), parser.included_files_.end(), [](const IncludedFile& f) {
         return f.state == INCLUDE_STATE_PENDING;
     });
@@ -31,10 +30,8 @@ get_next_include(Parser& parser, Lexer& lexer) {
     return true;
  }
 
-
 static bool
 do_parse(Parser& parser, Lexer& lexer) {
-
     AstNode* toplevel_decl = nullptr;
     if(parser.tbl_.scope_stack_.empty()) {
         parser.tbl_.push_scope(); // global scope
@@ -46,37 +43,27 @@ do_parse(Parser& parser, Lexer& lexer) {
             if(toplevel_decl == nullptr) {
                 break;
             }
-            // TODO: verify valid at toplevel
+            if(!NODE_VALID_AT_TOPLEVEL(toplevel_decl->type)) {
+                lexer.raise_error("Expression is invalid at the top level.", toplevel_decl->src_pos, toplevel_decl->line);
+                return false;
+            }
             parser.toplevel_decls_.emplace_back(toplevel_decl);
         }
-
         if(lexer.current() != TOKEN_END_OF_FILE) {
             return false;
         }
-
     } while(get_next_include(parser, lexer));
 
-    if(!postparse_verify(parser, lexer)) {
-        return false;
-    }
-
-    return true;
+    return postparse_verify(parser, lexer);
 }
 
 static bool
 do_check(Parser& parser, const std::string& original_file_name) {
-
 #ifdef TAK_DEBUG
-    constexpr bool dump = true;
-#else
-    constexpr bool dump = false;
+    parser.dump_nodes();
+    parser.tbl_.dump_symbols();
+    parser.tbl_.dump_types();
 #endif
-
-    defer_if(dump, [&] {
-        parser.dump_nodes();
-        parser.tbl_.dump_symbols();
-        parser.tbl_.dump_types();
-    });
 
     CheckerContext ctx(parser.tbl_);
     for(const auto& decl : parser.toplevel_decls_) {
@@ -97,7 +84,6 @@ do_check(Parser& parser, const std::string& original_file_name) {
 
 static void
 do_codegen(Parser& parser, const std::string& llvm_mod_name) {
-
     CodegenContext ctx(parser.tbl_, llvm_mod_name);
     ctx.mod_.setDataLayout("e-m:e-i64:64-i128:128-n32:64-S128");
 
@@ -114,17 +100,15 @@ do_codegen(Parser& parser, const std::string& llvm_mod_name) {
 
 static bool
 do_create_ast(Parser& parser, const std::string& source_file_name) {
-
     Lexer lexer;
     return lexer.init(source_file_name) && do_parse(parser, lexer) && do_check(parser, source_file_name);
 }
 
 bool
 do_compile(const std::string& source_file_name) {
-
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
-    //do_codegen(parser, source_file_name);
+    do_codegen(parser, source_file_name);
 
     return true;
 }

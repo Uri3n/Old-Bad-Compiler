@@ -7,7 +7,6 @@
 
 tak::AstNode*
 tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_LPAREN);
 
     ++parser.inside_parenthesized_expression_;
@@ -30,7 +29,6 @@ tak::parse_parenthesized_expression(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_cast(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_CAST);
 
     if(lxr.peek(1) != TOKEN_LPAREN) {
@@ -88,7 +86,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
 
 
     //
-    // Finish up, should end with ')' always...
+    // Finish up, should end with ')' because the syntax is retarded...
     //
 
     if(lxr.current() != TOKEN_RPAREN) {
@@ -96,6 +94,7 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
         return nullptr;
     }
 
+    parser.additional_generic_inspections_.emplace_back(node);
     lxr.advance(1);
     state = true;
     return node;
@@ -104,7 +103,6 @@ tak::parse_cast(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_singleton_literal([[maybe_unused]] Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().kind == KIND_LITERAL);
 
     bool  state        = false;
@@ -213,7 +211,6 @@ tak::parse_member_access(AstNode* target, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_sizeof(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_SIZEOF);
 
     const size_t   curr_pos = lxr.current().src_pos;
@@ -279,6 +276,11 @@ tak::parse_sizeof(Parser& parser, Lexer& lxr) {
 
         target->parent = node;
         node->target   = target;
+    }
+
+
+    if(std::get_if<TypeData>(&node->target) != nullptr) {
+        parser.additional_generic_inspections_.emplace_back(node);
     }
 
     state = true;

@@ -66,17 +66,15 @@ tak::TypeData::identical(const TypeData& first, const TypeData& second) {
     return first.return_type == nullptr && second.return_type == nullptr;
 }
 
-
 bool
 tak::TypeData::is_cast_permissible(const TypeData& from, const TypeData& to) {
-    if(identical(from, to)) {
-        return true;
-    }
-
     if(!from.is_cast_eligible() || !to.is_cast_eligible()) {
         return false;
     }
 
+    if(identical(from, to)) {
+        return true;
+    }
 
     const auto* primfrom_t = std::get_if<primitive_t>(&from.name);
     const auto* primto_t   = std::get_if<primitive_t>(&to.name);
@@ -100,7 +98,6 @@ tak::TypeData::is_cast_permissible(const TypeData& from, const TypeData& to) {
 
     return false;
 }
-
 
 bool
 tak::TypeData::is_coercion_permissible(TypeData& left, const TypeData& right) {
@@ -204,8 +201,7 @@ tak::TypeData::type_promote_non_concrete(TypeData& left, const TypeData& right) 
     return true;
 }
 
-bool
-tak::TypeData::flip_sign() {
+bool tak::TypeData::flip_sign() {
     assert(this->pointer_depth == 0);
     assert(this->array_lengths.empty());
     assert(this->kind == TYPE_KIND_PRIMITIVE);
@@ -230,8 +226,7 @@ tak::TypeData::flip_sign() {
     return true;
 }
 
-bool
-tak::TypeData::array_has_inferred_sizes() const {
+bool tak::TypeData::array_has_inferred_sizes() const {
     assert(this->flags & TYPE_ARRAY);
     for(const auto length : this->array_lengths) {
         if(length == 0) return true;
@@ -239,29 +234,25 @@ tak::TypeData::array_has_inferred_sizes() const {
     return false;
 }
 
-bool
-tak::TypeData::is_invalid_in_inferred_context() const {
+bool tak::TypeData::is_invalid_in_inferred_context() const {
     return (this->kind == TYPE_KIND_PROCEDURE
         && !(this->flags & TYPE_POINTER))
         || this->flags & TYPE_INFERRED;
 }
 
-bool
-tak::TypeData::is_reassignable() const {
+bool tak::TypeData::is_reassignable() const {
     return this->array_lengths.empty()
         && !(this->kind == TYPE_KIND_PROCEDURE && this->pointer_depth < 1)
         && !(this->flags & TYPE_CONSTANT);
 }
 
-bool
-tak::TypeData::is_returntype_lvalue_eligible() const {
+bool tak::TypeData::is_returntype_lvalue_eligible() const {
     return this->kind == TYPE_KIND_STRUCT
         && !(this->flags & TYPE_POINTER)
         && !(this->flags & TYPE_ARRAY);
 }
 
-bool
-tak::TypeData::is_cast_eligible() const {
+bool tak::TypeData::is_cast_eligible() const {
     if(!this->array_lengths.empty()) {
         return false;
     }
@@ -272,15 +263,13 @@ tak::TypeData::is_cast_eligible() const {
     return true;
 }
 
-bool
-tak::TypeData::is_lop_eligible() const {
+bool tak::TypeData::is_lop_eligible() const {
     return (this->flags & TYPE_POINTER
         || this->kind == TYPE_KIND_PRIMITIVE)
         && this->array_lengths.empty();
 }
 
-bool
-tak::TypeData::is_bwop_eligible() const {
+bool tak::TypeData::is_bwop_eligible() const {
     const auto* primitive_ptr = std::get_if<primitive_t>(&this->name);
     if(primitive_ptr == nullptr) {
         return false;

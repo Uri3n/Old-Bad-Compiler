@@ -31,6 +31,7 @@ namespace tak {
         uint16_t                  inside_parenthesized_expression_ = 0;
         std::vector<IncludedFile> included_files_;
         std::vector<AstNode*>     toplevel_decls_;
+        std::vector<AstNode*>     additional_generic_inspections_;
         EntityTable               tbl_;
 
         void dump_nodes();
@@ -70,7 +71,6 @@ namespace tak {
     AstNode* parse_while(Parser& parser, Lexer& lxr);
     AstNode* parse_branch(Parser& parser, Lexer& lxr);
     AstCase* parse_case(Parser& parser, Lexer& lxr);
-    AstDefault* parse_default(Parser& parser, Lexer& lxr);
     AstNode* parse_switch(Parser& parser, Lexer& lxr);
     AstNode* parse_structdef(Parser& parser, Lexer& lxr);
     AstNode* parse_member_access(AstNode* target, Lexer& lxr);
@@ -81,7 +81,6 @@ namespace tak {
     AstNode* parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr);
     AstNode* parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr);
     AstNode* parse_usertype_decl(Symbol* sym, Parser& parser, Lexer& lxr);
-    AstVardecl* parse_parameterized_vardecl(Parser& parser, Lexer& lxr);
     AstNode* parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr);
     AstNode* parse_keyword(Parser& parser, Lexer& lxr);
     AstNode* parse_singleton_literal(Parser& parser, Lexer& lxr);
@@ -94,6 +93,8 @@ namespace tak {
     AstNode* parse_call(AstNode* operand, Parser& parser, Lexer& lxr);
     AstNode* parse_binary_expression(AstNode* left_operand, Parser& parser, Lexer& lxr);
     AstNode* parse_cast(Parser& parser, Lexer& lxr);
+    AstVardecl* parse_parameterized_vardecl(Parser& parser, Lexer& lxr);
+    AstDefault* parse_default(Parser& parser, Lexer& lxr);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }

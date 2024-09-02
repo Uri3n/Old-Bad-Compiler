@@ -7,7 +7,6 @@
 
 tak::AstNode*
 tak::parse_type_alias(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().value == "alias");
 
     if(parser.tbl_.scope_stack_.size() > 1) {
@@ -58,7 +57,6 @@ tak::parse_type_alias(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_callconv(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().value == "callconv");
     lxr.advance(1);
 
@@ -109,7 +107,6 @@ tak::parse_callconv(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_include(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().value == "include");
 
     if(parser.tbl_.scope_stack_.size() > 1) {
@@ -187,7 +184,6 @@ tak::parse_include(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().value == "intern" || lxr.current().value == "extern");
 
     const size_t   pos   = lxr.current().src_pos;
@@ -231,7 +227,6 @@ tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_AT);
 
     lxr.advance(1);

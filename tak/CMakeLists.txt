@@ -12,7 +12,6 @@ add_executable(tak src/main.cpp
 
         src/lexer/iterate.cpp
         src/lexer/tokens.cpp
-        src/lexer/ambiguous_token.cpp
         src/lexer/errors.cpp
         src/lexer/init.cpp
 

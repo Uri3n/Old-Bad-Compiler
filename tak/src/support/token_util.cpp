@@ -9,7 +9,6 @@
 
 std::string
 tak::Token::to_string(const token_t tok) {
-
 #define X(NAME, STR) case TOKEN_##NAME: return STR;
     switch(tok) {
         TOKEN_LIST;
@@ -20,7 +19,6 @@ tak::Token::to_string(const token_t tok) {
 
 std::string
 tak::Token::type_to_string(const token_t tok) {
-
 #define X(NAME, UNUSED_STR) case TOKEN_##NAME: return #NAME;
     switch(tok) {
         TOKEN_LIST
@@ -31,7 +29,6 @@ tak::Token::type_to_string(const token_t tok) {
 
 std::string
 tak::Token::kind_to_string(const token_kind kind) {
-
 #define X(NAME) case KIND_##NAME: return #NAME;
     switch(kind) {
         TOKEN_KIND_LIST
@@ -106,7 +103,6 @@ tak::Token::precedence_of(const token_t _operator) {
 
 std::optional<size_t>
 tak::Token::lit_to_int(const Token& tok) {
-
     size_t val = 0;
 
     if(tok == TOKEN_INTEGER_LITERAL) {

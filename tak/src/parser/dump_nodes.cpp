@@ -275,9 +275,7 @@ display_node_branch(tak::AstNode* node, const std::string& node_title, const uin
     }
 
     tak::print("{}Branch", node_title);
-    for(tak::AstNode* if_stmt : branch->conditions) {
-        display_node_data(if_stmt, depth + 1, _);
-    }
+    display_node_data(branch->_if, depth + 1, _);
 
     if(branch->_else.has_value()) {
         display_node_data(*branch->_else, depth + 1, _);

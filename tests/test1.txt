@@ -1,26 +1,28 @@
 //@include "test2.txt";
 
 struct foo {
-   mem1 : u32;
+   mem1 : i8;
    mem2 : i32^;
-   mem3 : fuck^^;
 }
 
-struct fuck {
-   bla : bool;
+myfunc :: proc(arg : foo^) -> bool {
+   ret arg == nullptr;
 }
 
-struct bar $[T] {
-   mem1 : bool;
-   mem2 : T;
-   mem3 : foo^;
+otherfunc :: proc(arg : i32) -> void {
+   ++arg;
+   ret;
 }
 
-idk :: proc() -> foo {
+main :: proc() -> i32 {
+   var2 : i32 = 0;
+   
+   if var2 == 3 {
+      ret 1;
+      ++var2;
+   } else {
+      var2 = 420;
+   }
 
-}
-
-main :: proc() -> void {
-   poopoo : foo;
-   poopoo.mem3 + 3 = nullptr;
+   ret 0;
 }

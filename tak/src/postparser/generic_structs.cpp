@@ -13,7 +13,6 @@ postparse_try_permute_procptr_member(
     tak::SemanticErrorHandler& errs,
     const tak::LocationType& loc
 ) {
-
     assert(new_member.kind == tak::TYPE_KIND_PROCEDURE);
     if(new_member.parameters != nullptr) {
         for(size_t i = 0; i < new_member.parameters->size(); i++) {
@@ -49,7 +48,6 @@ postparse_try_permute_struct_member(
     tak::SemanticErrorHandler& errs,
     const tak::LocationType& loc
 ) {
-
     assert(new_member.kind == tak::TYPE_KIND_STRUCT);
 
     const std::string struct_name = std::get<std::string>(new_member.name);
@@ -102,7 +100,6 @@ tak::postparse_try_permute_member(
     SemanticErrorHandler& errs,
     const LocationType& loc
 ) {
-
     TypeData new_member;
     const auto* is_str = std::get_if<std::string>(&old_member.name);
 
@@ -170,8 +167,7 @@ tak::postparse_try_permute_member(
 }
 
 
-bool
-tak::postparse_try_create_permutation(
+bool tak::postparse_try_create_permutation(
     const std::string& name,
     Parser& parser,
     TypeData& to_conv,            // TypeData we're converting
@@ -179,7 +175,6 @@ tak::postparse_try_create_permutation(
     SemanticErrorHandler& errs,
     const LocationType& loc
 ) {
-
     assert(old_t != nullptr);
     assert(to_conv.kind == TYPE_KIND_STRUCT);
     assert(to_conv.parameters != nullptr);
@@ -207,14 +202,12 @@ tak::postparse_try_create_permutation(
 }
 
 
-void
-tak::postparse_inspect_struct_t(
+void tak::postparse_inspect_struct_t(
     Parser &parser,
     TypeData& type,
     SemanticErrorHandler& errs,
     const LocationType& loc
 ) {
-
     assert(type.kind == TYPE_KIND_STRUCT);
 
     const auto   type_name  = std::get<std::string>(type.name);
@@ -234,7 +227,9 @@ tak::postparse_inspect_struct_t(
 
     if(receives != used) {
         errs.raise_error(fmt("Cannot instantiate type {} with {} generic parameters (takes {}).", type_name, used, receives),
-            loc.file, loc.pos, loc.line);
+            loc.file, loc.pos, loc.line
+        );
+        return;
     }
 
     const auto type_str = type.to_string(false, false);
@@ -247,14 +242,12 @@ tak::postparse_inspect_struct_t(
 }
 
 
-void
-tak::postparse_inspect_proc_t(
+void tak::postparse_inspect_proc_t(
     Parser& parser,
     const TypeData& type,
     SemanticErrorHandler& errs,
     const LocationType& loc
 ) {
-
     assert(type.kind == TYPE_KIND_PROCEDURE);
 
     if(type.parameters != nullptr) {
@@ -281,7 +274,6 @@ tak::postparse_inspect_proc_t(
 
 bool
 tak::postparse_permute_generic_structures(Parser& parser) {
-
     SemanticErrorHandler errs;
 
     // Check symbols
@@ -329,10 +321,35 @@ tak::postparse_permute_generic_structures(Parser& parser) {
 
         utype->flags |= ENTITY_POSTP_NORECHECK;
         for(auto& member : utype->members) {
-            if(member.type.kind == TYPE_KIND_PROCEDURE) postparse_inspect_proc_t(parser, member.type, errs, type_loc);
-            if(member.type.kind == TYPE_KIND_STRUCT)    postparse_inspect_struct_t(parser, member.type, errs, type_loc);
+            if(member.type.kind == TYPE_KIND_PROCEDURE)   postparse_inspect_proc_t(parser, member.type, errs, type_loc);
+            else if(member.type.kind == TYPE_KIND_STRUCT) postparse_inspect_struct_t(parser, member.type, errs, type_loc);
         }
     }
+
+
+    // Additional AST nodes that may require inspection (cast expressions, sizeof, etc).
+    for(const auto& node : parser.additional_generic_inspections_) {
+        auto& type = [&]() -> TypeData& {
+            if(auto* to_cast = dynamic_cast<AstCast*>(node)) {
+                return to_cast->type;
+            }
+            else if(auto* to_sizeof = dynamic_cast<AstSizeof*>(node)) {
+                auto* contained = std::get_if<TypeData>(&to_sizeof->target);
+                assert(contained != nullptr && "postparse: sizeof node does not contain typedata!");
+                return *contained;
+            }
+            panic("postparser: invalid node type stored for additional generic inspection.");
+        }();
+
+        LocationType node_loc;
+        node_loc.file = node->file;
+        node_loc.line = node->line;
+        node_loc.pos  = node->src_pos;
+
+        if(type.kind == TYPE_KIND_PROCEDURE)   postparse_inspect_proc_t(parser, type, errs, node_loc);
+        else if(type.kind == TYPE_KIND_STRUCT) postparse_inspect_struct_t(parser, type, errs, node_loc);
+    }
+
 
     errs.emit();
     return !errs.failed();

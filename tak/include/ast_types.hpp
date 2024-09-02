@@ -47,6 +47,7 @@
     || node_type == tak::NODE_PROCDECL             \
     || node_type == tak::NODE_INCLUDE_STMT         \
     || node_type == tak::NODE_ENUM_DEFINITION      \
+    || node_type == tak::NODE_SINGLETON_LITERAL    \
     || node_type == tak::NODE_TYPE_ALIAS           \
 )                                                  \
 
@@ -192,8 +193,8 @@ namespace tak {
     };
 
     struct AstBranch final : AstNode {
-        std::vector<AstIf*>     conditions;               // consecutive if/else statements
-        std::optional<AstElse*> _else = std::nullopt;     // can be null!
+        AstIf* _if = nullptr;                           // consecutive if/else statements
+        std::optional<AstElse*> _else = std::nullopt;   // can be null!
 
         ~AstBranch() override;
         AstBranch(

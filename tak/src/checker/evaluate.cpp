@@ -688,21 +688,18 @@ std::optional<tak::TypeData>
 tak::evaluate_branch(const AstBranch* node, CheckerContext& ctx) {
     assert(node != nullptr);
 
-    for(const AstIf* _if : node->conditions) {
-        const auto condition_t = evaluate(_if->condition, ctx);
-        if(!condition_t) {
-            ctx.errs_.raise_error("Invalid branch condition: contained expression does not produce a type.", _if);
-            continue;
-        }
-
+    const auto condition_t = evaluate(node->_if->condition, ctx);
+    if(!condition_t) {
+        ctx.errs_.raise_error("Invalid branch condition: contained expression does not produce a type.", node->_if);
+    } else {
         const std::string cond_str = condition_t->to_string();
         if(!condition_t->is_lop_eligible()) {
-            ctx.errs_.raise_error(fmt("Type {} cannot be used as a logical expression.", cond_str), _if);
+            ctx.errs_.raise_error(fmt("Type {} cannot be used as a logical expression.", cond_str), node->_if);
         }
+    }
 
-        for(AstNode* branch_child : _if->body) {
-            if(NODE_NEEDS_EVALUATING(branch_child->type)) evaluate(branch_child, ctx);
-        }
+    for(AstNode* branch_child : node->_if->body) {
+        if(NODE_NEEDS_EVALUATING(branch_child->type)) evaluate(branch_child, ctx);
     }
 
     if(node->_else) {
@@ -761,7 +758,6 @@ tak::evaluate_switch(const AstSwitch* node, CheckerContext& ctx) {
     }
 
     const std::string target_t_str = target_t->to_string();
-
     if(!target_t->is_bwop_eligible()) {
         ctx.errs_.raise_error(fmt("Type {} cannot be used as a switch target.", target_t_str), node->target);
         return std::nullopt;

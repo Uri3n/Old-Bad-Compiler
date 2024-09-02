@@ -37,54 +37,51 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
     });
 
 
-    do {
-        parser.tbl_.push_scope();
+    parser.tbl_.push_scope();
+    lxr.advance(1);
+
+    const size_t   curr_pos = lxr.current().src_pos;
+    const uint32_t line     = lxr.current().line;
+
+    auto* if_stmt      = new AstIf(curr_pos, line, lxr.source_file_name_);
+    if_stmt->parent    = node;
+    if_stmt->condition = parse(parser, lxr, true);
+
+
+    //
+    // Parse branch condition
+    //
+
+    node->_if = if_stmt;
+    if(if_stmt->condition == nullptr) {
+        return nullptr;
+    }
+
+    if(!NODE_VALID_SUBEXPRESSION(if_stmt->condition->type) && if_stmt->condition->type != NODE_VARDECL) {
+        lxr.raise_error("Expression cannot be used within if statement condition.", curr_pos, line);
+        return nullptr;
+    }
+
+    if(lxr.current() == TOKEN_LBRACE) {
         lxr.advance(1);
-
-        const size_t   curr_pos = lxr.current().src_pos;
-        const uint32_t line     = lxr.current().line;
-
-        auto* if_stmt      = new AstIf(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
-        if_stmt->parent    = node;
-        if_stmt->condition = parse(parser, lxr, true);
-
-
-        //
-        // Parse branch condition
-        //
-
-        node->conditions.emplace_back(if_stmt);
-        if(if_stmt->condition == nullptr) {
-            return nullptr;
-        }
-
-        if(!NODE_VALID_SUBEXPRESSION(if_stmt->condition->type) && if_stmt->condition->type != NODE_VARDECL) {
-            lxr.raise_error("Expression cannot be used within if statement condition.", curr_pos, line);
-            return nullptr;
-        }
-
-        if(lxr.current() == TOKEN_LBRACE) {
-            lxr.advance(1);
-            while(lxr.current() != TOKEN_RBRACE) {
-                if_stmt->body.emplace_back(parse(parser, lxr, false));
-                if(if_stmt->body.back() == nullptr) return nullptr;
-                if_stmt->body.back()->parent = if_stmt;
-            }
-            lxr.advance(1);
-        } else {
+        while(lxr.current() != TOKEN_RBRACE) {
             if_stmt->body.emplace_back(parse(parser, lxr, false));
             if(if_stmt->body.back() == nullptr) return nullptr;
             if_stmt->body.back()->parent = if_stmt;
         }
-
-        parser.tbl_.pop_scope();
-    } while(lxr.current() == TOKEN_KW_ELIF);
+        lxr.advance(1);
+    } else {
+        if_stmt->body.emplace_back(parse(parser, lxr, false));
+        if(if_stmt->body.back() == nullptr) return nullptr;
+        if_stmt->body.back()->parent = if_stmt;
+    }
 
 
     //
-    // Check if there's a final "else" branch
+    // Additional  "else" block
     //
 
+    parser.tbl_.pop_scope();
     if(lxr.current() == TOKEN_KW_ELSE) {
 
         auto* else_stmt   = new AstElse(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -118,7 +115,6 @@ tak::parse_branch(Parser &parser, Lexer &lxr) {
 
 tak::AstCase*
 tak::parse_case(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH);
     parser.tbl_.push_scope();
 
@@ -142,6 +138,7 @@ tak::parse_case(Parser& parser, Lexer& lxr) {
     if(node->value == nullptr
         || node->value->literal_type == TOKEN_STRING_LITERAL
         || node->value->literal_type == TOKEN_FLOAT_LITERAL
+        || node->value->literal_type == TOKEN_KW_NULLPTR
     ) {
         lxr.raise_error("Invalid case value.", curr_pos, line);
         return nullptr;
@@ -174,7 +171,6 @@ tak::parse_case(Parser& parser, Lexer& lxr) {
 
 tak::AstDefault*
 tak::parse_default(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_DEFAULT);
     parser.tbl_.push_scope();
 
@@ -218,7 +214,6 @@ tak::parse_default(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_switch(Parser &parser, Lexer &lxr) {
-
     assert(lxr.current() == TOKEN_KW_SWITCH);
     lxr.advance(1);
 
@@ -235,14 +230,13 @@ tak::parse_switch(Parser &parser, Lexer &lxr) {
     });
 
 
-    if(node->target == nullptr)
+    if(node->target == nullptr) {
         return nullptr;
-
+    }
     if(!NODE_VALID_SUBEXPRESSION(node->target->type)) {
         lxr.raise_error("Invalid subexpression being used as a switch target.", curr_pos, line);
         return nullptr;
     }
-
     if(lxr.current() != TOKEN_LBRACE) {
         lxr.raise_error("Expected beginning of switch body.");
         return nullptr;
@@ -251,8 +245,8 @@ tak::parse_switch(Parser &parser, Lexer &lxr) {
 
     lxr.advance(1);
     bool reached_default = false;
-    while(lxr.current() != TOKEN_RBRACE) {
-
+    while(lxr.current() != TOKEN_RBRACE)
+    {
         if(lxr.current() == TOKEN_KW_CASE || lxr.current() == TOKEN_KW_FALLTHROUGH) {
             if(reached_default) {
                 lxr.raise_error("Case definition after \"default\".");
@@ -314,7 +308,6 @@ tak::parse_switch(Parser &parser, Lexer &lxr) {
 
 tak::AstNode*
 tak::parse_ret(Parser &parser, Lexer &lxr) {
-
     assert(lxr.current() == TOKEN_KW_RET);
 
     auto* node = new AstRet(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
@@ -342,7 +335,6 @@ tak::parse_ret(Parser &parser, Lexer &lxr) {
 
 tak::AstNode*
 tak::parse_while(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_WHILE);
 
     lxr.advance(1);
@@ -395,7 +387,6 @@ tak::parse_while(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_block(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_BLK);
 
     if(lxr.peek(1) != TOKEN_LBRACE) {
@@ -430,7 +421,6 @@ tak::parse_block(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_defer_if(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_DEFER_IF);
     lxr.advance(1);
 
@@ -482,7 +472,6 @@ tak::parse_defer_if(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_defer(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_DEFER);
 
     const size_t   curr_pos = lxr.current().src_pos;
@@ -514,7 +503,6 @@ tak::parse_defer(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_dowhile(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_DO);
 
     if(lxr.peek(1) != TOKEN_LBRACE) {
@@ -567,7 +555,6 @@ tak::parse_dowhile(Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_for(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_FOR);
 
     lxr.advance(1);

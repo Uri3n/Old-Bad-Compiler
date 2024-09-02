@@ -89,7 +89,7 @@ tak::create_struct_type_if_not_exists(CodegenContext& ctx, const std::string& na
 void
 tak::generate_global_placeholders(CodegenContext& ctx) {
     for(const auto &[index, sym] : ctx.tbl_.sym_table_) {
-        if(!(sym->flags & ENTITY_GLOBAL) || (sym->type.kind == TYPE_KIND_PROCEDURE && !(sym->flags & TYPE_POINTER))) {
+        if(!(sym->flags & ENTITY_GLOBAL) || (sym->type.kind == TYPE_KIND_PROCEDURE && !(sym->type.flags & TYPE_POINTER))) {
             continue;
         }
 
@@ -108,7 +108,7 @@ tak::generate_global_placeholders(CodegenContext& ctx) {
 void
 tak::generate_procedure_signatures(CodegenContext& ctx) {
     for(const auto &[index, sym] : ctx.tbl_.sym_table_) {
-        if(sym->type.kind != TYPE_KIND_PROCEDURE || sym->flags & TYPE_POINTER || sym->type.flags & TYPE_ARRAY) {
+        if(sym->type.kind != TYPE_KIND_PROCEDURE || sym->type.flags & TYPE_POINTER || sym->type.flags & TYPE_ARRAY) {
             continue;
         }
 
@@ -145,8 +145,8 @@ tak::generate_struct_layouts(CodegenContext& ctx) {
 
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
-
     assert(node != nullptr);
+
     const Symbol* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
     if(sym->flags & ENTITY_FOREIGN) {
         return WrappedIRValue::get_empty();
@@ -164,6 +164,7 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
 
     ctx.builder_.SetInsertPoint(entry);
     ctx.enter_proc(func, sym);
+    ctx.push_defers();
 
     for(size_t i = 0; i < node->parameters.size(); i++) {
         const auto* arg_sym = ctx.tbl_.lookup_unique_symbol(node->parameters[i]->identifier->symbol_index);
@@ -189,8 +190,8 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
     // Add a default return value if the user forgot to return themselves.
     //
 
-    llvm::BasicBlock& last_blk = func->back();
-    if(last_blk.empty() || !llvm::isa<llvm::ReturnInst>(last_blk.back())) {
+    if(!ctx.curr_block_has_terminator()) {
+        unpack_defers(ctx);
         if(sym->type.return_type == nullptr) {
             ctx.builder_.CreateRetVoid();
         }
@@ -207,6 +208,7 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
 
     verifyFunction(*func, &llvm::errs());
     ctx.leave_curr_proc();
+    ctx.pop_defers();
     return WrappedIRValue::get_empty();
 }
 
@@ -1727,7 +1729,7 @@ tak::generate_sizeof(const AstSizeof* node, CodegenContext &ctx) {
 
 
 std::shared_ptr<tak::WrappedIRValue>
-tak::generate_cast(const AstCast *node, CodegenContext &ctx) {
+tak::generate_cast(const AstCast* node, CodegenContext &ctx) {
     assert(node != nullptr);
     assert(ctx.inside_procedure());
 
@@ -1736,6 +1738,8 @@ tak::generate_cast(const AstCast *node, CodegenContext &ctx) {
     llvm::Type*  cast_t  = generate_type(ctx, node->type);
     llvm::Value* castval = nullptr;
 
+
+    // conversion to float
     if(node->type.is_floating_point())
     {
         if(wrapped->tak_type.is_integer()) {
@@ -1743,31 +1747,337 @@ tak::generate_cast(const AstCast *node, CodegenContext &ctx) {
                 ? ctx.builder_.CreateSIToFP(wrapped->value, cast_t)
                 : ctx.builder_.CreateUIToFP(wrapped->value, cast_t);
         }
-        
-        if(wrapped->tak_type.is_f32() && node->type.is_f64()){
+        else if(wrapped->tak_type.is_f32() && node->type.is_f64()){
             castval = ctx.builder_.CreateFPExt(wrapped->value, cast_t);
         }
-        
-        if(wrapped->tak_type.is_f64() && node->type.is_f32()) {
+        else if(wrapped->tak_type.is_f64() && node->type.is_f32()) {
             castval = ctx.builder_.CreateFPTrunc(wrapped->value, cast_t);
         }
-        
         else {
             castval = wrapped->value;
         }
     }
 
-    else if(node->type.is_integer()) {
+    // conversion to integer
+    else if(node->type.is_integer())
+    {
         if(wrapped->tak_type.is_floating_point()) {
             castval = node->type.is_signed_primitive()
                 ? ctx.builder_.CreateFPToSI(wrapped->value, cast_t)
                 : ctx.builder_.CreateFPToUI(wrapped->value, cast_t);
         }
+        else if(wrapped->tak_type.is_integer()) {
+            castval = wrapped->tak_type.is_signed_primitive()
+                ? ctx.builder_.CreateSExtOrTrunc(wrapped->value, cast_t)
+                : ctx.builder_.CreateZExtOrTrunc(wrapped->value, cast_t);
+        }
+        else if(wrapped->tak_type.flags & TYPE_POINTER) {
+            castval = ctx.builder_.CreatePtrToInt(wrapped->value, cast_t);
+        }
+        else {
+            panic("default assertion");
+        }
     }
-    
-    // TODO: finish
+
+    // conversion to pointer
+    else if(node->type.flags & TYPE_POINTER)
+    {
+        if(wrapped->tak_type.is_integer()) {
+            ctx.builder_.CreateIntToPtr(wrapped->value, cast_t);
+        }
+        else if(wrapped->tak_type.flags & TYPE_POINTER) {
+            castval = wrapped->value;
+        }
+        else {
+            panic("default assertion");
+        }
+    }
+
     if(og_ctx) ctx.casting_context_ = og_ctx;
-    return WrappedIRValue::create();
+    return WrappedIRValue::create(castval, node->type);
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_switch(const AstSwitch *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(!ctx.casting_context_exists());
+    assert(ctx.inside_procedure());
+
+    const auto        wrapped  = WrappedIRValue::maybe_adjust(node->target, ctx);
+    llvm::BasicBlock* merge    = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.merge", ctx.curr_proc_.func);
+    llvm::BasicBlock* _default = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.default", ctx.curr_proc_.func);
+    llvm::SwitchInst* _switch  = ctx.builder_.CreateSwitch(wrapped->value, _default, node->cases.size());
+
+
+    // Iterate over cases, generate each one.
+    for(size_t i = 0; i < node->cases.size(); i++)
+    {
+        if(wrapped->tak_type.is_primitive()) {
+            ctx.set_casting_context(generate_type(ctx, wrapped->tak_type), wrapped->tak_type);
+        }
+
+        llvm::BasicBlock* case_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, fmt("switch.case[{}]", i), ctx.curr_proc_.func);
+        llvm::Value*      case_val = WrappedIRValue::maybe_adjust(node->cases[i]->value, ctx)->value;
+
+        if(i > 0 && node->cases[i - 1]->fallthrough && !ctx.curr_block_has_terminator()) {
+            ctx.builder_.CreateBr(case_blk);
+        }
+
+        assert(llvm::isa<llvm::Constant>(case_val));
+        assert(llvm::isa<llvm::ConstantInt>(case_val));
+        _switch->addCase(llvm::cast<llvm::ConstantInt>(case_val), case_blk);
+
+        ctx.delete_casting_context();
+        ctx.push_defers();
+        ctx.builder_.SetInsertPoint(case_blk);
+
+        for(AstNode* child_node : node->cases[i]->body) {
+            if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+            ctx.delete_casting_context();
+        }
+
+        if(!ctx.curr_block_has_terminator()) {
+            unpack_defers(ctx);
+            if(!node->cases[i]->fallthrough) {
+                ctx.builder_.CreateBr(merge);
+            }
+        }
+
+        ctx.pop_defers();
+    }
+
+
+    // Handle default case.
+    if(!node->cases.empty() && node->cases.back()->fallthrough && !ctx.curr_block_has_terminator()) {
+        ctx.builder_.CreateBr(_default);
+    }
+
+    ctx.builder_.SetInsertPoint(_default);
+    ctx.push_defers();
+
+    for(AstNode* child_node : node->_default->body) {
+        if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+        ctx.delete_casting_context();
+    }
+
+    if(!ctx.curr_block_has_terminator()) {
+        unpack_defers(ctx);
+        ctx.builder_.CreateBr(merge);
+    }
+
+    ctx.pop_defers();
+    return WrappedIRValue::get_empty();
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_for(const AstFor *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(!ctx.casting_context_exists());
+    assert(ctx.inside_procedure());
+
+    if(node->init) {
+        generate(*node->init, ctx);
+    }
+
+    llvm::BasicBlock* merge_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, "for.merge", ctx.curr_proc_.func);
+    llvm::BasicBlock* cond_blk  = llvm::BasicBlock::Create(ctx.llvm_ctx_, "for.condition", ctx.curr_proc_.func);
+    llvm::BasicBlock* after_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, "for.after", ctx.curr_proc_.func);
+    llvm::BasicBlock* body_blk  = llvm::BasicBlock::Create(ctx.llvm_ctx_, "for.body", ctx.curr_proc_.func);
+    auto [old_after, old_merge] = ctx.leave_curr_loop();
+
+
+    ctx.enter_loop(after_blk, merge_blk);       // Enter new loop context.
+    ctx.push_defers();                          // Push a new defer element onto the stack.
+    ctx.builder_.CreateBr(cond_blk);
+    ctx.builder_.SetInsertPoint(cond_blk);
+
+    if(node->condition) {
+        const auto condition = WrappedIRValue::maybe_adjust(*node->condition, ctx);
+        ctx.delete_casting_context();
+        ctx.builder_.CreateCondBr(generate_to_i1(condition, ctx), body_blk, merge_blk);
+    } else {
+        ctx.builder_.CreateBr(body_blk);
+    }
+
+
+    ctx.builder_.SetInsertPoint(after_blk);     // Generate after/update clause (i.e. "++i").
+    if(node->update) {                          // Unconditionally branches to condition block.
+        generate(*node->update, ctx);
+        ctx.delete_casting_context();
+    }
+    ctx.builder_.CreateBr(cond_blk);
+
+
+    ctx.builder_.SetInsertPoint(body_blk);      // Generate loop body.
+    for(AstNode* child_node : node->body) {
+        if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+        ctx.delete_casting_context();
+    }
+
+
+    if(!ctx.curr_block_has_terminator()) {
+        unpack_defers(ctx, true);               // Unpack any deferred calls at the end of the loop.
+        ctx.builder_.CreateBr(after_blk);       // End of loop body -> update block
+    }
+
+    ctx.pop_defers();
+    ctx.builder_.SetInsertPoint(merge_blk);     // Make the IRBuilder leave the loop.
+    ctx.leave_curr_loop();                      // Leave loop context.
+    ctx.enter_loop(old_after, old_merge);       // Restore the old one (if it exists).
+
+    return WrappedIRValue::get_empty();
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_while(const AstWhile *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+    return WrappedIRValue::get_empty(); // TODO: finish
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_dowhile(const AstDoWhile *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+    return WrappedIRValue::get_empty(); // TODO: finish
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_defer(AstNode *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    // Doesn't actually generate any code, just saves the node.
+    ctx.push_deferred_stmt(node);
+    return WrappedIRValue::get_empty();
+}
+
+
+void
+tak::unpack_defer(const AstDefer* node, CodegenContext& ctx) {
+    assert(node != nullptr);
+    assert(node->call->type == NODE_CALL);
+    generate(node->call, ctx);
+}
+
+
+void
+tak::unpack_defer_if(const AstDeferIf* node, CodegenContext& ctx) {
+    assert(node != nullptr);
+    assert(node->call->type == NODE_CALL);
+
+    const auto        condition = WrappedIRValue::maybe_adjust(node->condition, ctx);
+    llvm::BasicBlock* if_blk    = llvm::BasicBlock::Create(ctx.llvm_ctx_, "defer_if.body",  ctx.curr_proc_.func);
+    llvm::BasicBlock* merge_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, "defer_if.merge", ctx.curr_proc_.func);
+
+    ctx.builder_.CreateCondBr(generate_to_i1(condition, ctx), if_blk, merge_blk);
+    ctx.builder_.SetInsertPoint(if_blk);
+
+    generate(node->call, ctx);
+    ctx.builder_.CreateBr(merge_blk);
+    ctx.builder_.SetInsertPoint(merge_blk);
+}
+
+
+void
+tak::unpack_defers(CodegenContext& ctx, const bool pop_after) {
+    assert(!ctx.deferred_stmts_.empty());
+    assert(ctx.inside_procedure());
+
+    const auto& stmts = ctx.deferred_stmts_.back();
+    if(ctx.curr_block_has_terminator()) {
+        if(pop_after) ctx.pop_defers();
+        return;
+    }
+
+    for(const AstNode* node : stmts) {
+        if(const auto* pdefer_if = dynamic_cast<const AstDeferIf*>(node)) {
+            unpack_defer_if(pdefer_if, ctx);
+        }
+        else if(const auto* pdefer = dynamic_cast<const AstDefer*>(node)) {
+            unpack_defer(pdefer, ctx);
+        }
+        else {
+            panic("pop_defers: invalid AST node stored on defer stack.");
+        }
+    }
+
+    if(pop_after) ctx.pop_defers();
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_branch(const AstBranch *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(!ctx.casting_context_exists());
+    assert(ctx.inside_procedure());
+
+    const auto        condition = WrappedIRValue::maybe_adjust(node->_if->condition, ctx);
+    llvm::BasicBlock* merge_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, "branch.merge", ctx.curr_proc_.func);
+    llvm::BasicBlock* if_blk    = llvm::BasicBlock::Create(ctx.llvm_ctx_, "branch.if", ctx.curr_proc_.func);
+    llvm::BasicBlock* else_blk  = node->_else ? llvm::BasicBlock::Create(ctx.llvm_ctx_, "branch.else", ctx.curr_proc_.func) : nullptr;
+
+    ctx.builder_.CreateCondBr(
+        generate_to_i1(condition, ctx),
+        if_blk,
+        else_blk == nullptr ? merge_blk : else_blk
+    );
+
+
+    ctx.push_defers();
+    ctx.builder_.SetInsertPoint(if_blk);
+    for(AstNode* child_node : node->_if->body) {
+        if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+        ctx.delete_casting_context();
+    }
+
+    if(!ctx.curr_block_has_terminator()) {
+        unpack_defers(ctx);
+        ctx.builder_.CreateBr(merge_blk);
+    }
+
+    ctx.pop_defers();
+    if(else_blk != nullptr) {
+        ctx.push_defers();
+        ctx.builder_.SetInsertPoint(else_blk);
+        for(AstNode* child_node : (*node->_else)->body) {
+            if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+            ctx.delete_casting_context();
+        }
+
+        if(!ctx.curr_block_has_terminator()) {
+            unpack_defers(ctx);
+            ctx.builder_.CreateBr(merge_blk);
+        }
+
+        ctx.pop_defers();
+    }
+
+    ctx.builder_.SetInsertPoint(merge_blk);
+    return WrappedIRValue::get_empty();
+}
+
+
+std::shared_ptr<tak::WrappedIRValue>
+tak::generate_blk(const AstBlock *node, CodegenContext &ctx) {
+    assert(node != nullptr);
+    assert(ctx.inside_procedure());
+
+    ctx.push_defers();
+    for(AstNode* child : node->children) {
+        if(NODE_NEEDS_GENERATING(child->type)) generate(child, ctx);
+    }
+    if(!ctx.curr_block_has_terminator()) {
+        unpack_defers(ctx);
+    }
+
+    ctx.pop_defers();
+    return WrappedIRValue::get_empty();
 }
 
 
@@ -1899,12 +2209,12 @@ tak::generate_ret(const AstRet *node, CodegenContext &ctx) {
     assert(!ctx.casting_context_exists());
     assert(ctx.inside_procedure());
 
-    const auto* sym   = ctx.curr_proc_.sym;
-    const auto  empty = WrappedIRValue::get_empty();
+    unpack_defers(ctx);
+    const auto* sym = ctx.curr_proc_.sym;
 
     if(sym->type.return_type == nullptr) {
         ctx.builder_.CreateRetVoid();
-        return empty;
+        return WrappedIRValue::get_empty();
     }
 
     if(sym->type.return_type->is_primitive()) {
@@ -1912,7 +2222,7 @@ tak::generate_ret(const AstRet *node, CodegenContext &ctx) {
     }
 
     ctx.builder_.CreateRet(WrappedIRValue::maybe_adjust(*node->value, ctx)->value);
-    return empty;
+    return WrappedIRValue::get_empty();
 }
 
 
@@ -1952,22 +2262,35 @@ tak::generate_call(const AstCall *node, CodegenContext &ctx) {
 
     ctx.casting_context_ = saved;
     llvm::CallInst* call = ctx.builder_.CreateCall(llvm::cast<llvm::FunctionType>(func_t), callee->value, arguments);
-    if(callee->tak_type.return_type != nullptr)
-    {
-        auto&        entry_blk = ctx.curr_proc_.func->getEntryBlock();
-        const auto   saved_ip  = ctx.builder_.saveIP();
-        llvm::Value* alloc     = nullptr;
 
-        ctx.builder_.SetInsertPoint(&entry_blk, entry_blk.getFirstInsertionPt());
-        alloc = ctx.builder_.CreateAlloca(generate_type(ctx, *callee->tak_type.return_type), nullptr, "returnalloc");
-
-        ctx.builder_.restoreIP(saved_ip);
-        ctx.builder_.CreateStore(call, alloc);
-
-        return WrappedIRValue::create(alloc, *callee->tak_type.return_type, true);
+    if(callee->tak_type.return_type == nullptr) {
+        return WrappedIRValue::get_empty(); // Should only happen for void returns.
     }
 
-    return WrappedIRValue::get_empty(); // Should only happen for void returns.
+
+    std::string  alloc_name = "";
+    const auto*  func_val   = llvm::dyn_cast<llvm::Function>(callee->value);
+    auto&        entry_blk  = ctx.curr_proc_.func->getEntryBlock();
+    const auto   saved_ip   = ctx.builder_.saveIP();
+
+    if(func_val != nullptr) {
+        alloc_name = func_val->getName().str() + ".returnalloc";
+    }
+
+    ctx.builder_.SetInsertPoint(&entry_blk, entry_blk.getFirstInsertionPt());
+    llvm::Value* alloc = ctx.local_exists(alloc_name)
+        ? ctx.get_local(alloc_name)->value
+        : ctx.builder_.CreateAlloca(generate_type(ctx, *callee->tak_type.return_type), nullptr, alloc_name);
+
+    ctx.builder_.restoreIP(saved_ip);
+    ctx.builder_.CreateStore(call, alloc);
+
+    const auto wrapped = WrappedIRValue::create(alloc, *callee->tak_type.return_type, true);
+    if(func_val != nullptr && !ctx.local_exists(alloc_name)) {
+        ctx.set_local(alloc_name, wrapped);
+    }
+
+    return wrapped;
 }
 
 
@@ -2158,22 +2481,31 @@ tak::generate_binexpr(const AstBinexpr* node, CodegenContext& ctx) {
 
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate(AstNode* node, CodegenContext& ctx) {
+    if(ctx.inside_procedure() && ctx.curr_block_has_terminator()) {
+        return WrappedIRValue::get_empty();
+    }
+
     assert(node != nullptr);
     switch(node->type) {
+        case NODE_DEFER:             return generate_defer(node, ctx);
+        case NODE_DEFER_IF:          return generate_defer(node, ctx);
+        case NODE_NAMESPACEDECL:     return generate_children(dynamic_cast<AstNamespaceDecl*>(node), ctx);
         case NODE_PROCDECL:          return generate_procdecl(dynamic_cast<const AstProcdecl*>(node), ctx);
         case NODE_VARDECL:           return generate_vardecl(dynamic_cast<const AstVardecl*>(node), ctx);
         case NODE_SINGLETON_LITERAL: return generate_singleton_literal(dynamic_cast<AstSingletonLiteral*>(node), ctx);
         case NODE_IDENT:             return generate_identifier(dynamic_cast<const AstIdentifier*>(node), ctx);
         case NODE_BINEXPR:           return generate_binexpr(dynamic_cast<const AstBinexpr*>(node), ctx);
         case NODE_UNARYEXPR:         return generate_unaryexpr(dynamic_cast<const AstUnaryexpr*>(node), ctx);
-        case NODE_NAMESPACEDECL:     return generate_children(dynamic_cast<AstNamespaceDecl*>(node), ctx);
         case NODE_SUBSCRIPT:         return generate_subscript(dynamic_cast<const AstSubscript*>(node), ctx);
         case NODE_MEMBER_ACCESS:     return generate_member_access(dynamic_cast<const AstMemberAccess*>(node), ctx);
         case NODE_CALL:              return generate_call(dynamic_cast<const AstCall*>(node), ctx);
         case NODE_RET:               return generate_ret(dynamic_cast<const AstRet*>(node), ctx);
-
+        case NODE_BRANCH:            return generate_branch(dynamic_cast<const AstBranch*>(node), ctx);
+        case NODE_FOR:               return generate_for(dynamic_cast<const AstFor*>(node), ctx);
+        case NODE_WHILE:             return generate_while(dynamic_cast<const AstWhile*>(node), ctx);
+        case NODE_DOWHILE:           return generate_dowhile(dynamic_cast<const AstDoWhile*>(node), ctx);
         default : break;
     }
 
-    panic("tak::generate_node: default reached.");
+    panic("tak::generate: default assertion reached.");
 }
