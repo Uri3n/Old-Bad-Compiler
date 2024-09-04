@@ -7,7 +7,6 @@
 
 tak::AstNode*
 tak::parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_PROC);
     assert(lxr.peek(1) == TOKEN_BITWISE_XOR_OR_PTR);
     assert(proc != nullptr);
@@ -72,7 +71,6 @@ tak::parse_proc_ptr(Symbol* proc, Parser& parser, Lexer& lxr) {
 
 tak::AstVardecl*
 tak::parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_IDENTIFIER);
 
     const auto     name      = parser.tbl_.namespace_as_string() + std::string(lxr.current().value);
@@ -148,9 +146,11 @@ tak::parse_parameterized_vardecl(Parser& parser, Lexer& lxr) {
 
 static bool
 generic_procdecl_skip_all(tak::Symbol* proc, tak::Parser& parser, tak::Lexer& lxr) {
-
     assert(lxr.current() == tak::TOKEN_DOLLAR_SIGN && lxr.peek(1) == tak::TOKEN_LSQUARE_BRACKET);
     lxr.advance(2);
+
+    const size_t   curr_pos  = lxr.current().src_pos;
+    const uint32_t curr_line = lxr.current().line;
 
     while(lxr.current() != tak::TOKEN_RSQUARE_BRACKET) {
         if(lxr.current() != tak::TOKEN_IDENTIFIER) {
@@ -171,11 +171,7 @@ generic_procdecl_skip_all(tak::Symbol* proc, tak::Parser& parser, tak::Lexer& lx
         return false;
     }
 
-
     const uint16_t old_paren_index = parser.inside_parenthesized_expression_++;
-    const size_t   curr_pos        = lxr.current().src_pos;
-    const uint32_t curr_line       = lxr.current().line;
-
     while(old_paren_index < parser.inside_parenthesized_expression_) {
         lxr.advance(1);
         if(lxr.current() == tak::TOKEN_LPAREN) ++parser.inside_parenthesized_expression_;
@@ -188,7 +184,7 @@ generic_procdecl_skip_all(tak::Symbol* proc, tak::Parser& parser, tak::Lexer& lx
 
     lxr.advance(1);
     while(lxr.current() != tak::TOKEN_LBRACE) {
-        if(lxr.current() == tak::TOKEN_END_OF_FILE) {
+        if(lxr.current() == tak::TOKEN_END_OF_FILE || lxr.current() == tak::TOKEN_SEMICOLON) {
             lxr.raise_error("Malformed generic procedure declaration.", curr_pos, curr_line);
             return false;
         }
@@ -214,7 +210,6 @@ generic_procdecl_skip_all(tak::Symbol* proc, tak::Parser& parser, tak::Lexer& lx
 
 bool
 tak::parse_proc_signature_and_body(Symbol* proc, AstProcdecl* node, Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_LPAREN);
 
     //
@@ -302,7 +297,7 @@ tak::parse_proc_signature_and_body(Symbol* proc, AstProcdecl* node, Parser& pars
     // If no body, consider the proc as a foreign import.
     //
 
-    if(lxr.current() == TOKEN_SEMICOLON || lxr.current() == TOKEN_COMMA) {
+    if(lxr.current() == TOKEN_SEMICOLON) {
         proc->flags |= ENTITY_FOREIGN;
         lxr.advance(1);
         return true;
@@ -337,7 +332,6 @@ tak::parse_proc_signature_and_body(Symbol* proc, AstProcdecl* node, Parser& pars
 
 tak::AstNode*
 tak::parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_KW_PROC);
 
     if(!(proc->flags & ENTITY_GLOBAL)) {
@@ -403,7 +397,6 @@ tak::parse_procdecl(Symbol* proc, Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().kind == KIND_TYPE_IDENTIFIER);
 
     const auto type_data = parse_type(parser, lxr);
@@ -460,7 +453,6 @@ tak::parse_vardecl(Symbol* var, Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_usertype_decl(Symbol* sym, Parser& parser, Lexer& lxr) {
-
     assert(TOKEN_IDENT_START(lxr.current().type));
 
     if(const auto type = parse_type(parser, lxr)) {
@@ -508,7 +500,6 @@ tak::parse_usertype_decl(Symbol* sym, Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_VALUE_ASSIGNMENT);
     assert(var->type.flags & TYPE_INFERRED);
 
@@ -548,7 +539,6 @@ tak::parse_inferred_decl(Symbol* var, Parser& parser, Lexer& lxr) {
 
 tak::AstNode*
 tak::parse_decl(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_IDENTIFIER);
 
     const auto     name      = parser.tbl_.namespace_as_string() + std::string(lxr.current().value);

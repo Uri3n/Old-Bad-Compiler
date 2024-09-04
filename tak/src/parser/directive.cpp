@@ -56,56 +56,6 @@ tak::parse_type_alias(Parser& parser, Lexer& lxr) {
 
 
 tak::AstNode*
-tak::parse_callconv(Parser& parser, Lexer& lxr) {
-    assert(lxr.current().value == "callconv");
-    lxr.advance(1);
-
-    uint32_t sym_flag = ENTITY_FLAGS_NONE;
-
-    if(lxr.current() != TOKEN_STRING_LITERAL) {
-        lxr.raise_error("Expected calling convention.");
-        return nullptr;
-    }
-
-    if(lxr.current().value == "\"C\"") { // Only one for now. More can be added later.
-        sym_flag = ENTITY_CALLCONV_C;
-    } else {
-        lxr.raise_error("Unrecognized calling convention.");
-        return nullptr;
-    }
-
-
-    lxr.advance(1);
-    const size_t   curr_pos = lxr.current().src_pos;
-    const uint32_t line     = lxr.current().line;
-
-    auto* node  = parse(parser, lxr, false);
-    bool  state = false;
-
-    defer_if(!state, [&] {
-       delete node;
-    });
-
-
-    if(node == nullptr) {
-        return nullptr;
-    }
-
-    if(node->type != NODE_PROCDECL) {
-        lxr.raise_error("Expected procedure declaration after \"callconv\" statement.", curr_pos, line);
-        return nullptr;
-    }
-
-    const auto* pdecl = dynamic_cast<AstProcdecl*>(node);
-    auto*       sym   = parser.tbl_.lookup_unique_symbol(pdecl->identifier->symbol_index);
-
-    sym->flags |= sym_flag;
-    state = true;
-    return node;
-}
-
-
-tak::AstNode*
 tak::parse_include(Parser& parser, Lexer& lxr) {
     assert(lxr.current().value == "include");
 
@@ -183,43 +133,133 @@ tak::parse_include(Parser& parser, Lexer& lxr) {
 
 
 tak::AstNode*
-tak::parse_visibility_directive(Parser& parser, Lexer& lxr) {
-    assert(lxr.current().value == "intern" || lxr.current().value == "extern");
+tak::parse_visibility_extern(Parser& parser, Lexer& lxr) {
+    assert(lxr.current().value == "extern");
 
-    const size_t   pos   = lxr.current().src_pos;
-    const uint32_t line  = lxr.current().line;
-    const uint32_t flag  = lxr.current().value == "intern" ? ENTITY_INTERNAL : ENTITY_FOREIGN;
+    const size_t   pos  = lxr.current().src_pos;
+    const uint32_t line = lxr.current().line;
+    const uint32_t flag = [&]() -> uint32_t {
+        const Token peeked = lxr.peek(1);
+        if(peeked != TOKEN_STRING_LITERAL) {
+            return ENTITY_FOREIGN;
+        }
+        if(peeked.value != "\"C\"") {
+            lxr.raise_error(R"(Invalid string literal after "extern" directive.)");
+            return ENTITY_FLAGS_NONE;
+        }
+
+        lxr.advance(1);
+        return ENTITY_FOREIGN_C;
+    }();
+
+    //
+    // Validate.
+    //
 
     lxr.advance(1);
+    if(flag == ENTITY_FLAGS_NONE) {
+        lxr.raise_error(R"(Invalid "extern" directive.)", pos, line);
+        return nullptr;
+    }
+    if(flag == ENTITY_FOREIGN_C && !parser.tbl_.namespace_stack_.empty()) {
+        lxr.raise_error(R"(Cannot use extern "C" inside of a namespace.)", pos, line);
+        return nullptr;
+    }
     if(parser.tbl_.scope_stack_.size() > 1) {
-        lxr.raise_error("Cannot use this directive at non-global scope.");
+        lxr.raise_error(R"(Cannot use "extern" directive at non-global scope.)", pos, line);
         return nullptr;
     }
 
-    bool    state = false;
-    Symbol* sym   = nullptr;
-    auto*   node  = parse(parser, lxr, true);
+    //
+    // Parse node.
+    //
 
-    defer_if(!state, [&] {
-        delete node;
-    });
-
+    bool  state = false;
+    auto* node  = parse(parser, lxr, true);
 
     if(node == nullptr) {
         return nullptr;
     }
 
-    if(const auto* vardecl = dynamic_cast<const AstVardecl*>(node)) {
-        sym = parser.tbl_.lookup_unique_symbol(vardecl->identifier->symbol_index);
-    } else if(const auto* procdecl = dynamic_cast<const AstProcdecl*>(node)) {
-        sym = parser.tbl_.lookup_unique_symbol(procdecl->identifier->symbol_index);
-    } else {
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+    //
+    // Find the symbol.
+    //
+
+    Symbol* sym = [&]() -> Symbol* {
+        if(const auto* vardecl = dynamic_cast<const AstVardecl*>(node)) {
+            return parser.tbl_.lookup_unique_symbol(vardecl->identifier->symbol_index);
+        }
+        else if(const auto* procdecl = dynamic_cast<const AstProcdecl*>(node)) {
+            return parser.tbl_.lookup_unique_symbol(procdecl->identifier->symbol_index);
+        }
+
         lxr.raise_error("Expected next expression to be a variable or procedure declaration.", pos, line);
+        return nullptr;
+    }();
+
+    if(sym == nullptr) {
         return nullptr;
     }
 
-    assert(sym != nullptr);
+    if(!sym->generic_type_names.empty()) {
+        lxr.raise_error("Cannot apply \"extern\" directive to a symbol with generic parameters.", pos, line);
+        return nullptr;
+    }
+
+    if(sym->flags & ENTITY_FOREIGN) {
+        sym->flags &= ~ENTITY_FOREIGN;
+    }
+
     sym->flags |= flag;
+    state = true;
+    return node;
+}
+
+
+tak::AstNode*
+tak::parse_visibility_intern(Parser& parser, Lexer& lxr) {
+    assert(lxr.current().value == "intern");
+    const size_t   pos  = lxr.current().src_pos;
+    const uint32_t line = lxr.current().line;
+
+    lxr.advance(1);
+    if(parser.tbl_.scope_stack_.size() > 1) {
+        lxr.raise_error(R"(Cannot use "intern" directive at non-global scope.)", pos, line);
+        return nullptr;
+    }
+
+    bool  state = false;
+    auto* node  = parse(parser, lxr, true);
+
+    if(node == nullptr) {
+        return nullptr;
+    }
+    defer_if(!state, [&] {
+        delete node;
+    });
+
+
+    Symbol* sym = [&]() -> Symbol* {
+        if(const auto* vardecl = dynamic_cast<const AstVardecl*>(node)) {
+            return parser.tbl_.lookup_unique_symbol(vardecl->identifier->symbol_index);
+        }
+        else if(const auto* procdecl = dynamic_cast<const AstProcdecl*>(node)) {
+            return parser.tbl_.lookup_unique_symbol(procdecl->identifier->symbol_index);
+        }
+
+        lxr.raise_error("Expected next expression to be a variable or procedure declaration.", pos, line);
+        return nullptr;
+    }();
+
+    if(!sym->generic_type_names.empty()) {
+        lxr.raise_warning(R"(redundant "intern" directive, generic symbols are implied to be internal.)", pos, line);
+    }
+
+    sym->flags |= ENTITY_INTERNAL;
     state = true;
     return node;
 }
@@ -235,10 +275,9 @@ tak::parse_compiler_directive(Parser& parser, Lexer& lxr) {
     }
 
     if(lxr.current().value == "alias")    return parse_type_alias(parser, lxr);
-    if(lxr.current().value == "callconv") return parse_callconv(parser, lxr);
     if(lxr.current().value == "include")  return parse_include(parser, lxr);
-    if(lxr.current().value == "intern")   return parse_visibility_directive(parser, lxr);
-    if(lxr.current().value == "extern")   return parse_visibility_directive(parser, lxr);
+    if(lxr.current().value == "intern")   return parse_visibility_intern(parser, lxr);
+    if(lxr.current().value == "extern")   return parse_visibility_extern(parser, lxr);
 
     lxr.raise_error("Invalid compiler directive.");
     return nullptr;

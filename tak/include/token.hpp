@@ -185,6 +185,15 @@
     || token_type == tak::TOKEN_BITWISE_RSHIFTEQ   \
 )                                                  \
 
+#define TOKEN_OP_IS_COMPARISON(token_type)         \
+   (token_type == tak::TOKEN_COMP_EQUALS           \
+    || token_type == tak::TOKEN_COMP_NOT_EQUALS    \
+    || token_type == tak::TOKEN_COMP_LT            \
+    || token_type == tak::TOKEN_COMP_LTE           \
+    || token_type == tak::TOKEN_COMP_GT            \
+    || token_type == tak::TOKEN_COMP_GTE           \
+)                                                  \
+
 #define TOKEN_OP_IS_LOGICAL(token_type)            \
    (token_type == tak::TOKEN_COMP_EQUALS           \
     || token_type == tak::TOKEN_COMP_NOT_EQUALS    \

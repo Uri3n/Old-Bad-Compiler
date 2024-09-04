@@ -42,7 +42,11 @@ tak::Lexer::token_numeric_literal() {
         }
 
         if(current_char() == '.') {
-            if(passed_dot || within_exponent) {
+            if(peek_char(1) == '.' && peek_char(2) == '.') { // three dot token, break here.
+                break;
+            }
+
+            if(passed_dot || within_exponent) {              // Only one dot allowed. Not allowed inside of exponent.
                 return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src_[start], src_index_ - start}};
             }
 
@@ -50,7 +54,7 @@ tak::Lexer::token_numeric_literal() {
         }
 
         else if(current_char() == 'e') {
-            if(!passed_dot || within_exponent) {
+            if(within_exponent) {
                 return Token{TOKEN_ILLEGAL, KIND_UNSPECIFIC, start, {&src_[start], src_index_ - start}};
             }
 

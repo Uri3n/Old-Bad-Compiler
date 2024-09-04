@@ -1,8 +1,9 @@
 //
-// Created by Diago on 2024-08-20.
+// Created by Diago on 2024-09-03.
 //
 
 #include <codegen.hpp>
+
 
 void
 tak::CodegenContext::leave_curr_proc() {
@@ -23,26 +24,6 @@ tak::CodegenContext::leave_curr_loop() {
     curr_loop_.after = nullptr;
     curr_loop_.merge = nullptr;
     return saved;
-}
-
-std::shared_ptr<tak::WrappedIRValue>
-tak::WrappedIRValue::create(
-    llvm::Value* value,
-    const std::optional<TypeData>& tak_type,
-    const bool loadable
-) {
-    auto val      = std::make_shared<WrappedIRValue>();
-    val->value    = value;
-    val->tak_type = tak_type.value_or(TypeData());
-    val->loadable = loadable;
-
-    return val;
-}
-
-std::shared_ptr<tak::WrappedIRValue>
-tak::WrappedIRValue::get_empty() {
-    static const auto empty = create();
-    return empty;
 }
 
 std::optional<tak::IRCastingContext>
@@ -85,9 +66,9 @@ bool tak::CodegenContext::inside_loop() {
     return curr_loop_.after != nullptr && curr_loop_.merge != nullptr;
 }
 
-void tak::CodegenContext::push_defers() {
+void tak::CodegenContext::push_defers(const bool is_loop_base) {
     assert(inside_procedure() && "not inside procedure.");
-    deferred_stmts_.emplace_back(std::vector<AstNode*>());
+    deferred_stmts_.emplace_back(DeferredStackElement(is_loop_base));
 }
 
 void tak::CodegenContext::pop_defers() {
@@ -99,7 +80,7 @@ void tak::CodegenContext::push_deferred_stmt(AstNode *node) {
     assert(node->type == NODE_DEFER || node->type == NODE_DEFER_IF);
     assert(!deferred_stmts_.empty());
     assert(inside_procedure());
-    deferred_stmts_.back().emplace_back(node);
+    deferred_stmts_.back().stmts.emplace_back(node);
 }
 
 void tak::CodegenContext::enter_proc(llvm::Function* func, const Symbol* sym) {
@@ -144,6 +125,3 @@ tak::CodegenContext::get_local(const std::string& name) {
         curr_proc_.named_values[name]->loadable
     );
 }
-
-
-

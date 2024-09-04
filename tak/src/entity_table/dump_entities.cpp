@@ -48,7 +48,7 @@ tak::EntityTable::dump_symbols() {
             if(sym->flags & ENTITY_GLOBAL)      _symflags += "GLOBAL | ";
             if(sym->flags & ENTITY_FOREIGN)     _symflags += "FOREIGN | ";
             if(sym->flags & ENTITY_INTERNAL)    _symflags += "INTERNAL | ";
-            if(sym->flags & ENTITY_CALLCONV_C)  _symflags += "CALLCONV_C | ";
+            if(sym->flags & ENTITY_FOREIGN_C)   _symflags += "FOREIGN_C | ";
             if(sym->flags & ENTITY_GENPERM)     _symflags += "GENERIC_PERMUTATION |";
             if(sym->flags & ENTITY_GENBASE)     _symflags += "GENERIC_BASE | ";
 

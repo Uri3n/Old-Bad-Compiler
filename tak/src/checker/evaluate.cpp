@@ -19,14 +19,23 @@ static auto evaluate_children(T node, tak::CheckerContext& ctx) -> std::optional
 std::optional<tak::TypeData>
 tak::evaluate_procdecl(AstProcdecl* node, CheckerContext& ctx) {
     assert(node != nullptr);
-    const auto* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
+    Symbol* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
 
-    if(sym->flags & ENTITY_FOREIGN && sym->flags & ENTITY_INTERNAL) {
+    const bool is_foreign   = sym->flags & ENTITY_FOREIGN || sym->flags & ENTITY_FOREIGN_C;
+    const bool is_foreign_c = sym->flags & ENTITY_FOREIGN_C;
+    const bool is_intern    = sym->flags & ENTITY_INTERNAL;
+
+    if(is_foreign && is_intern) {
         ctx.errs_.raise_error("Cannot create a procedure that is marked as both extern and intern.", node);
     }
 
     if(sym->flags & ENTITY_FOREIGN && !node->children.empty()) {
         ctx.errs_.raise_error("Procedures marked as foreign should not have bodies defined here.", node);
+    }
+
+    if(is_foreign_c && sym->flags & ENTITY_FOREIGN) {
+        ctx.errs_.raise_warning("both extern \"C\" and regular extern specified, assuming \"C\".", node);
+        sym->flags &= ~ENTITY_FOREIGN;
     }
 
     return evaluate_children(node, ctx);

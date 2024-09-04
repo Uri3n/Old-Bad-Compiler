@@ -26,12 +26,16 @@ tak::parse(Parser& parser, Lexer& lxr, const bool nocheck_term, const bool parse
     else if(TOKEN_IDENT_START(curr.type))     expr = parse_identifier(parser, lxr);
     else if(TOKEN_VALID_UNARY_OPERATOR(curr)) expr = parse_unary_expression(parser, lxr);
 
-    else {
+    else if(curr == TOKEN_ILLEGAL) {
+        lxr.raise_error("Illegal token.");
+        return nullptr;
+    } else {
         lxr.raise_error("Unexpected token.");
         return nullptr;
     }
 
     if(expr == nullptr) {
+        lxr.current().type = TOKEN_ILLEGAL;
         return nullptr;
     }
 

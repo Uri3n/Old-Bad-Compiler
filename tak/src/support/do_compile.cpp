@@ -2,18 +2,11 @@
 // Created by Diago on 2024-08-02.
 //
 
-#include <io.hpp>
-#include <lexer.hpp>
-#include <parser.hpp>
-#include <checker.hpp>
-#include <postparser.hpp>
-#include <codegen.hpp>
-
-using namespace tak;
+#include <do_compile.hpp>
 
 
-static bool
-get_next_include(Parser& parser, Lexer& lexer) {
+bool
+tak::get_next_include(Parser& parser, Lexer& lexer) {
     const auto next_include = std::find_if(parser.included_files_.begin(), parser.included_files_.end(), [](const IncludedFile& f) {
         return f.state == INCLUDE_STATE_PENDING;
     });
@@ -21,17 +14,16 @@ get_next_include(Parser& parser, Lexer& lexer) {
     if(next_include == parser.included_files_.end()) {
         return false;
     }
-
     if(!lexer.init(next_include->name)) {
         return false;
     }
 
     next_include->state = INCLUDE_STATE_DONE;
     return true;
- }
+}
 
-static bool
-do_parse(Parser& parser, Lexer& lexer) {
+bool
+tak::do_parse(Parser& parser, Lexer& lexer) {
     AstNode* toplevel_decl = nullptr;
     if(parser.tbl_.scope_stack_.empty()) {
         parser.tbl_.push_scope(); // global scope
@@ -57,8 +49,8 @@ do_parse(Parser& parser, Lexer& lexer) {
     return postparse_verify(parser, lexer);
 }
 
-static bool
-do_check(Parser& parser, const std::string& original_file_name) {
+bool
+tak::do_check(Parser& parser, const std::string& original_file_name) {
 #ifdef TAK_DEBUG
     parser.dump_nodes();
     parser.tbl_.dump_symbols();
@@ -82,8 +74,8 @@ do_check(Parser& parser, const std::string& original_file_name) {
     return true;
 }
 
-static void
-do_codegen(Parser& parser, const std::string& llvm_mod_name) {
+void
+tak::do_codegen(Parser& parser, const std::string& llvm_mod_name) {
     CodegenContext ctx(parser.tbl_, llvm_mod_name);
     ctx.mod_.setDataLayout("e-m:e-i64:64-i128:128-n32:64-S128");
 
@@ -98,17 +90,19 @@ do_codegen(Parser& parser, const std::string& llvm_mod_name) {
     ctx.mod_.print(llvm::outs(), nullptr);
 }
 
-static bool
-do_create_ast(Parser& parser, const std::string& source_file_name) {
+bool
+tak::do_create_ast(Parser& parser, const std::string& source_file_name) {
     Lexer lexer;
-    return lexer.init(source_file_name) && do_parse(parser, lexer) && do_check(parser, source_file_name);
+    return lexer.init(source_file_name)
+        && do_parse(parser, lexer)
+        && do_check(parser, source_file_name);
 }
 
 bool
-do_compile(const std::string& source_file_name) {
+tak::do_compile(const std::string& source_file_name) {
     Parser parser;
     if(!do_create_ast(parser, source_file_name)) return false;
-    do_codegen(parser, source_file_name);
+    //do_codegen(parser, source_file_name);
 
     return true;
 }

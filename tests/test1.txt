@@ -5,24 +5,16 @@ struct foo {
    mem2 : i32^;
 }
 
-myfunc :: proc(arg : foo^) -> bool {
-   ret arg == nullptr;
-}
+//@extern "C" printf :: proc(str : i8^, ...) -> i32;
 
-otherfunc :: proc(arg : i32) -> void {
-   ++arg;
-   ret;
+@extern "C" idk :: proc $[T]() -> void {
+   
 }
 
 main :: proc() -> i32 {
-   var2 : i32 = 0;
-   
-   if var2 == 3 {
-      ret 1;
-      ++var2;
-   } else {
-      var2 = 420;
-   }
+   for myvar : i32 = 0 {
 
+   }
+   printf("Hello world!");
    ret 0;
 }

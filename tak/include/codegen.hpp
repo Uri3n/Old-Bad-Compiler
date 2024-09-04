@@ -20,7 +20,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
-
     struct WrappedIRValue {
         TypeData tak_type;
         llvm::Value* value = nullptr;
@@ -67,6 +66,23 @@ namespace tak {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    enum defer_unpack_method_t : uint8_t {
+        DEFERRED_UNPACK_REGULAR,
+        DEFERRED_UNPACK_UNTIL_LOOP_BASE,
+        DEFERRED_UNPACK_ALL
+    };
+
+    struct DeferredStackElement {
+        std::vector<AstNode*> stmts;
+        bool is_loop_base = false;
+
+        ~DeferredStackElement() = default;
+        explicit DeferredStackElement(const bool is_loop_base)
+            : is_loop_base(is_loop_base) {}
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     class CodegenContext {
     public:
         struct {
@@ -88,7 +104,7 @@ namespace tak {
         llvm::IRBuilder<> builder_;     // LLVM IRBuilder, helper class for generating IR.
 
         std::optional<IRCastingContext>    casting_context_;  // casting context
-        std::vector<std::vector<AstNode*>> deferred_stmts_;   // calls for defer statements
+        std::vector<DeferredStackElement>  deferred_stmts_;   // calls for defer statements
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -109,7 +125,7 @@ namespace tak {
         bool curr_block_has_terminator();
         bool inside_loop();
         void pop_defers();
-        void push_defers();
+        void push_defers(bool is_loop_base = false);
         void push_deferred_stmt(AstNode* node);
         void enter_proc(llvm::Function* func, const Symbol* sym);
         void enter_loop(llvm::BasicBlock* after, llvm::BasicBlock* merge);
@@ -117,6 +133,9 @@ namespace tak {
         std::array<llvm::BasicBlock*, 2> leave_curr_loop();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        CodegenContext(const CodegenContext&)            = delete;
+        CodegenContext& operator=(const CodegenContext&) = delete;
 
         ~CodegenContext() = default;
         explicit CodegenContext(EntityTable& tbl, const std::string& module_name)
@@ -135,9 +154,18 @@ namespace tak {
     void generate_struct_layouts(CodegenContext& ctx);
     void generate_procedure_signatures(CodegenContext& ctx);
     void generate_global_placeholders(CodegenContext& ctx);
+    void _unpack_defers_impl(const std::vector<AstNode*>& stmts, CodegenContext& ctx);
     void unpack_defer(const AstDefer* node, CodegenContext& ctx);
     void unpack_defer_if(const AstDeferIf* node, CodegenContext& ctx);
-    void unpack_defers(CodegenContext& ctx, bool pop_after = false);
+    void unpack_defers_regular(CodegenContext& ctx);
+    void unpack_defers_until_loop_base(CodegenContext& ctx);
+    void unpack_defers_all(CodegenContext& ctx);
+
+    void unpack_defers(
+        CodegenContext& ctx,
+        defer_unpack_method_t method = DEFERRED_UNPACK_REGULAR,
+        bool pop_after               = false
+    );
 
     void generate_local_struct_init(
         llvm::Value* ptr,
@@ -210,6 +238,8 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_for(const AstFor* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_while(const AstWhile* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_dowhile(const AstDoWhile* node, CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_brk(CodegenContext& ctx);
+    std::shared_ptr<WrappedIRValue> generate_cont(CodegenContext& ctx);
 
     std::shared_ptr<WrappedIRValue> generate_branch(const AstBranch* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_blk(const AstBlock* node, CodegenContext& ctx);

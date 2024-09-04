@@ -1,11 +1,10 @@
 #include <exception>
 #include <iostream>
 #include <io.hpp>
+#include <do_compile.hpp>
 #include <argparse.hpp>
 
 #define CURRENT_TEST "tests/test1.txt"
-
-bool do_compile(const std::string& source_file_name);
 
 void
 handle_uncaught_exception() {
@@ -53,7 +52,7 @@ static void cmdline_argtest() {
 
 int main(int argc, char** argv) {
     std::set_terminate(handle_uncaught_exception);
-    if(!do_compile(CURRENT_TEST)) {
+    if(!tak::do_compile(CURRENT_TEST)) {
         return EXIT_FAILURE;
     }
 

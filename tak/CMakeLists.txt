@@ -16,9 +16,9 @@ add_executable(tak src/main.cpp
         src/lexer/init.cpp
 
         src/parser/begin.cpp
-        src/parser/decl.cpp
-        src/parser/expr.cpp
-        src/parser/ctrlflow.cpp
+        src/parser/declarations.cpp
+        src/parser/expressions.cpp
+        src/parser/controlflow.cpp
         src/parser/type.cpp
         src/parser/namespace.cpp
         src/parser/ident.cpp
@@ -50,8 +50,16 @@ add_executable(tak src/main.cpp
         src/postparser/generic_structs.cpp
         src/postparser/other.cpp
 
-        src/codegen/codegen.cpp
-        src/codegen/util.cpp
+        src/codegen/init.cpp
+        src/codegen/expressions.cpp
+        src/codegen/declarations.cpp
+        src/codegen/controlflow.cpp
+        src/codegen/llvm_types.cpp
+        src/codegen/begin.cpp
+        src/codegen/constants.cpp
+        src/codegen/defer.cpp
+        src/codegen/context.cpp
+        src/codegen/wrapped.cpp
 
         include/token.hpp
         include/Lexer.hpp
@@ -68,6 +76,7 @@ add_executable(tak src/main.cpp
         include/postparser.hpp
         include/entity_table.hpp
         include/argparse.hpp
+        include/do_compile.hpp
 )
 
 

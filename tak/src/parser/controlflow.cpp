@@ -554,15 +554,90 @@ tak::parse_dowhile(Parser& parser, Lexer& lxr) {
 
 
 tak::AstNode*
+tak::parse_forward_range_loop(AstFor* node, Parser& parser, Lexer& lxr) {
+    assert(lxr.current() == TOKEN_THREE_DOTS);
+    assert(node->init.has_value());
+    assert((*node->init)->type == NODE_VARDECL);
+
+    const size_t   curr_pos  = lxr.current().src_pos;
+    const uint32_t curr_line = lxr.current().line;
+
+    bool state          = false;
+    const auto* vardecl = dynamic_cast<AstVardecl*>(*node->init);
+    auto* const cond    = new AstBinexpr(curr_pos, curr_line, lxr.source_file_name_);
+    node->condition     = cond;
+    cond->parent        = node;
+
+    defer_if(!state, [&] {
+        delete node; // Note: scope is already popped by caller. Don't pop or push here.
+    });
+
+
+    if(vardecl == nullptr || !vardecl->init_value) {
+        lxr.raise_error("loop variable must be initialized with a starting value.");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    if(TOKEN_OP_IS_COMPARISON(lxr.current().type)) {
+        cond->src_pos   = lxr.current().src_pos;
+        cond->line      = lxr.current().line;
+        cond->_operator = lxr.current().type;
+        lxr.advance(1);
+    } else {
+        cond->_operator = TOKEN_COMP_LT;
+    }
+
+    auto* ident         = new AstIdentifier(curr_pos, curr_line, lxr.source_file_name_);
+    ident->parent       = cond;
+    ident->symbol_index = vardecl->identifier->symbol_index;
+    cond->left_op       = ident;
+    cond->right_op      = parse(parser, lxr, true);
+
+    if(cond->right_op == nullptr) {
+        return nullptr;
+    }
+
+    auto* unary       = new AstUnaryexpr(curr_pos, curr_line, lxr.source_file_name_);
+    auto* unary_ident = new AstIdentifier(curr_pos, curr_line, lxr.source_file_name_);
+
+    unary_ident->parent       = unary;
+    unary_ident->symbol_index = vardecl->identifier->symbol_index;
+    unary->parent     = node;
+    unary->operand    = unary_ident;
+    unary->_operator  = TOKEN_INCREMENT;
+    node->update      = unary;
+
+
+    if(lxr.current() != TOKEN_LBRACE) {
+        lxr.raise_error("Expected '{' (start of loop body).");
+        return nullptr;
+    }
+
+    lxr.advance(1);
+    while(lxr.current() != TOKEN_RBRACE) {
+        node->body.emplace_back(parse(parser, lxr, false));
+        if(node->body.back() == nullptr) {
+            return nullptr;
+        }
+        node->body.back()->parent = node;
+    }
+
+    lxr.advance(1);
+    state = true;
+    return node;
+}
+
+
+tak::AstNode*
 tak::parse_for(Parser& parser, Lexer& lxr) {
     assert(lxr.current() == TOKEN_KW_FOR);
 
     lxr.advance(1);
     parser.tbl_.push_scope();
 
-    auto* node  = new AstFor(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
-    bool  state = false;
-
+    auto*    node     = new AstFor(lxr.current().src_pos, lxr.current().line, lxr.source_file_name_);
+    bool     state    = false;
     size_t   curr_pos = 0;
     uint32_t line     = 0;
 
@@ -590,8 +665,14 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
 
         const auto init_t = (*node->init)->type;
         if(!NODE_VALID_SUBEXPRESSION(init_t) && init_t != NODE_VARDECL) {
-            lxr.raise_error("Invalid subexpression used as part of for-loop initialization.", curr_pos, line);
+            lxr.raise_error("Expression is invalid in the context of for-loop initialization.", curr_pos, line);
             return nullptr;
+        }
+
+        if(init_t == NODE_VARDECL && lxr.current() == TOKEN_THREE_DOTS) {
+            state     = true;
+            auto* frl = parse_forward_range_loop(node, parser, lxr);
+            return frl;
         }
 
         if(lxr.current() != TOKEN_COMMA && lxr.current() != TOKEN_SEMICOLON) {
@@ -671,7 +752,9 @@ tak::parse_for(Parser& parser, Lexer& lxr) {
     lxr.advance(1);
     while(lxr.current() != TOKEN_RBRACE) {
         node->body.emplace_back(parse(parser, lxr, false));
-        if(node->body.back() == nullptr) return nullptr;
+        if(node->body.back() == nullptr) {
+            return nullptr;
+        }
         node->body.back()->parent = node;
     }
 

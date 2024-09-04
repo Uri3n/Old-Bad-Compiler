@@ -21,7 +21,7 @@ namespace tak {
         ENTITY_FOREIGN         = 1UL,
         ENTITY_PLACEHOLDER     = 1UL << 1,
         ENTITY_GLOBAL          = 1UL << 2,
-        ENTITY_CALLCONV_C      = 1UL << 3,
+        ENTITY_FOREIGN_C       = 1UL << 3,
         ENTITY_GENPERM         = 1UL << 4,
         ENTITY_GENBASE         = 1UL << 5,
         ENTITY_POSTP_NORECHECK = 1UL << 6,

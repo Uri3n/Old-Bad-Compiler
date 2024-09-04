@@ -55,7 +55,8 @@ namespace tak {
 
     AstNode* parse(Parser& parser, Lexer& lxr, bool nocheck_term, bool parse_single = false);
     AstNode* parse_type_alias(Parser& parser, Lexer& lxr);
-    AstNode* parse_callconv(Parser& parser, Lexer& lxr);
+    AstNode* parse_visibility_extern(Parser& parser, Lexer& lxr);
+    AstNode* parse_visibility_intern(Parser& parser, Lexer& lxr);
     AstNode* parse_visibility_directive(Parser& parser, Lexer& lxr);
     AstNode* parse_include(Parser& parser, Lexer& lxr);
     AstNode* parse_compiler_directive(Parser& parser, Lexer& lxr);
@@ -65,6 +66,7 @@ namespace tak {
     AstNode* parse_cont(Lexer& lxr);
     AstNode* parse_brk(Lexer& lxr);
     AstNode* parse_sizeof(Parser& parser, Lexer& lxr);
+    AstNode* parse_forward_range_loop(AstFor* node, Parser& parser, Lexer& lxr);
     AstNode* parse_for(Parser& parser, Lexer& lxr);
     AstNode* parse_dowhile(Parser& parser, Lexer& lxr);
     AstNode* parse_block(Parser& parser, Lexer& lxr);

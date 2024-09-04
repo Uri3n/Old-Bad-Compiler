@@ -7,7 +7,6 @@
 
 std::optional<std::vector<uint32_t>>
 tak::parse_array_data(Lexer& lxr) {
-
     assert(lxr.current() == TOKEN_LSQUARE_BRACKET);
     std::vector<uint32_t> lengths;
     
@@ -53,7 +52,6 @@ tak::parse_array_data(Lexer& lxr) {
 
 static bool
 parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr) {
-
     assert(TOKEN_IDENT_START(lxr.current().type));
 
     const size_t   curr_pos  = lxr.current().src_pos;
@@ -143,7 +141,6 @@ parse_userdefined_type(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr
 
 static bool
 parse_primitive_type(tak::TypeData& data, tak::Lexer& lxr) {
-
     assert(lxr.current().kind == tak::KIND_TYPE_IDENTIFIER);
 
     tak::primitive_t     _var_t    = tak::PRIMITIVE_NONE;
@@ -174,7 +171,6 @@ parse_primitive_type(tak::TypeData& data, tak::Lexer& lxr) {
 
 static bool
 parse_type_postfixes(tak::TypeData& data, tak::Lexer& lxr) {
-
     if(lxr.current() == tak::TOKEN_BITWISE_XOR_OR_PTR) {
         data.flags |= tak::TYPE_POINTER;
         while(lxr.current() == tak::TOKEN_BITWISE_XOR_OR_PTR) {
@@ -198,7 +194,6 @@ parse_type_postfixes(tak::TypeData& data, tak::Lexer& lxr) {
 
 static bool
 parse_proctype_postfixes(tak::TypeData& data, tak::Parser& parser, tak::Lexer& lxr) {
-
     assert(lxr.current() == tak::TOKEN_LPAREN);
 
     //
@@ -279,7 +274,6 @@ parse_proctype_postfixes(tak::TypeData& data, tak::Parser& parser, tak::Lexer& l
 
 std::optional<tak::TypeData>
 tak::parse_type(Parser& parser, Lexer& lxr) {
-
     assert(lxr.current().kind == KIND_TYPE_IDENTIFIER || TOKEN_IDENT_START(lxr.current().type));
     TypeData data; // < returning this
 
