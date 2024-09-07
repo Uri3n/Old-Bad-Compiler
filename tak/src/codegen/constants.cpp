@@ -150,11 +150,7 @@ tak::generate_singleton_literal(AstSingletonLiteral* node, CodegenContext& ctx) 
 
     // Pointer literals (strings and "nullptr").
     if(node->literal_type == TOKEN_STRING_LITERAL) {
-        llvm::Constant* ptr = ctx.builder_.GetInsertBlock() == nullptr
-            ? generate_global_string_constant(ctx, node)
-            : ctx.builder_.CreateGlobalStringPtr(node->value);
-
-        return WrappedIRValue::create(ptr, TypeData::get_const_string());
+        return WrappedIRValue::create(generate_global_string_constant(ctx, node), TypeData::get_const_string());
     }
 
     if(node->literal_type == TOKEN_KW_NULLPTR) {

@@ -101,9 +101,11 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     template<valid_argument T>
-    Handler& get(const std::string& name, std::optional<T>& out);
+    auto get(const std::string& name) -> std::optional<T>;
+
     Handler& add_parameter(Parameter&& param);
     Handler& parse();
+
     void display_help(const std::optional<std::string>& msg = std::nullopt);
     [[noreturn]] void handle_bad_chunk(const std::string& msg, size_t pos);
 
@@ -183,7 +185,7 @@ const std::string& longf,
 }
 
 template<tak::argp::valid_argument T>
-auto tak::argp::Handler::get(const std::string& name, std::optional<T>& out) -> Handler& {
+auto tak::argp::Handler::get(const std::string& name) -> std::optional<T> {
     const auto param = std::ranges::find_if(params_, [&](const Parameter& p) {
         return p.longf_ == name || p.shortf_ == name;
     });
@@ -194,12 +196,10 @@ auto tak::argp::Handler::get(const std::string& name, std::optional<T>& out) -> 
     });
 
     if(arg == args_.end()) {
-        out = std::nullopt;
-    } else {
-        out = std::optional<T>(std::get<T>(arg->value_));
+        return std::nullopt;
     }
 
-    return *this;
+    return std::optional<T>(std::get<T>(arg->value_));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

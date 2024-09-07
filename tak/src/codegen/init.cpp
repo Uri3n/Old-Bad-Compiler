@@ -39,8 +39,12 @@ tak::generate_procedure_signatures(CodegenContext& ctx) {
             );
 
             if(sym->flags & ENTITY_FOREIGN_C) {
+                assert(!sym->name.empty());
+                assert(sym->name.front() == '\\');
+
+                sym->name.erase(0,1);
+                func->setName(sym->name);
                 func->setCallingConv(llvm::CallingConv::C);
-                func->setDSOLocal(true); // @Temporary ? don't know if this makes sense.
             }
 
             continue;

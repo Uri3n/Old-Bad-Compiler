@@ -6,6 +6,7 @@
 #define PARSER_HPP
 #include <ast_types.hpp>
 #include <entity_table.hpp>
+#include <config.hpp>
 #include <lexer.hpp>
 #include <io.hpp>
 #include <cstdlib>

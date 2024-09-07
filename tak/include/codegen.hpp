@@ -16,7 +16,6 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace tak {
@@ -234,13 +233,11 @@ namespace tak {
     std::shared_ptr<WrappedIRValue> generate_sizeof(const AstSizeof* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_cast(const AstCast* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_switch(const AstSwitch* node, CodegenContext& ctx);
-
     std::shared_ptr<WrappedIRValue> generate_for(const AstFor* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_while(const AstWhile* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_dowhile(const AstDoWhile* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_brk(CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_cont(CodegenContext& ctx);
-
     std::shared_ptr<WrappedIRValue> generate_branch(const AstBranch* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_blk(const AstBlock* node, CodegenContext& ctx);
     std::shared_ptr<WrappedIRValue> generate_member_access(const AstMemberAccess* node, CodegenContext& ctx);

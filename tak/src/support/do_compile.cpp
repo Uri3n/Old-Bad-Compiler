@@ -7,7 +7,7 @@
 
 bool
 tak::get_next_include(Parser& parser, Lexer& lexer) {
-    const auto next_include = std::find_if(parser.included_files_.begin(), parser.included_files_.end(), [](const IncludedFile& f) {
+    const auto next_include = std::ranges::find_if(parser.included_files_, [](const IncludedFile& f) {
         return f.state == INCLUDE_STATE_PENDING;
     });
 
@@ -50,34 +50,103 @@ tak::do_parse(Parser& parser, Lexer& lexer) {
 }
 
 bool
-tak::do_check(Parser& parser, const std::string& original_file_name) {
-#ifdef TAK_DEBUG
-    parser.dump_nodes();
-    parser.tbl_.dump_symbols();
-    parser.tbl_.dump_types();
-#endif
-
+tak::do_check(Parser& parser) {
     CheckerContext ctx(parser.tbl_);
     for(const auto& decl : parser.toplevel_decls_) {
-        if(NODE_NEEDS_EVALUATING(decl->type)) {
-            evaluate(decl, ctx);
-        }
+        if(NODE_NEEDS_EVALUATING(decl->type)) evaluate(decl, ctx);
     }
 
     ctx.errs_.emit();
     if(ctx.errs_.failed()) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("\n{}: BUILD FAILED", original_file_name);
-        print<TFG_NONE, TBG_NONE, TSTYLE_NONE>("Finished with {} errors, {} warnings.", ctx.errs_.error_count_, ctx.errs_.warning_count_);
+        red_bold("\n{}: BUILD FAILED", Config::get().input_file_name());
+        red_bold("Finished with {} errors, {} warnings.", ctx.errs_.error_count_, ctx.errs_.warning_count_);
+    }
+
+    return !ctx.errs_.failed();
+}
+
+llvm::TargetMachine*
+tak::initialize_llvm_target(CodegenContext &ctx) {
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+    std::string err;
+    const auto default_triple = Config::get().arch().value_or(llvm::sys::getDefaultTargetTriple());
+    const auto* target        = llvm::TargetRegistry::lookupTarget(default_triple, err);
+
+    if(target == nullptr) {
+        print<TFG_RED>("\nFailed to initialize LLVM compilation target.");
+        print<TFG_RED>("LLVM error message: \"{}\"", err);
+        return nullptr;
+    }
+
+    const llvm::TargetOptions opt;
+    llvm::TargetMachine*      machine = target->createTargetMachine(default_triple, "generic", "", opt, std::nullopt);
+    const llvm::DataLayout    layout  = machine->createDataLayout();
+
+    ctx.mod_.setTargetTriple(default_triple);
+    ctx.mod_.setDataLayout(layout);
+    return machine;
+}
+
+
+bool
+tak::emit_llvm_ir(CodegenContext &ctx, llvm::TargetMachine* machine) {
+#if 0
+    auto module_pass_manager        = llvm::ModulePassManager();
+    auto pass_builder               = llvm::PassBuilder();
+    auto loop_analysis_manager      = llvm::LoopAnalysisManager();
+    auto function_analysis_manager  = llvm::FunctionAnalysisManager();
+    auto cgscc_analysis_manager     = llvm::CGSCCAnalysisManager();
+    auto module_analysis_manager    = llvm::ModuleAnalysisManager();
+
+    // create analysis passes
+    function_analysis_manager.registerPass([&] { return llvm::TargetLibraryAnalysis(); });
+    module_analysis_manager.registerPass([&]   { return llvm::TargetLibraryAnalysis(); });
+    module_analysis_manager.registerPass([&]   { return llvm::TargetIRAnalysis();      });
+
+    // Register analysis managers with the pass builder
+    pass_builder.registerModuleAnalyses(module_analysis_manager);
+    pass_builder.registerCGSCCAnalyses(cgscc_analysis_manager);
+    pass_builder.registerFunctionAnalyses(function_analysis_manager);
+    pass_builder.registerLoopAnalyses(loop_analysis_manager);
+#else
+#endif
+
+    // Create output file
+    std::error_code ec;
+    const std::string output_file = "output.o";
+    llvm::raw_fd_ostream dest("output.o", ec, llvm::sys::fs::OF_None);
+    if(ec) {
+        red_bold("LLVM failed to open output file \"{}\".", output_file);
+        print("Error message: \"{}\"", ec.message());
         return false;
     }
 
+    llvm::legacy::PassManager legacy_pass_manager;
+    if(machine->addPassesToEmitFile(legacy_pass_manager, dest, nullptr, llvm::CodeGenFileType::ObjectFile)) {
+        red_bold("LLVM refused to emit object code.");
+        return false;
+    }
+
+    legacy_pass_manager.run(ctx.mod_);
+    dest.flush();
+
+    print<TFG_GREEN>("\nSuccess.");
+    print("Wrote output to: {}", output_file);
     return true;
 }
 
-void
+bool
 tak::do_codegen(Parser& parser, const std::string& llvm_mod_name) {
-    CodegenContext ctx(parser.tbl_, llvm_mod_name);
-    ctx.mod_.setDataLayout("e-m:e-i64:64-i128:128-n32:64-S128");
+    auto  ctx     = CodegenContext(parser.tbl_, llvm_mod_name);
+    auto* machine = initialize_llvm_target(ctx);
+
+    if(machine == nullptr) {
+        return false;
+    }
 
     generate_struct_layouts(ctx);
     generate_global_placeholders(ctx);
@@ -87,22 +156,31 @@ tak::do_codegen(Parser& parser, const std::string& llvm_mod_name) {
         if(NODE_NEEDS_GENERATING(child->type)) generate(child, ctx);
     }
 
-    ctx.mod_.print(llvm::outs(), nullptr);
+    const bool verify_result = llvm::verifyModule(ctx.mod_, &llvm::errs());
+    if(verify_result == true) {
+        panic("LLVM failed to verify the module."); // should never happen
+    }
+
+    const uint32_t flags = Config::get().flags();
+    if(flags & CONFIG_DUMP_AST)     parser.dump_nodes();
+    if(flags & CONFIG_DUMP_SYMBOLS) parser.tbl_.dump_symbols();
+    if(flags & CONFIG_DUMP_TYPES)   parser.tbl_.dump_types();
+    if(flags & CONFIG_DUMP_LLVM)    ctx.mod_.print(llvm::outs(), nullptr);
+
+    return emit_llvm_ir(ctx, machine);
 }
 
 bool
-tak::do_create_ast(Parser& parser, const std::string& source_file_name) {
+tak::do_create_ast(Parser& parser) {
     Lexer lexer;
-    return lexer.init(source_file_name)
+    return lexer.init(Config::get().input_file_name())
         && do_parse(parser, lexer)
-        && do_check(parser, source_file_name);
+        && do_check(parser);
 }
 
 bool
-tak::do_compile(const std::string& source_file_name) {
+tak::do_compile() {
     Parser parser;
-    if(!do_create_ast(parser, source_file_name)) return false;
-    //do_codegen(parser, source_file_name);
-
-    return true;
+    const auto source_file_name = Config::get().input_file_name();
+    return do_create_ast(parser) && do_codegen(parser, source_file_name);
 }

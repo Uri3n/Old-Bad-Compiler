@@ -8,7 +8,7 @@ void
 tak::SemanticErrorHandler::_max_err_chk() {
     if(error_count_ + 1 >= MAX_ERROR_COUNT) {
         emit();
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("\nMaximum amount of permitted errors (45) reached. Compilation was aborted.");
+        red_bold("\nMaximum amount of permitted errors ({}) reached. Compilation was aborted.", MAX_ERROR_COUNT);
         exit(1);
     }
 }
@@ -50,6 +50,11 @@ tak::SemanticErrorHandler::raise_error(const std::string& message, const Symbol*
 
 void
 tak::SemanticErrorHandler::raise_warning(const std::string& message, const std::string& file, const size_t position, const uint32_t line) {
+    if(Config::get().flags() & CONFIG_WARN_IS_ERR) {
+        raise_error(message, file, position, line);
+        return;
+    }
+
     ++warning_count_;
     errors_[file].emplace_back(ErrorType{ message, position, line, true });
 }

@@ -256,7 +256,12 @@ tak::parse_visibility_intern(Parser& parser, Lexer& lxr) {
     }();
 
     if(!sym->generic_type_names.empty()) {
-        lxr.raise_warning(R"(redundant "intern" directive, generic symbols are implied to be internal.)", pos, line);
+        const std::string msg = R"(redundant "intern" directive, generic symbols are implied to be internal.)";
+        if(Config::get().flags() & CONFIG_WARN_IS_ERR) {
+            lxr.raise_error(msg, pos, line);
+            return nullptr;
+        }
+        lxr.raise_warning(msg, pos, line);
     }
 
     sym->flags |= ENTITY_INTERNAL;

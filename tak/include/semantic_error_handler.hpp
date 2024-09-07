@@ -7,6 +7,7 @@
 #include <lexer.hpp>
 #include <ast_types.hpp>
 #include <entity_table.hpp>
+#include <config.hpp>
 #include <map>
 #include <io.hpp>
 

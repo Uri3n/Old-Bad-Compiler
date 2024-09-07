@@ -146,7 +146,6 @@ tak::generate_identifier(const AstIdentifier* node, CodegenContext& ctx) {
         return ctx.get_local(std::to_string(sym->symbol_index));
     }();
 
-    // @Incorrect ? don't know yet if this makes sense or not...
     if(!ctx.casting_context_exists() && val->tak_type.is_primitive()) {
         ctx.set_casting_context(generate_type(ctx, val->tak_type), val->tak_type);
     }

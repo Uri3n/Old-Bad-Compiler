@@ -155,7 +155,7 @@ tak::argp::Handler::check_predicates() {
         const auto pred_result = param.pred_(matching_arg->value_);
         failed = pred_result.has_value(); // has_value : Indicates an error occurred.
         if(failed) {
-            print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("{}", fmt("Error parsing command-line argument \"{}\":", matching_arg->str_));
+            red_bold("{}", fmt("Error parsing command-line argument \"{}\":", matching_arg->str_));
             print("\"{}\"", *pred_result);
             print("");
         }
@@ -170,19 +170,19 @@ tak::argp::Handler::display_help(const std::optional<std::string>& msg) {
         print("{}", *msg);
     }
 
-    print("{:<18} {:<60} {:<8}", "Flag Name", "Description", "Type");
-    print("{:=<18} {:=<60} {:=<8}", "=", "=", "=");
+    print("{:<30} {:<65} {:<8}", "Flag Name", "Description", "Type");
+    print("{:=<30} {:=<65} {:=<8}", "=", "=", "=");
 
     for(const auto& param : params_) {
         const std::string expected_str = [&]() -> std::string {
             if(param.expected_ == typeid(bool))        return "Boolean";
             if(param.expected_ == typeid(std::string)) return "String";
             if(param.expected_ == typeid(int64_t))     return "Integer";
-            return "None (no value needed)";
+            return "None";
         }();
 
         const std::string out = fmt(
-            "{:<18} {:<60} {:<8}",
+            "{:<30} {:<65} {:<8}",
             param.longf_ + ' ' + param.shortf_,
             param.description_,
             expected_str
@@ -219,7 +219,7 @@ tak::argp::Handler::check_required() {
 
         failed = matching_arg == args_.end();
         if(failed) {
-            print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("Error parsing command-line arguments:");
+            red_bold("Error parsing command-line arguments:");
             print("{}", fmt("Flag \"{} / {}\" is required. Please specify this flag alongside its value.", param.longf_, param.shortf_));
             print("");
         }
@@ -228,10 +228,8 @@ tak::argp::Handler::check_required() {
     if(failed) exit(1);
 }
 
-
 tak::argp::Handler&
 tak::argp::Handler::parse() {
-
     std::optional<std::string> curr_flag = std::nullopt;
 
     for(size_t i = 0; i < chunks_.size(); i++) {
@@ -275,6 +273,11 @@ tak::argp::Handler::parse() {
         }
 
         curr_flag = std::nullopt;
+    }
+
+    // There may be an extra "empty" argument at the end of the input stream.
+    if(curr_flag.has_value()) {
+        args_.emplace_back(Argument::create(Argument::Empty(), *curr_flag, chunks_.size() - 1));
     }
 
     check_defaults();

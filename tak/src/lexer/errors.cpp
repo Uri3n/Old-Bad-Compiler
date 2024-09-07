@@ -62,32 +62,26 @@ tak::Lexer::_raise_error_impl(const std::string& message, size_t file_position, 
     else        print<TFG_RED, TBG_NONE, TSTYLE_NONE>("{}{}\n", whitespace, message);
 }
 
-void
-tak::Lexer::raise_error(const std::string& message) {
+void tak::Lexer::raise_error(const std::string& message) {
     _raise_error_impl(message, current_.src_pos, current_.line);
 }
 
-void
-tak::Lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
+void tak::Lexer::raise_error(const std::string& message, const size_t file_position, const uint32_t line) {
     _raise_error_impl(message, file_position, line);
 }
 
-void
-tak::Lexer::raise_error(const std::string& message, const size_t file_position) {
+void tak::Lexer::raise_error(const std::string& message, const size_t file_position) {
     _raise_error_impl(message, file_position, 0);
 }
 
-void
-tak::Lexer::raise_warning(const std::string& message) {
+void tak::Lexer::raise_warning(const std::string& message) {
     _raise_error_impl(message, current_.src_pos, current_.line, true);
 }
 
-void
-tak::Lexer::raise_warning(const std::string& message, const size_t file_position, const uint32_t line) {
+void tak::Lexer::raise_warning(const std::string& message, const size_t file_position, const uint32_t line) {
     _raise_error_impl(message, file_position, line, true);
 }
 
-void
-tak::Lexer::raise_warning(const std::string& message, const size_t file_position) {
+void tak::Lexer::raise_warning(const std::string& message, const size_t file_position) {
     _raise_error_impl(message, file_position, 0);
 }

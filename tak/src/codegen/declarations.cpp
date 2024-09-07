@@ -10,7 +10,7 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
     assert(node != nullptr);
 
     const Symbol* sym = ctx.tbl_.lookup_unique_symbol(node->identifier->symbol_index);
-    if(sym->flags & ENTITY_FOREIGN) {
+    if(sym->flags & ENTITY_FOREIGN || sym->flags & ENTITY_FOREIGN_C) {
         return WrappedIRValue::get_empty();
     }
 
@@ -20,7 +20,6 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
 
     llvm::Function*   func  = ctx.mod_.getFunction(sym->name);
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(ctx.llvm_ctx_, "entry", func);
-
     assert(func != nullptr);
     assert(node->parameters.size() == func->arg_size());
 
@@ -49,7 +48,7 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
     }
 
     //
-    // Add a default return value if the user forgot to return themselves.
+    // Add a default return value if the user did not return themselves.
     //
 
     if(!ctx.curr_block_has_terminator()) {
@@ -68,7 +67,11 @@ tak::generate_procdecl(const AstProcdecl* node, CodegenContext& ctx) {
         }
     }
 
-    verifyFunction(*func, &llvm::errs());
+    const bool verify_result = llvm::verifyFunction(*func, &llvm::errs());
+    if(verify_result == true) {
+        panic(fmt("LLVM failed to verify function \"{}\"", func->getName().str())); // should never happen
+    }
+
     ctx.leave_curr_proc();
     ctx.pop_defers();
     return WrappedIRValue::get_empty();

@@ -7,7 +7,6 @@
 #include <Windows.h>
 static bool win_virtual_sequences_enabled = false;
 
-
 void
 tak::try_enable_windows_virtual_terminal_sequences() {
 

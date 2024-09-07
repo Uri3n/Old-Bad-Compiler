@@ -15,12 +15,12 @@ tak::Lexer::init(const std::string& file_name) {
 
 
     if(!std::filesystem::exists(file_name)) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("FATAL, source file \"{}\" does not exist.", file_name);
+        red_bold("FATAL, source file \"{}\" does not exist.", file_name);
         return false;
     }
 
     if(!is_regular_file(std::filesystem::path(file_name))) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("FATAL, \"{}\" is not a regular file.", file_name);
+        red_bold("FATAL, \"{}\" is not a regular file.", file_name);
         return false;
     }
 
@@ -34,7 +34,7 @@ tak::Lexer::init(const std::string& file_name) {
 
 
     if(!input.is_open()) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("FATAL, could not open source file \"{}\".", file_name);
+        red_bold("FATAL, could not open source file \"{}\".", file_name);
         return false;
     }
 
@@ -52,7 +52,7 @@ tak::Lexer::init(const std::string& file_name) {
     src_.resize(file_size);
 
     if(!input.read(src_.data(), file_size)) {
-        print<TFG_RED, TBG_NONE, TSTYLE_BOLD>("FATAL, opened source file \"{}\" but contents could not be read.", file_name);
+        red_bold("FATAL, opened source file \"{}\" but contents could not be read.", file_name);
         return false;
     }
 

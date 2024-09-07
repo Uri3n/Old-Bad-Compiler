@@ -1,20 +1,13 @@
 //@include "test2.txt";
 
-struct foo {
-   mem1 : i8;
-   mem2 : i32^;
-}
+//struct foo {
+//   mem1 : i8;
+//   mem2 : i32^;
+//}
 
-//@extern "C" printf :: proc(str : i8^, ...) -> i32;
-
-@extern "C" idk :: proc $[T]() -> void {
-   
-}
+@extern "C" printf :: proc(str : i8^, ...) -> i32;
 
 main :: proc() -> i32 {
-   for myvar : i32 = 0 {
-
-   }
-   printf("Hello world!");
+   printf("Hello, world!\n");   
    ret 0;
 }

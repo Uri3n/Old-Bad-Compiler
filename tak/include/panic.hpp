@@ -11,7 +11,7 @@
 
 [[noreturn]] inline void
 _panic_impl(const std::string& message, const std::string& file, const int64_t line) {
-    tak::print<tak::TFG_RED, tak::TBG_NONE, tak::TSTYLE_BOLD>("PANIC :: {}", message);
+    tak::red_bold("PANIC :: {}", message);
     tak::print("In file \"{}\" at line {}.", file, line);
     exit(1);
 }

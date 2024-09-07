@@ -55,7 +55,6 @@ namespace tak {
 
     template<typename ... Args>
     static std::string fmt(const std::format_string<Args...> fmt, Args... args) {
-
         std::string output;
 
         try {
@@ -71,7 +70,6 @@ namespace tak {
 
     template<termcolor_fg_t fg = TFG_NONE, termcolor_bg_t bg = TBG_NONE, uint16_t s = TSTYLE_NONE, typename ... Args>
     static void print(const std::format_string<Args...> fmt, Args... args) {
-
         std::string output;
         bool term_changed = false;
 
@@ -105,6 +103,11 @@ namespace tak {
     template<typename ... Args>
     static void bold_underline(const std::format_string<Args...> fmt, Args... args) {
         tak::print<TFG_NONE, TBG_NONE, TSTYLE_BOLD | TSTYLE_UNDERLINE>(fmt, args...);
+    }
+
+    template<typename ... Args>
+    static void red_bold(const std::format_string<Args...> fmt, Args... args) {
+        tak::print<TFG_RED, TBG_NONE, TSTYLE_BOLD>(fmt, args...);
     }
 }
 #endif //IO_HPP
