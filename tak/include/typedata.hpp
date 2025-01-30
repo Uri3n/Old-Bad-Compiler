@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <source_location>
+#include <memory>
 #include <token.hpp>
 #include <variant>
 

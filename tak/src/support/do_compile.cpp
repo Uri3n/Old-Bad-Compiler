@@ -91,34 +91,12 @@ tak::initialize_llvm_target(CodegenContext &ctx) {
     return machine;
 }
 
-
 bool
 tak::emit_llvm_ir(CodegenContext &ctx, llvm::TargetMachine* machine) {
-#if 0
-    auto module_pass_manager        = llvm::ModulePassManager();
-    auto pass_builder               = llvm::PassBuilder();
-    auto loop_analysis_manager      = llvm::LoopAnalysisManager();
-    auto function_analysis_manager  = llvm::FunctionAnalysisManager();
-    auto cgscc_analysis_manager     = llvm::CGSCCAnalysisManager();
-    auto module_analysis_manager    = llvm::ModuleAnalysisManager();
-
-    // create analysis passes
-    function_analysis_manager.registerPass([&] { return llvm::TargetLibraryAnalysis(); });
-    module_analysis_manager.registerPass([&]   { return llvm::TargetLibraryAnalysis(); });
-    module_analysis_manager.registerPass([&]   { return llvm::TargetIRAnalysis();      });
-
-    // Register analysis managers with the pass builder
-    pass_builder.registerModuleAnalyses(module_analysis_manager);
-    pass_builder.registerCGSCCAnalyses(cgscc_analysis_manager);
-    pass_builder.registerFunctionAnalyses(function_analysis_manager);
-    pass_builder.registerLoopAnalyses(loop_analysis_manager);
-#else
-#endif
-
-    // Create output file
     std::error_code ec;
-    const std::string output_file = "output.o";
-    llvm::raw_fd_ostream dest("output.o", ec, llvm::sys::fs::OF_None);
+    const std::string output_file = Config::get().output_file_name() + ".o";
+    llvm::raw_fd_ostream dest(output_file, ec, llvm::sys::fs::OF_None);
+
     if(ec) {
         red_bold("LLVM failed to open output file \"{}\".", output_file);
         print("Error message: \"{}\"", ec.message());

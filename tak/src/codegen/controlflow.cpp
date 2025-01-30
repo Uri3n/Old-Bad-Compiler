@@ -77,72 +77,75 @@ tak::generate_blk(const AstBlock *node, CodegenContext &ctx) {
 
 std::shared_ptr<tak::WrappedIRValue>
 tak::generate_switch(const AstSwitch *node, CodegenContext &ctx) {
-    assert(node != nullptr);
-    assert(!ctx.casting_context_exists());
-    assert(ctx.inside_procedure());
+    assert(false && "don't create switches, they're broken");
 
-    const auto        wrapped  = WrappedIRValue::maybe_adjust(node->target, ctx);
-    llvm::BasicBlock* merge    = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.merge", ctx.curr_proc_.func);
-    llvm::BasicBlock* _default = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.default", ctx.curr_proc_.func);
-    llvm::SwitchInst* _switch  = ctx.builder_.CreateSwitch(wrapped->value, _default, node->cases.size());
+    // assert(node != nullptr);
+    // assert(!ctx.casting_context_exists());
+    // assert(ctx.inside_procedure());
+    //
+    // const auto        wrapped  = WrappedIRValue::maybe_adjust(node->target, ctx);
+    // llvm::BasicBlock* merge    = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.merge", ctx.curr_proc_.func);
+    // llvm::BasicBlock* _default = llvm::BasicBlock::Create(ctx.llvm_ctx_, "switch.default", ctx.curr_proc_.func);
+    // llvm::SwitchInst* _switch  = ctx.builder_.CreateSwitch(wrapped->value, _default, node->cases.size());
+    //
+    //
+    // // Iterate over cases, generate each one.
+    // for(size_t i = 0; i < node->cases.size(); i++)
+    // {
+    //     if(wrapped->tak_type.is_primitive()) {
+    //         ctx.set_casting_context(generate_type(ctx, wrapped->tak_type), wrapped->tak_type);
+    //     }
+    //
+    //     llvm::BasicBlock* case_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, fmt("switch.case[{}]", i), ctx.curr_proc_.func);
+    //     llvm::Value*      case_val = WrappedIRValue::maybe_adjust(node->cases[i]->value, ctx)->value;
+    //
+    //     if(i > 0 && node->cases[i - 1]->fallthrough && !ctx.curr_block_has_terminator()) {
+    //         ctx.builder_.CreateBr(case_blk);
+    //     }
+    //
+    //     assert(llvm::isa<llvm::Constant>(case_val));
+    //     assert(llvm::isa<llvm::ConstantInt>(case_val));
+    //     _switch->addCase(llvm::cast<llvm::ConstantInt>(case_val), case_blk);
+    //
+    //     ctx.delete_casting_context();
+    //     ctx.push_defers();
+    //     ctx.builder_.SetInsertPoint(case_blk);
+    //
+    //     for(AstNode* child_node : node->cases[i]->body) {
+    //         if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+    //         ctx.delete_casting_context();
+    //     }
+    //
+    //     if(!ctx.curr_block_has_terminator()) {
+    //         unpack_defers(ctx);
+    //         if(!node->cases[i]->fallthrough) {
+    //             ctx.builder_.CreateBr(merge);
+    //         }
+    //     }
+    //     ctx.pop_defers();
+    // }
+    //
+    //
+    // // Handle default case.
+    // if(!node->cases.empty() && node->cases.back()->fallthrough && !ctx.curr_block_has_terminator()) {
+    //     ctx.builder_.CreateBr(_default);
+    // }
+    //
+    // ctx.builder_.SetInsertPoint(_default);
+    // ctx.push_defers();
+    //
+    // for(AstNode* child_node : node->_default->body) {
+    //     if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
+    //     ctx.delete_casting_context();
+    // }
+    //
+    // if(!ctx.curr_block_has_terminator()) {
+    //     unpack_defers(ctx);
+    //     ctx.builder_.CreateBr(merge);
+    // }
+    //
+    // ctx.pop_defers();
 
-
-    // Iterate over cases, generate each one.
-    for(size_t i = 0; i < node->cases.size(); i++)
-    {
-        if(wrapped->tak_type.is_primitive()) {
-            ctx.set_casting_context(generate_type(ctx, wrapped->tak_type), wrapped->tak_type);
-        }
-
-        llvm::BasicBlock* case_blk = llvm::BasicBlock::Create(ctx.llvm_ctx_, fmt("switch.case[{}]", i), ctx.curr_proc_.func);
-        llvm::Value*      case_val = WrappedIRValue::maybe_adjust(node->cases[i]->value, ctx)->value;
-
-        if(i > 0 && node->cases[i - 1]->fallthrough && !ctx.curr_block_has_terminator()) {
-            ctx.builder_.CreateBr(case_blk);
-        }
-
-        assert(llvm::isa<llvm::Constant>(case_val));
-        assert(llvm::isa<llvm::ConstantInt>(case_val));
-        _switch->addCase(llvm::cast<llvm::ConstantInt>(case_val), case_blk);
-
-        ctx.delete_casting_context();
-        ctx.push_defers();
-        ctx.builder_.SetInsertPoint(case_blk);
-
-        for(AstNode* child_node : node->cases[i]->body) {
-            if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
-            ctx.delete_casting_context();
-        }
-
-        if(!ctx.curr_block_has_terminator()) {
-            unpack_defers(ctx);
-            if(!node->cases[i]->fallthrough) {
-                ctx.builder_.CreateBr(merge);
-            }
-        }
-        ctx.pop_defers();
-    }
-
-
-    // Handle default case.
-    if(!node->cases.empty() && node->cases.back()->fallthrough && !ctx.curr_block_has_terminator()) {
-        ctx.builder_.CreateBr(_default);
-    }
-
-    ctx.builder_.SetInsertPoint(_default);
-    ctx.push_defers();
-
-    for(AstNode* child_node : node->_default->body) {
-        if(NODE_NEEDS_GENERATING(child_node->type)) generate(child_node, ctx);
-        ctx.delete_casting_context();
-    }
-
-    if(!ctx.curr_block_has_terminator()) {
-        unpack_defers(ctx);
-        ctx.builder_.CreateBr(merge);
-    }
-
-    ctx.pop_defers();
     return WrappedIRValue::get_empty();
 }
 
